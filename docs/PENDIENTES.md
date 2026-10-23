@@ -20,6 +20,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 - [ ] `@lhci/cli` en el CI (fase 8).
 
 ## Revisiones y pruebas de Iván
+- [ ] Ver `docs/DISENO.md` y las capturas de la fase 0 (`docs/informes/img/fase-0/`): paleta «Barro», Fraunces con el eje SOFT y Geist Mono (revisión del bloque 0).
 - [ ] Escuchar los 12 sonidos y 3 combinaciones (`npm run demo:sounds`, final del bloque B).
 - [ ] Pruebas en Android e iPhone por el staging (fase 4; necesarias antes del bloque C).
 - [ ] Aprobar el diseño del instrumento (parada de la fase 5.a).
