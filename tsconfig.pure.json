@@ -1,0 +1,17 @@
+// Capas de TS puro (PLAN §4.2): sin DOM, sin Web Audio y sin Node. Si alguna usa `window`,
+// `document`, `AudioContext`, `setTimeout`… este tsconfig no compila.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": [],
+    "noEmit": true
+  },
+  "include": [
+    "src/app/audio/core/**/*.ts",
+    "src/app/audio/synth/**/*.ts",
+    "src/app/audio/files/**/*.ts",
+    "src/app/instrument/**/*.ts"
+  ],
+  "exclude": ["src/**/*.spec.ts"]
+}

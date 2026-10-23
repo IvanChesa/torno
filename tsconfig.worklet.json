@@ -1,0 +1,11 @@
+// El AudioWorklet (AudioWorkletGlobalScope): sin DOM. Sus tipos globales están en
+// src/app/audio/worklet/audio-worklet-global.d.ts. También comprueba que audio/core cabe ahí.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": [],
+    "noEmit": true
+  },
+  "include": ["src/app/audio/worklet/**/*.ts"]
+}
