@@ -14,6 +14,8 @@
   /* Tinta crema de hueso (croma bajo: no es amarillo) y su versión secundaria. */
   --color-ink: #f1ece0;
   --color-ink-muted: #c5c2ac;
+  /* Solo para texto grande (≥ 24 px) sobre el fondo: 3,3:1, el mínimo de la WCAG para ese tamaño. */
+  --color-ink-faint: #78765b;
   /* Acento terracota: la acción principal y poco más (< 5 % de la pantalla). */
   --color-accent: #e48762;
   --color-accent-hover: #f19c75;

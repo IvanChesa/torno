@@ -61,7 +61,7 @@ main:focus {
 }
 
 .site-footer__name {
-  color: var(--color-surface-2);
+  color: var(--color-ink-faint);
   font-size: clamp(5rem, 2rem + 18vw, 16rem);
   font-weight: 640;
   font-variation-settings: 'SOFT' var(--soft-display);
