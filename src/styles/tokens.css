@@ -1,0 +1,89 @@
+/*
+ * Tokens de diseño de la dirección B «Barro» (docs/DISENO.md). Es la única fuente de colores,
+ * tipografía, espacio, forma y movimiento: los componentes solo usan estas variables.
+ * Los contrastes de cada combinación los comprueba scripts/contrast.spec.ts.
+ */
+:root {
+  color-scheme: dark;
+
+  /* --- Color: la web --- */
+  /* Fondo verde oliva oscuro (los olivares del Bajo Cinca) y dos escalones de superficie. */
+  --color-bg: #252712;
+  --color-surface: #2f3119;
+  --color-surface-2: #3a3d23;
+  /* Tinta crema de hueso (croma bajo: no es amarillo) y su versión secundaria. */
+  --color-ink: #f1ece0;
+  --color-ink-muted: #c5c2ac;
+  /* Acento terracota: la acción principal y poco más (< 5 % de la pantalla). */
+  --color-accent: #e48762;
+  --color-accent-hover: #f19c75;
+  --color-on-accent: #252712;
+  /* Terracota más clara para texto sobre el fondo (enlaces activos, cifras destacadas). */
+  --color-accent-text: #eea580;
+  --color-focus: #f1ece0;
+  --color-error: #f58c81;
+  --color-warning: #eec469;
+  /* La pantalla del aparato: verde fósforo sobre casi negro. */
+  --color-screen: #0c1a0f;
+  --color-phosphor: #79f481;
+
+  /* --- Color: el instrumento (sRGB; valores de partida de los materiales, docs/DISENO.md §7) --- */
+  --instrument-body: #aa5c40;
+  --instrument-brass: #c4a269;
+  --instrument-key: #e7ddc8;
+  --instrument-glaze: #626838;
+  --instrument-led-rec: #f6623d;
+
+  /* --- Tipografía --- */
+  --font-text: 'Fraunces Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  /* Escala fluida (360 → 1440 px). Cinco tamaños a la vista como mucho en una pantalla. */
+  --text-xs: 0.8125rem;
+  --text-s: 0.9375rem;
+  --text-m: clamp(1.0625rem, 1.02rem + 0.19vw, 1.1875rem);
+  --text-l: clamp(1.25rem, 1.1rem + 0.65vw, 1.625rem);
+  --text-xl: clamp(1.75rem, 1.35rem + 1.8vw, 2.75rem);
+  --text-display: clamp(3rem, 1.6rem + 6.4vw, 6rem);
+  --leading-display: 0.96;
+  --leading-heading: 1.1;
+  --leading-lead: 1.4;
+  --leading-text: 1.55;
+  --tracking-display: -0.03em;
+  --tracking-heading: -0.015em;
+  /* Fraunces: títulos suaves (eje SOFT, «barro»); el texto, con el corte normal. */
+  --soft-display: 100;
+  --soft-text: 0;
+  --weight-text: 400;
+  --weight-strong: 600;
+  --weight-heading: 560;
+
+  /* --- Espacio (base 4 px) --- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --space-9: 6rem;
+  --space-10: 8rem;
+  --page-margin: clamp(1rem, 0.6rem + 1.8vw, 2.5rem);
+  --section-gap: clamp(5rem, 3rem + 7vw, 10rem);
+  --max-width: 76rem;
+  --measure: 65ch;
+
+  /* --- Forma --- */
+  /* Botones y controles: redondos del todo (pellas de barro). Paneles: esquina amplia. */
+  --radius-pill: 999px;
+  --radius-panel: 1.25rem;
+  --radius-s: 0.5rem;
+  --focus-ring: 2px solid var(--color-focus);
+  --focus-offset: 3px;
+  --target-min: 2.75rem;
+
+  /* --- Movimiento (todo se anula con prefers-reduced-motion y en ?captura=1) --- */
+  --duration-fast: 120ms;
+  --duration: 220ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+}

@@ -1,0 +1,224 @@
+/*
+ * Estilos base y componentes compartidos (docs/DISENO.md §5). Todo con los tokens de tokens.css.
+ */
+
+/* --- Reinicio mínimo --- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scrollbar-color: var(--color-surface-2) var(--color-bg);
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-text);
+  font-size: var(--text-m);
+  font-weight: var(--weight-text);
+  font-variation-settings: 'SOFT' var(--soft-text);
+  line-height: var(--leading-text);
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--color-accent);
+}
+
+img,
+svg,
+canvas,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+/* --- Texto --- */
+h1,
+h2,
+h3 {
+  font-weight: var(--weight-heading);
+  font-variation-settings: 'SOFT' var(--soft-display);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--text-display);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+}
+
+h2 {
+  font-size: var(--text-xl);
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-heading);
+}
+
+h3 {
+  font-size: var(--text-l);
+  line-height: var(--leading-heading);
+}
+
+p,
+li {
+  text-wrap: pretty;
+}
+
+strong,
+b {
+  font-weight: var(--weight-strong);
+}
+
+a {
+  color: inherit;
+  text-decoration-line: underline;
+  text-decoration-color: var(--color-accent);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color var(--duration-fast) var(--ease-out);
+}
+
+a:hover {
+  text-decoration-color: currentColor;
+}
+
+/* Cifras, lecturas del aparato y código: Geist Mono con números tabulares. */
+code,
+kbd,
+samp,
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  font-variant-numeric: tabular-nums;
+  font-variation-settings: normal;
+}
+
+kbd {
+  padding: 0.1em 0.45em;
+  border-radius: var(--radius-s);
+  background: var(--color-surface-2);
+}
+
+/* --- Foco: siempre visible con teclado, nunca con el ratón --- */
+:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* --- Saltar al contenido --- */
+.skip-link {
+  position: absolute;
+  inset-block-start: var(--space-3);
+  inset-inline-start: var(--space-3);
+  z-index: 10;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-ink);
+  color: var(--color-bg);
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus-visible {
+  transform: none;
+}
+
+/* --- Botones --- */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-block-size: var(--target-min);
+  padding: var(--space-2) var(--space-5);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: var(--weight-strong);
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.button:hover {
+  background: var(--color-accent-hover);
+}
+
+.button:active {
+  transform: scale(0.97);
+}
+
+.button--secondary {
+  background: var(--color-surface-2);
+  color: var(--color-ink);
+}
+
+.button--secondary:hover {
+  background: var(--color-surface);
+}
+
+.button[aria-disabled='true'],
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* --- Utilidades --- */
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- Movimiento: nada se mueve con movimiento reducido ni en las capturas (?captura=1) --- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root[data-captura] *,
+:root[data-captura] *::before,
+:root[data-captura] *::after {
+  animation: none !important;
+  transition: none !important;
+  caret-color: transparent !important;
+}
