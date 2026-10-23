@@ -128,23 +128,24 @@ const INSTRUMENT: readonly Swatch[] = [
     .swatch code,
     .chip code {
       font-size: var(--text-xs);
+      white-space: nowrap;
     }
 
     .chips {
-      gap: var(--space-5) var(--space-3);
+      gap: var(--space-6) var(--space-3);
     }
 
     .chip {
       display: grid;
-      grid-template-columns: auto 1fr;
-      align-items: center;
-      gap: 0 var(--space-3);
+      justify-items: start;
+      align-content: start;
+      gap: var(--space-1);
     }
 
     .chip__color {
-      grid-row: span 2;
       inline-size: 3rem;
       block-size: 3rem;
+      margin-block-end: var(--space-2);
       border-radius: var(--radius-pill);
     }
 
