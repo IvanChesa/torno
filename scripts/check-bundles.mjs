@@ -64,8 +64,7 @@ export function checkBundles(metafile, pages, extra) {
       verdict = 'aviso';
       warnings.push(`${label}: ${fmt(bytes)} > ${fmt(limit.warn)}`);
     }
-    const max = limit.error ?? limit.warn;
-    rows.push({ label, bytes, limit: max, verdict, detail });
+    rows.push({ label, bytes, limit, verdict, detail });
   };
 
   // 1. JS inicial de cada página, y nada prohibido dentro.
@@ -180,10 +179,13 @@ async function main() {
   const width = Math.max(...rows.map((row) => row.label.length));
   console.log('Presupuestos (PLAN §5), en bruto:');
   for (const row of rows) {
-    const limit = row.limit === undefined ? '' : ` / ${fmt(row.limit)}`;
+    const limits = [
+      row.limit.warn === undefined ? '' : `aviso > ${fmt(row.limit.warn)}`,
+      row.limit.error === undefined ? '' : `error > ${fmt(row.limit.error)}`,
+    ].filter(Boolean);
     const mark = row.verdict === 'ok' ? '✔' : row.verdict === 'aviso' ? '⚠' : '✖';
     console.log(
-      `${mark} ${row.label.padEnd(width)}  ${fmt(row.bytes).padStart(9)}${limit}  ${row.detail}`,
+      `${mark} ${row.label.padEnd(width)}  ${fmt(row.bytes).padStart(9)}  (${limits.join(' · ')})  ${row.detail}`,
     );
   }
   for (const warning of warnings) console.warn(`⚠ AVISO: ${warning}`);
