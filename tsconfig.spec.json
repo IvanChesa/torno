@@ -1,0 +1,18 @@
+/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
+/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["vitest/globals"]
+  },
+  "include": ["src/**/*.d.ts", "src/**/*.spec.ts"],
+  // Los tests de las capas de TS puro corren en Node con Vitest directo (tsconfig.node.json).
+  "exclude": [
+    "src/app/audio/core/**",
+    "src/app/audio/synth/**",
+    "src/app/audio/files/**",
+    "src/app/audio/worklet/**",
+    "src/app/audio/workers/**",
+    "src/app/instrument/**"
+  ]
+}
