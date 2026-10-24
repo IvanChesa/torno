@@ -39,96 +39,105 @@ declare global {
 export interface InstrumentOptions {
   /** Retraso de `audioWorklet.addModule`, en ms. */
   readonly moduleDelayMs?: number;
+  /** El retraso solo en la primera carga (para probar «Reintentar»). */
+  readonly moduleDelayOnce?: boolean;
+  /** `getUserMedia` falla como si se hubiera denegado el permiso. */
+  readonly micDenied?: boolean;
   /** El micrófono es la salida del propio contexto, retrasada 20 ms (bucle de retorno). */
   readonly loopback?: boolean;
 }
 
 export async function instrumentAudio(page: Page, options: InstrumentOptions = {}): Promise<void> {
-  await page.addInitScript(({ moduleDelayMs = 0, loopback = false }) => {
-    const log: AudioLog = {
-      contexts: [],
-      modules: [],
-      calls: [],
-      streams: [],
-      analysers: [],
-      unlockReady: false,
-    };
-    window.__torno = log;
-    const currentEvent = () => window.event?.type ?? 'ninguno';
-
-    const addListener = Document.prototype.addEventListener;
-    Document.prototype.addEventListener = function (
-      this: Document,
-      type: string,
-      listener: EventListenerOrEventListenerObject,
-      options?: boolean | AddEventListenerOptions,
-    ) {
-      const capture = options === true || (typeof options === 'object' && options.capture);
-      if (type === 'pointerup' && capture) log.unlockReady = true;
-      return addListener.call(this, type, listener, options);
-    } as typeof Document.prototype.addEventListener;
-
-    const taps = new WeakMap<BaseAudioContext, { analyser: AnalyserNode; back: GainNode }>();
-    const Native = window.AudioContext;
-    const resume = Native.prototype.resume;
-    Native.prototype.resume = function (this: AudioContext) {
-      log.calls.push(`resume:${currentEvent()}`);
-      return resume.call(this);
-    };
-    window.AudioContext = class extends Native {
-      constructor(contextOptions?: AudioContextOptions) {
-        super(contextOptions);
-        log.contexts.push(this);
-        log.calls.push(`new:${currentEvent()}`);
-        const analyser = new AnalyserNode(this, { fftSize: 2048 });
-        log.analysers.push(analyser);
-        taps.set(this, { analyser, back: new GainNode(this) });
-      }
-    };
-
-    const connect = AudioNode.prototype.connect;
-    AudioNode.prototype.connect = function (this: AudioNode, ...args: unknown[]) {
-      const result = (connect as (...a: unknown[]) => unknown).apply(this, args);
-      if (args[0] instanceof AudioDestinationNode) {
-        const tap = taps.get(this.context);
-        if (tap) {
-          (connect as (...a: unknown[]) => unknown).call(this, tap.analyser);
-          (connect as (...a: unknown[]) => unknown).call(this, tap.back);
-        }
-      }
-      return result;
-    } as typeof AudioNode.prototype.connect;
-
-    const addModule = AudioWorklet.prototype.addModule;
-    AudioWorklet.prototype.addModule = async function (url, moduleOptions) {
-      log.modules.push(String(url));
-      if (moduleDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, moduleDelayMs));
-      return addModule.call(this, url, moduleOptions);
-    };
-
-    if (loopback) {
-      // El nodo del micrófono es un retraso de 20 ms de la salida (un ciclo con un DelayNode).
-      window.MediaStreamAudioSourceNode = function (context: AudioContext) {
-        const delay = new DelayNode(context, { delayTime: 0.02, maxDelayTime: 1 });
-        taps.get(context)?.back.connect(delay);
-        return delay;
-      } as unknown as typeof MediaStreamAudioSourceNode;
-    }
-    const media = navigator.mediaDevices;
-    if (media) {
-      const getUserMedia = media.getUserMedia.bind(media);
-      media.getUserMedia = async (constraints?: MediaStreamConstraints) => {
-        const context = log.contexts[0];
-        // Con el bucle de retorno, la pista es de mentira (solo sirve para pararla).
-        const stream =
-          loopback && context
-            ? context.createMediaStreamDestination().stream
-            : await getUserMedia(constraints);
-        log.streams.push(stream);
-        return stream;
+  await page.addInitScript(
+    ({ moduleDelayMs = 0, moduleDelayOnce = false, loopback = false, micDenied = false }) => {
+      const log: AudioLog = {
+        contexts: [],
+        modules: [],
+        calls: [],
+        streams: [],
+        analysers: [],
+        unlockReady: false,
       };
-    }
-  }, options);
+      window.__torno = log;
+      const currentEvent = () => window.event?.type ?? 'ninguno';
+
+      const addListener = Document.prototype.addEventListener;
+      Document.prototype.addEventListener = function (
+        this: Document,
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions,
+      ) {
+        const capture = options === true || (typeof options === 'object' && options.capture);
+        if (type === 'pointerup' && capture) log.unlockReady = true;
+        return addListener.call(this, type, listener, options);
+      } as typeof Document.prototype.addEventListener;
+
+      const taps = new WeakMap<BaseAudioContext, { analyser: AnalyserNode; back: GainNode }>();
+      const Native = window.AudioContext;
+      const resume = Native.prototype.resume;
+      Native.prototype.resume = function (this: AudioContext) {
+        log.calls.push(`resume:${currentEvent()}`);
+        return resume.call(this);
+      };
+      window.AudioContext = class extends Native {
+        constructor(contextOptions?: AudioContextOptions) {
+          super(contextOptions);
+          log.contexts.push(this);
+          log.calls.push(`new:${currentEvent()}`);
+          const analyser = new AnalyserNode(this, { fftSize: 2048 });
+          log.analysers.push(analyser);
+          taps.set(this, { analyser, back: new GainNode(this) });
+        }
+      };
+
+      const connect = AudioNode.prototype.connect;
+      AudioNode.prototype.connect = function (this: AudioNode, ...args: unknown[]) {
+        const result = (connect as (...a: unknown[]) => unknown).apply(this, args);
+        if (args[0] instanceof AudioDestinationNode) {
+          const tap = taps.get(this.context);
+          if (tap) {
+            (connect as (...a: unknown[]) => unknown).call(this, tap.analyser);
+            (connect as (...a: unknown[]) => unknown).call(this, tap.back);
+          }
+        }
+        return result;
+      } as typeof AudioNode.prototype.connect;
+
+      const addModule = AudioWorklet.prototype.addModule;
+      AudioWorklet.prototype.addModule = async function (url, moduleOptions) {
+        log.modules.push(String(url));
+        const delayed = moduleDelayMs > 0 && (!moduleDelayOnce || log.modules.length === 1);
+        if (delayed) await new Promise((resolve) => setTimeout(resolve, moduleDelayMs));
+        return addModule.call(this, url, moduleOptions);
+      };
+
+      if (loopback) {
+        // El nodo del micrófono es un retraso de 20 ms de la salida (un ciclo con un DelayNode).
+        window.MediaStreamAudioSourceNode = function (context: AudioContext) {
+          const delay = new DelayNode(context, { delayTime: 0.02, maxDelayTime: 1 });
+          taps.get(context)?.back.connect(delay);
+          return delay;
+        } as unknown as typeof MediaStreamAudioSourceNode;
+      }
+      const media = navigator.mediaDevices;
+      if (media) {
+        const getUserMedia = media.getUserMedia.bind(media);
+        media.getUserMedia = async (constraints?: MediaStreamConstraints) => {
+          if (micDenied) throw new DOMException('Permiso denegado', 'NotAllowedError');
+          const context = log.contexts[0];
+          // Con el bucle de retorno, la pista es de mentira (solo sirve para pararla).
+          const stream =
+            loopback && context
+              ? context.createMediaStreamDestination().stream
+              : await getUserMedia(constraints);
+          log.streams.push(stream);
+          return stream;
+        };
+      }
+    },
+    options,
+  );
 }
 
 export const contextStates = (page: Page) =>

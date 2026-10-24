@@ -1,0 +1,260 @@
+import { TestBed } from '@angular/core/testing';
+import type {
+  AudioEngine,
+  CoreStatus,
+  EngineEvent,
+  EngineState,
+  LayerStatus,
+  Notice,
+} from '../audio/engine';
+import { AUDIO_ENGINE_API, SessionStore, STATUS_INTERVAL_MS } from './session.store';
+
+/** Un motor de mentira: apunta lo que se le pide y deja emitir eventos. */
+class FakeEngine {
+  state: EngineState = 'ready';
+  error = null;
+  latency = { mode: 'auto' as const, ms: 0 };
+  autoLatencyMs = 31;
+  readonly calls: unknown[][] = [];
+  #listener: ((event: EngineEvent) => void) | null = null;
+
+  subscribe(listener: (event: EngineEvent) => void): () => void {
+    this.#listener = listener;
+    return () => (this.#listener = null);
+  }
+  emit(event: EngineEvent): void {
+    this.#listener?.(event);
+  }
+  #log(name: string, ...args: unknown[]): void {
+    this.calls.push([name, ...args]);
+  }
+  async start(): Promise<void> {
+    this.#log('start');
+  }
+  async retry(): Promise<void> {
+    this.#log('retry');
+  }
+  send(command: unknown): void {
+    this.#log('send', command);
+  }
+  async record(options: unknown): Promise<void> {
+    this.#log('record', options);
+  }
+  cancelRecording(): void {
+    this.#log('cancelRecording');
+  }
+  async setSound(layer: number, id: string | null): Promise<void> {
+    this.#log('setSound', layer, id);
+  }
+  setLatency(setting: unknown): void {
+    this.#log('setLatency', setting);
+  }
+  async calibrate(): Promise<number> {
+    this.#log('calibrate');
+    return 23.46;
+  }
+  async standby(): Promise<void> {
+    this.#log('standby');
+  }
+  wake(): void {
+    this.#log('wake');
+  }
+  async saveFile(settings: unknown): Promise<void> {
+    this.#log('saveFile', settings);
+  }
+  async exportMix(repeats: number, fadeOut: boolean): Promise<void> {
+    this.#log('exportMix', repeats, fadeOut);
+  }
+  async exportStems(): Promise<void> {
+    this.#log('exportStems');
+  }
+  scheduleAutosave(settings: unknown): void {
+    this.#log('scheduleAutosave', settings);
+  }
+  sent(): unknown[] {
+    return this.calls.filter((call) => call[0] === 'send').map((call) => call[1]);
+  }
+}
+
+function layer(change: Partial<LayerStatus> = {}): LayerStatus {
+  return {
+    hasContent: false,
+    sourceKind: 'empty',
+    sourceId: '',
+    lengthBeats: 0,
+    positionBeats: 0,
+    level: 1,
+    muted: false,
+    pan: 0,
+    reversed: false,
+    filter: 0,
+    rms: 0,
+    pending: false,
+    undo: 0,
+    redo: 0,
+    discHeld: false,
+    ...change,
+  };
+}
+
+function status(change: Partial<CoreStatus> = {}, notices: Notice[] = []): CoreStatus {
+  return {
+    v: 3,
+    type: 'status',
+    frame: 0,
+    beat: 0,
+    bpm: 90,
+    transport: 'stopped',
+    recording: 'idle',
+    recordLayer: -1,
+    recordProgress: 0,
+    recordSeconds: 0,
+    countInBeats: 0,
+    layers: [layer(), layer(), layer(), layer()],
+    memoryBytes: 0,
+    limiterGain: 1,
+    notices,
+    noticeCount: notices.length,
+    noticesDropped: 0,
+    ...change,
+  };
+}
+
+const notice = (change: Partial<Notice>): Notice => ({
+  code: 'rejected',
+  layer: -1,
+  value: 0,
+  command: 'none',
+  reason: 'none',
+  ...change,
+});
+
+async function setup(): Promise<{ store: SessionStore; engine: FakeEngine }> {
+  const engine = new FakeEngine();
+  TestBed.configureTestingModule({
+    providers: [
+      {
+        provide: AUDIO_ENGINE_API,
+        useValue: {
+          load: async () => engine as unknown as AudioEngine,
+          autosavedAt: async () => 1_700_000_000_000,
+          deleteAutosave: async () => true,
+        },
+      },
+    ],
+  });
+  const store = TestBed.inject(SessionStore);
+  await store.start();
+  return { store, engine };
+}
+
+describe('SessionStore', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('traduce las intenciones del modelo a llamadas del motor', async () => {
+    const { store, engine } = await setup();
+    store.input({ type: 'turn', control: 'layer-1', steps: -30 });
+    store.input({ type: 'hold', control: 'layer-1' });
+    store.input({ type: 'press', control: 'play' });
+    store.input({ type: 'press', control: 'record' });
+    expect(engine.sent()).toEqual([
+      { type: 'set-level', layer: 1, level: 0.7 },
+      { type: 'set-mute', layer: 1, muted: true },
+      { type: 'play' },
+    ]);
+    expect(engine.calls).toContainEqual([
+      'record',
+      { type: 'record', layer: 0, bars: 0, countIn: true, fitTempo: true },
+    ]);
+    // Cada edición pide un autoguardado (con sus ajustes; el motor pone el antirrebote).
+    expect(engine.calls.filter((call) => call[0] === 'scheduleAutosave')).toHaveLength(2);
+  });
+
+  it('el estado del audio llega a los signals como mucho 10 veces por segundo', async () => {
+    vi.useFakeTimers();
+    const { store, engine } = await setup();
+    let publications = 0;
+    let last = store.audio();
+    for (let i = 0; i < 30; i++) {
+      engine.emit({ type: 'status', status: status({ transport: 'playing', beat: i / 10 }) });
+      vi.advanceTimersByTime(1000 / 30);
+      if (store.audio() !== last) {
+        publications++;
+        last = store.audio();
+      }
+    }
+    expect(publications).toBeGreaterThanOrEqual(9);
+    expect(publications).toBeLessThanOrEqual(10);
+    expect(store.audio().transport).toBe('playing');
+    expect(STATUS_INTERVAL_MS).toBe(100);
+  });
+
+  it('los avisos del núcleo y del motor se convierten en textos', async () => {
+    vi.useFakeTimers();
+    const { store, engine } = await setup();
+    engine.emit({
+      type: 'status',
+      status: status({}, [notice({ code: 'rejected', command: 'record', reason: 'too-long' })]),
+    });
+    expect(store.message()).toMatchObject({ screen: 'TOMA DEMASIADO LARGA', tone: 'error' });
+    engine.emit({ type: 'problem', code: 'mic-denied' });
+    expect(store.message()?.text).toContain('no deja usar el micrófono');
+    expect(store.display().status).toBe('SIN PERMISO DEL MICRÓFONO');
+    vi.advanceTimersByTime(3000);
+    expect(store.message()).toBeNull();
+    engine.emit({ type: 'status', status: status({}, [notice({ code: 'locked' })]) });
+    expect(store.message()?.screen).toBe('BLOQUEADO EN LA TOMA');
+  });
+
+  it('los controles vuelven a lo que dice el audio, salvo los que se acaban de mover', async () => {
+    vi.useFakeTimers();
+    const { store, engine } = await setup();
+    // Una sesión cargada trae otros niveles y otro tempo: los controles los adoptan.
+    engine.emit({
+      type: 'status',
+      status: status({ bpm: 120, layers: [layer({ level: 0.5 }), layer(), layer(), layer()] }),
+    });
+    vi.advanceTimersByTime(STATUS_INTERVAL_MS);
+    expect(store.state().controls.layers[0]?.level).toBe(0.5);
+    expect(store.state().controls.bpm).toBe(120);
+    // Mientras se mueve un dial, un estado viejo no lo pisa.
+    store.input({ type: 'set', control: 'layer-0', value: 80 });
+    engine.emit({
+      type: 'status',
+      status: status({ bpm: 120, layers: [layer({ level: 0.5 }), layer(), layer(), layer()] }),
+    });
+    vi.advanceTimersByTime(STATUS_INTERVAL_MS);
+    expect(store.state().controls.layers[0]?.level).toBe(0.8);
+  });
+
+  it('calibrar guarda la latencia medida y la anuncia', async () => {
+    vi.useFakeTimers();
+    const { store, engine } = await setup();
+    engine.latency = { mode: 'auto', ms: 0 };
+    store.input({ type: 'press', control: 'main' });
+    for (const steps of [2, 0, 1, 0, 1, 0]) {
+      if (steps) store.input({ type: 'turn', control: 'main', steps });
+      else store.input({ type: 'press', control: 'main' });
+    }
+    expect(engine.calls).toContainEqual(['calibrate']);
+    await vi.waitFor(() => expect(store.message()?.screen).toBe('LATENCIA 23,5 MS'));
+  });
+
+  it('autoguardado: ofrece recuperar y, al empezar de cero, lo borra', async () => {
+    const { store } = await setup();
+    await store.checkAutosave();
+    expect(store.recovery()).toBe(1_700_000_000_000);
+    await store.discardAutosave();
+    expect(store.recovery()).toBeNull();
+  });
+
+  it('el resumen en voz se emite con antirrebote y en frases', async () => {
+    vi.useFakeTimers();
+    const { store } = await setup();
+    store.input({ type: 'turn', control: 'main', steps: 5 });
+    store.input({ type: 'turn', control: 'main', steps: 5 });
+    expect(store.announcement()).toBe('');
+    vi.advanceTimersByTime(700);
+    expect(store.announcement()).toBe('100 bpm, pausa. Capa 1, vacía. Toma libre.');
+  });
+});

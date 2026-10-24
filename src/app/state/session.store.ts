@@ -10,7 +10,7 @@
  *   los confirma cuando el usuario no los está moviendo (al cargar una sesión, por ejemplo).
  * - Los códigos de aviso del núcleo y del motor se convierten en textos (`session.content.ts`).
  */
-import { computed, Service, signal } from '@angular/core';
+import { computed, inject, InjectionToken, Service, signal } from '@angular/core';
 import {
   autosavedAt,
   deleteAutosave,
@@ -53,6 +53,18 @@ const LOCAL_GRACE_MS = 400;
 const ANNOUNCE_MS = 700;
 
 export type StoreEngineState = EngineState | 'off';
+
+/** Lo que el store usa del motor (inyectable: los tests ponen uno de mentira). */
+export interface AudioEngineApi {
+  load(): Promise<AudioEngine>;
+  autosavedAt(): Promise<number | null>;
+  deleteAutosave(): Promise<boolean>;
+}
+
+export const AUDIO_ENGINE_API = new InjectionToken<AudioEngineApi>('AUDIO_ENGINE_API', {
+  providedIn: 'root',
+  factory: () => ({ load: loadAudioEngine, autosavedAt, deleteAutosave }),
+});
 export type Busy = 'idle' | 'calibrating' | 'exporting' | 'saving' | 'opening' | 'recovering';
 
 export interface StoreMessage extends MessageText {
@@ -82,6 +94,7 @@ const decimal = (value: number, digits = 0) => value.toFixed(digits).replace('.'
 
 @Service()
 export class SessionStore {
+  readonly #api = inject(AUDIO_ENGINE_API);
   readonly #state = signal<InstrumentState>(initialState());
   readonly #audio = signal<InstrumentStatus>(SILENT_STATUS);
   readonly #details = signal({ recordSeconds: 0, countInBeats: 0 });
@@ -130,7 +143,8 @@ export class SessionStore {
   #statusTimer: ReturnType<typeof setTimeout> | undefined;
   #messageTimer: ReturnType<typeof setTimeout> | undefined;
   #announceTimer: ReturnType<typeof setTimeout> | undefined;
-  #lastLocalChange = 0;
+  /** Cuándo se movió un control por última vez (`-Infinity`: nunca, o ya no cuenta). */
+  #lastLocalChange = -Infinity;
   #nextMessageId = 1;
   #filePicker: (() => void) | null = null;
 
@@ -186,7 +200,8 @@ export class SessionStore {
       }
       return Promise.resolve(this.#engine);
     }
-    this.#starting ??= loadAudioEngine()
+    this.#starting ??= this.#api
+      .load()
       .then(async (engine) => {
         this.#engine = engine;
         engine.subscribe((event) => this.#onEngine(event));
@@ -230,7 +245,7 @@ export class SessionStore {
 
   /** Mira si hay una sesión autoguardada (solo lee IndexedDB: no toca el audio). */
   async checkAutosave(): Promise<void> {
-    this.#recovery.set(await autosavedAt());
+    this.#recovery.set(await this.#api.autosavedAt());
   }
 
   /** «Recuperar la sesión anterior» (desde un gesto). */
@@ -250,13 +265,13 @@ export class SessionStore {
   /** «Empezar de cero»: borra el autoguardado. */
   async discardAutosave(): Promise<void> {
     this.#recovery.set(null);
-    await deleteAutosave();
+    await this.#api.deleteAutosave();
   }
 
   /** Borrar el autoguardado desde la web o el menú. */
   async clearAutosave(): Promise<void> {
     this.#recovery.set(null);
-    if (await deleteAutosave()) this.#show(text.messages.autosaveCleared);
+    if (await this.#api.deleteAutosave()) this.#show(text.messages.autosaveCleared);
   }
 
   // --- Intenciones ------------------------------------------------------------------------------
@@ -356,7 +371,7 @@ export class SessionStore {
         return;
       case 'reset':
         engine.send({ type: 'reset' });
-        this.#lastLocalChange = 0;
+        this.#lastLocalChange = -Infinity;
         this.#autosave();
         return;
       case 'calibrate':
@@ -414,7 +429,7 @@ export class SessionStore {
 
   /** Tras cargar un archivo o el autoguardado: sus ajustes, y los controles vuelven a escuchar. */
   #loaded(settings: TornoSettings, message: MessageText): void {
-    this.#lastLocalChange = 0;
+    this.#lastLocalChange = -Infinity;
     this.#state.update((state) => ({
       ...state,
       settings: { ...state.settings, ...settings },

@@ -168,6 +168,45 @@ test.describe('instrumento HTML', () => {
     await expect(page.getByRole('slider', { name: 'Disco' })).toBeVisible();
   });
 
+  test('con el puntero: arrastrar un dial, mantener una tecla y girar el disco', async ({
+    page,
+  }) => {
+    await instrumentAudio(page);
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    await driver.chooseSound(MENU.categories.bass);
+    // Arrastrar hacia abajo un dial baja su nivel (4 px por paso).
+    const layer = driver.control('layer-0');
+    const box = (await layer.boundingBox())!;
+    const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    await page.mouse.move(center.x, center.y);
+    await page.mouse.down();
+    await page.mouse.move(center.x, center.y + 40, { steps: 8 });
+    await page.mouse.up();
+    await expect(layer).toHaveAttribute('aria-valuenow', '90');
+    // Tocar sin mover es pulsar (elige la capa); mantener medio segundo, silenciar.
+    await driver.control('layer-2').click();
+    await driver.expectScreen('CAPA 3');
+    await driver.control('layer-0').click({ delay: 700 });
+    await expect(layer).toHaveAttribute('aria-valuetext', '90 %, en silencio');
+    // Mantener reproducir para (vuelve al principio); pulsarlo reproduce.
+    await driver.control('play').click();
+    await driver.expectScreen('EN MARCHA');
+    await driver.control('play').click({ delay: 700 });
+    await driver.expectScreen('PAUSA');
+    // El disco: con el teclado, Espacio lo mantiene y las flechas lo mueven 1/16 de vuelta.
+    await driver.key('layer-0', 'Enter');
+    const disc = driver.control('disc');
+    await disc.focus();
+    await page.keyboard.down('Space');
+    await driver.expectScreen('DISCO');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await expect(disc).toHaveAttribute('aria-valuetext', /^Congelado en el pulso 1,5 de 8$/);
+    await page.keyboard.up('Space');
+    await expect(disc).toHaveAttribute('aria-valuetext', /^Pulso /);
+  });
+
   test('pasa axe sin violaciones, también con el menú abierto', async ({ page }) => {
     await instrumentAudio(page);
     const driver = new InstrumentDriver(page);
