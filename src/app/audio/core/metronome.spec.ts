@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { Metronome, renderClickTable } from './metronome';
+import { Metronome, clickTable } from './metronome';
 
 describe('metrónomo', () => {
   it('cada clic empieza y acaba en 0 exacto (sin clics digitales) y dura 60 ms', () => {
-    const table = renderClickTable(48_000, 1320, 0.22);
+    const table = clickTable(48_000, 1320, 0.22);
     expect(table).toHaveLength(2880);
     expect(Math.abs(table[0]!)).toBe(0);
     expect(Math.abs(table[table.length - 1]!)).toBe(0);
@@ -37,8 +37,8 @@ describe('metrónomo', () => {
   });
 
   it('el acento es más agudo y suena hasta el final; stop lo calla', () => {
-    const accent = renderClickTable(48_000, 1760, 0.3);
-    const normal = renderClickTable(48_000, 1320, 0.22);
+    const accent = clickTable(48_000, 1760, 0.3);
+    const normal = clickTable(48_000, 1320, 0.22);
     const crossings = (t: Float32Array) =>
       t.reduce((count, x, i) => (i > 0 && t[i - 1]! <= 0 && x > 0 ? count + 1 : count), 0);
     expect(crossings(accent)).toBeGreaterThan(crossings(normal));

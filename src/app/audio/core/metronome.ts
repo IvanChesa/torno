@@ -12,11 +12,7 @@ const ACCENT = { frequency: 1760, gain: 0.3 } as const;
 const NORMAL = { frequency: 1320, gain: 0.22 } as const;
 
 /** Un clic: seno con ataque de coseno alzado, caída exponencial y final en 0 exacto. */
-export function renderClickTable(
-  sampleRate: number,
-  frequency: number,
-  gain: number,
-): Float32Array {
+export function clickTable(sampleRate: number, frequency: number, gain: number): Float32Array {
   const length = Math.round(CLICK_SECONDS * sampleRate);
   const attack = Math.max(1, Math.round(ATTACK_SECONDS * sampleRate));
   const tail = Math.max(1, Math.round(TAIL_SECONDS * sampleRate));
@@ -42,8 +38,8 @@ export class Metronome {
   private delay = 0;
 
   constructor(sampleRate: number) {
-    this.accent = renderClickTable(sampleRate, ACCENT.frequency, ACCENT.gain);
-    this.normal = renderClickTable(sampleRate, NORMAL.frequency, NORMAL.gain);
+    this.accent = clickTable(sampleRate, ACCENT.frequency, ACCENT.gain);
+    this.normal = clickTable(sampleRate, NORMAL.frequency, NORMAL.gain);
     this.table = this.normal;
     this.position = this.normal.length;
   }

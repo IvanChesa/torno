@@ -260,6 +260,30 @@ const NEW_WORKER = {
   message: 'Solo src/app/audio/engine/ crea workers (PLAN §4.2).',
 };
 
+// --- Ruta caliente del hilo de audio (CLAUDE.md, «Hilo de audio») ---------------------------------
+//
+// En audio/core y audio/worklet, dentro de las funciones y los métodos `process*` y `render*` no se
+// reserva memoria: ni `new`, ni literales de objeto o de array, ni cierres, ni plantillas, ni `...`,
+// ni métodos que copian. Tampoco `throw`, `await` ni `console`. Es la convención que se revisa a
+// ojo; el test de memoria de LoopCore lo comprueba además en ejecución (perfil del heap de V8).
+const HOT_PATH =
+  ':matches(MethodDefinition[key.name=/^(process|render)/] > FunctionExpression, FunctionDeclaration[id.name=/^(process|render)(?!Offline)/])';
+const HOT_PATH_MESSAGE =
+  'En la ruta caliente del audio (process*/render*) no se reserva memoria ni se lanza nada (CLAUDE.md, «Hilo de audio»).';
+const HOT_PATH_SYNTAX = [
+  'NewExpression',
+  'ArrayExpression',
+  'ObjectExpression',
+  'ArrowFunctionExpression',
+  'FunctionExpression',
+  'TemplateLiteral',
+  'SpreadElement',
+  'ThrowStatement',
+  'AwaitExpression',
+  'CallExpression[callee.property.name=/^(slice|subarray|map|filter|concat|reduce|forEach|flatMap|splice|bind|join|split|toFixed|toString)$/]',
+  "CallExpression[callee.object.name='console']",
+].map((node) => ({ selector: `${HOT_PATH} ${node}`, message: HOT_PATH_MESSAGE }));
+
 // Variables globales de Node para los scripts .mjs (sin el paquete `globals`, fuera de la lista).
 const NODE_GLOBALS = Object.fromEntries(
   [
@@ -352,6 +376,19 @@ export default defineConfig([
       'no-restricted-globals': ['error', ...WEB_AUDIO_GLOBALS],
       'no-restricted-properties': ['error', MEDIA_DEVICES],
       'no-restricted-syntax': ['error', NEW_WORKER, WEB_AUDIO_VIA_GLOBAL, MICROPHONE],
+    },
+  },
+  {
+    files: ['src/app/audio/core/**/*.ts', 'src/app/audio/worklet/**/*.ts'],
+    ignores: ['**/*.spec.ts', 'src/app/audio/core/test-harness.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        NEW_WORKER,
+        WEB_AUDIO_VIA_GLOBAL,
+        MICROPHONE,
+        ...HOT_PATH_SYNTAX,
+      ],
     },
   },
   {
