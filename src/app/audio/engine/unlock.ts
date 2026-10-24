@@ -79,7 +79,7 @@ function notifyIfRunning(): void {
 }
 
 /** ¿Ha habido un gesto que haya creado (o esté reanudando) el contexto? */
-export function isAudioUnlocked(): boolean {
+function isAudioUnlocked(): boolean {
   return context !== undefined && context.state !== 'closed';
 }
 

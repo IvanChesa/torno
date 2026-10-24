@@ -53,11 +53,6 @@ export class Microphone {
   #request = 0;
   #pending = false;
 
-  /** Hay una pista abierta. */
-  get isOpen(): boolean {
-    return this.#stream !== null;
-  }
-
   /** Se está esperando el permiso o la pista. */
   get isPending(): boolean {
     return this.#pending;

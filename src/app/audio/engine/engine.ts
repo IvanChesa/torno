@@ -173,19 +173,6 @@ export class AudioEngine {
     return this.#error;
   }
 
-  /** El último estado del núcleo (o `null` antes de arrancar). */
-  get status(): CoreStatus | null {
-    return this.#status;
-  }
-
-  get sampleRate(): number | null {
-    return this.#context?.sampleRate ?? null;
-  }
-
-  get mic(): MicState {
-    return this.#micState;
-  }
-
   get latency(): LatencySetting {
     return this.#latency;
   }

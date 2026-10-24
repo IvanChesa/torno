@@ -14,7 +14,6 @@ import { computed, inject, InjectionToken, Service, signal } from '@angular/core
 import {
   autosavedAt,
   deleteAutosave,
-  isAudioUnlocked,
   loadAudioEngine,
   missedAudioGesture,
   onAudioUnlock,
@@ -202,16 +201,6 @@ export class SessionStore {
   /** Precarga el motor (el puntero o el foco se acercan al instrumento). */
   preload(): void {
     preloadAudioEngine();
-  }
-
-  /** Un toque sobre el instrumento: si el sonido no se pudo activar en él, se pide otro. */
-  stageTapped(): void {
-    if (isAudioUnlocked()) {
-      this.#needsGesture.set(false);
-      void this.start();
-    } else {
-      this.#needsGesture.set(true);
-    }
   }
 
   /** Carga y arranca el motor (una vez). Se llama tras un gesto, que ya ha desbloqueado el audio. */

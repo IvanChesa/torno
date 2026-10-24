@@ -100,9 +100,6 @@ export const INSTRUMENT_CONTENT = {
         lines: ['TOCA Y ESPERA', 'MEDIO SEGUNDO (MAYÚS + INTRO)'],
       },
     },
-    hintList: 'GIRA · PULSA PARA ENTRAR · MANTÉN PARA VOLVER',
-    hintEdit: 'GIRA PARA AJUSTAR · PULSA PARA DEJARLO',
-    hintConfirm: 'GIRA PARA ELEGIR · PULSA PARA CONFIRMAR',
   },
 
   display: {

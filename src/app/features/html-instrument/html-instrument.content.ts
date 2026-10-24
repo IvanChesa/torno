@@ -14,11 +14,6 @@ export const HTML_INSTRUMENT_CONTENT = {
     volume: 'Volumen',
     standby: 'Reposo',
   },
-  layerState: {
-    selected: 'elegida',
-    muted: 'en silencio',
-    empty: 'vacía',
-  },
   help: {
     title: 'Atajos de teclado',
     intro: 'Con el foco dentro del instrumento:',

@@ -7,7 +7,6 @@ import type { AudioEngine } from './engine';
 
 export {
   installAudioUnlock,
-  isAudioUnlocked,
   missedAudioGesture,
   noteInstrumentTap,
   onAudioUnlock,
