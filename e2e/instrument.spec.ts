@@ -254,7 +254,26 @@ test.describe('instrumento HTML', () => {
     await page.keyboard.press('ArrowRight');
     await expect(disc).toHaveAttribute('aria-valuetext', /^Congelado en el pulso 1,5 de 8$/);
     await page.keyboard.up('Space');
-    await expect(disc).toHaveAttribute('aria-valuetext', /^Pulso /);
+    await expect(disc).toHaveAttribute('aria-valuetext', 'Capa 1, 8 pulsos');
+  });
+
+  test('con el foco en el disco y el transporte en marcha, su valor en voz no cambia solo', async ({
+    page,
+  }) => {
+    await instrumentAudio(page);
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    await driver.chooseSound(MENU.categories.drums);
+    await driver.control('play').click();
+    await driver.expectScreen('EN MARCHA');
+    const disc = driver.control('disc');
+    await disc.focus();
+    const values = new Set<string | null>();
+    for (let i = 0; i < 20; i++) {
+      values.add(await disc.getAttribute('aria-valuetext'));
+      await page.waitForTimeout(100);
+    }
+    expect([...values]).toEqual(['Capa 1, 8 pulsos']);
   });
 
   test('pasa axe sin violaciones, también con el menú abierto', async ({ page }) => {

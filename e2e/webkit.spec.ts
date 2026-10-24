@@ -27,10 +27,11 @@ test.describe('WebKit', () => {
     await driver.control('play').click();
     await driver.expectScreen('EN MARCHA');
     await expect(driver.control('play')).toHaveAttribute('aria-pressed', 'true');
-    // El transporte avanza: la posición del disco cambia.
+    // El transporte avanza: la marca del disco (una vuelta por compás) gira.
     const disc = driver.control('disc');
-    const first = await disc.getAttribute('aria-valuenow');
-    await expect.poll(() => disc.getAttribute('aria-valuenow')).not.toBe(first);
+    const turn = () => disc.evaluate((element) => element.style.getPropertyValue('--turn'));
+    const first = await turn();
+    await expect.poll(turn).not.toBe(first);
     await driver.control('play').click();
     await driver.expectScreen('PAUSA');
   });

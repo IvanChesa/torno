@@ -38,7 +38,7 @@ export const INSTRUMENT_CONTENT = {
     tempo: (bpm: string) => `${bpm} pulsos por minuto`,
     filterOff: 'Sin filtro',
     filter: (value: number) => `Filtro al ${value} %`,
-    disc: (beat: string, beats: string) => `Pulso ${beat} de ${beats}`,
+    disc: (layer: number, beats: string) => `Capa ${layer}, ${beats} pulsos`,
     discEmpty: 'Sin capa',
     discHeld: (beat: string, beats: string) => `Congelado en el pulso ${beat} de ${beats}`,
     menu: (item: string) => `Menú: ${item}`,

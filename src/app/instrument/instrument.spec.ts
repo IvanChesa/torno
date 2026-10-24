@@ -422,11 +422,21 @@ describe('valor de los controles para los lectores de pantalla', () => {
     const playing = status({
       layers: [{ ...LIBRARY, positionBeats: 2.46 }, EMPTY, RECORDING, EMPTY],
     });
+    // Suelto, el disco no sigue al transporte (un lector de pantalla lo leería sin parar).
     expect(controlValue('disc', initialState(), playing)).toEqual({
+      now: 0,
+      min: 0,
+      max: 8,
+      text: 'Capa 1, 8 pulsos',
+    });
+    expect(controlValue('disc', initialState(), status())).toEqual(
+      controlValue('disc', initialState(), playing),
+    );
+    expect(controlValue('disc', { ...initialState(), discHeld: true }, playing)).toEqual({
       now: 2.5,
       min: 0,
       max: 8,
-      text: 'Pulso 3,5 de 8',
+      text: 'Congelado en el pulso 3,5 de 8',
     });
     expect(controlValue('disc', { ...initialState(), selected: 1 }, playing)?.text).toBe(
       'Sin capa',

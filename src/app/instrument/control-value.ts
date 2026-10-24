@@ -56,15 +56,13 @@ export function controlValue(
       if (!layerStatus?.hasContent || length <= 0) {
         return { now: 0, min: 0, max: 0, text: v.discEmpty };
       }
-      const position = Math.round(layerStatus.positionBeats * 10) / 10;
-      const beat = decimal(position + 1, 1);
       const beats = decimal(length, length % 1 === 0 ? 0 : 1);
-      return {
-        now: position,
-        min: 0,
-        max: Math.round(length * 10) / 10,
-        text: state.discHeld ? v.discHeld(beat, beats) : v.disc(beat, beats),
-      };
+      const max = Math.round(length * 10) / 10;
+      // Suelto, un valor estable (si siguiera al transporte, un lector de pantalla leería la
+      // posición sin parar). La posición, solo mientras se agarra: entonces la mueve quien toca.
+      if (!state.discHeld) return { now: 0, min: 0, max, text: v.disc(state.selected + 1, beats) };
+      const position = Math.round(layerStatus.positionBeats * 10) / 10;
+      return { now: position, min: 0, max, text: v.discHeld(decimal(position + 1, 1), beats) };
     }
     default:
       return { now: spec.defaultValue, min: spec.min, max: spec.max, text: '' };
