@@ -1,8 +1,8 @@
 /**
- * Worker de síntesis (PLAN §4.3): renderiza la síntesis de audio/synth fuera del hilo principal,
+ * Worker de síntesis (PLAN §4.3): renderiza los sonidos de la biblioteca fuera del hilo principal,
  * a la frecuencia del contexto, y devuelve el PCM como `Transferable` (sin copia).
  *
- * Fase 0: prueba técnica con el tono de `renderTone`. Los 12 bucles llegan en la fase 3.
+ * Fase 2: los sonidos de prueba del menú. Los 12 bucles llegan en la fase 3.
  */
 import {
   PROTOCOL_VERSION,
@@ -10,7 +10,7 @@ import {
   type SynthWorkerRequest,
   type SynthWorkerResponse,
 } from '../core/protocol';
-import { PROBE_TONE, renderTone } from '../synth/tone';
+import { LIBRARY_LOOP_BEATS, renderTestLoop } from '../synth/test-loop';
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -23,11 +23,22 @@ scope.onmessage = (event: MessageEvent<unknown>) => {
   const request = event.data as SynthWorkerRequest;
   try {
     switch (request.type) {
-      case 'render-tone': {
+      case 'render-sound': {
         const start = performance.now();
-        const pcm = renderTone(request.sampleRate, { ...PROBE_TONE, seconds: request.seconds });
+        const pcm = renderTestLoop(request.sound, request.sampleRate);
         const renderMs = performance.now() - start;
-        reply({ v: PROTOCOL_VERSION, type: 'tone', id: request.id, pcm, renderMs }, [pcm.buffer]);
+        reply(
+          {
+            v: PROTOCOL_VERSION,
+            type: 'sound',
+            id: request.id,
+            sound: request.sound,
+            pcm,
+            lengthBeats: LIBRARY_LOOP_BEATS,
+            renderMs,
+          },
+          [pcm.buffer],
+        );
         break;
       }
     }
