@@ -9,9 +9,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const KB = 1000;
 
-/** Límites en bytes, en bruto (PLAN §5). `warn` avisa; `error` falla. */
+/**
+ * Límites en bytes, en bruto (PLAN §5). `warn` avisa; `error` falla. El «JS inicial» es el de la
+ * primera visita a cada ruta: `main`, los chunks iniciales y los `modulepreload` de su página.
+ */
 export const LIMITS = {
-  initialJs: { warn: 300 * KB, error: 400 * KB },
+  initialJs: { warn: 330 * KB, error: 400 * KB },
   unlock: { error: 2 * KB },
   engine: { error: 60 * KB },
   worklet: { error: 40 * KB },

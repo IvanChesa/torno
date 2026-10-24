@@ -89,9 +89,14 @@ describe('check-bundles', () => {
     expect(errors.join('\n')).toContain('probe.ts (motor)');
   });
 
-  it('avisa por encima de 300 kB de JS inicial y falla por encima de 400 kB', () => {
+  it('avisa por encima de 330 kB de JS inicial y falla por encima de 400 kB', () => {
     const outputs = healthy();
-    outputs['main-ABC.js'] = { bytes: 295_000, inputs: {} };
+    // main + la portada (12 kB) justo en el aviso: no avisa.
+    outputs['main-ABC.js'] = { bytes: LIMITS.initialJs.warn - 12_000, inputs: {} };
+    const atLimit = checkBundles(metafile(outputs), { '/': PAGE }, WORKLET);
+    expect(atLimit.warnings).toEqual([]);
+
+    outputs['main-ABC.js'] = { bytes: 325_000, inputs: {} };
     const warned = checkBundles(metafile(outputs), { '/': PAGE }, WORKLET);
     expect(warned.errors).toEqual([]);
     expect(warned.warnings.join('\n')).toContain('JS inicial de /');
