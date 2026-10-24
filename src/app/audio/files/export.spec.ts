@@ -76,7 +76,55 @@ describe('WAV de 24 bits', () => {
   });
 });
 
+describe('lector de WAV', () => {
+  /** Un WAV a mano: cabecera RIFF, `fmt ` con el formato y los bits dados, y los datos. */
+  function handmade(format: number, bits: number, data: number[]): Uint8Array {
+    const bytes = new Uint8Array(44 + data.length);
+    const view = new DataView(bytes.buffer);
+    const ascii = (at: number, text: string) =>
+      [...text].forEach((char, i) => (bytes[at + i] = char.charCodeAt(0)));
+    ascii(0, 'RIFF');
+    view.setUint32(4, 36 + data.length, true);
+    ascii(8, 'WAVEfmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, 8000, true);
+    view.setUint16(34, bits, true);
+    ascii(36, 'data');
+    view.setUint32(40, data.length, true);
+    bytes.set(data, 44);
+    return bytes;
+  }
+
+  it('lee 16 bits y rechaza lo que no es PCM de 16 o 24 bits', () => {
+    const wav = readWav(handmade(1, 16, [0xff, 0x7f, 0x01, 0x80]))!;
+    expect(wav.bitsPerSample).toBe(16);
+    expect([...wav.channels[0]!]).toEqual([1, -1]);
+    expect(readWav(handmade(3, 32, [0, 0, 0, 0]))).toBeNull();
+    expect(readWav(handmade(1, 8, [0, 0]))).toBeNull();
+    const truncated = handmade(1, 16, [0, 0, 0, 0]);
+    new DataView(truncated.buffer).setUint32(40, 400, true);
+    expect(readWav(truncated)).toBeNull();
+    expect(readWav(new TextEncoder().encode('RIFF....WAVEdata'))).toBeNull();
+  });
+});
+
 describe('ZIP', () => {
+  it('un ZIP dañado no se lee', () => {
+    const zip = createZip(
+      [{ name: 'a.wav', bytes: new Uint8Array([1, 2, 3]) }],
+      new Date(2026, 0, 1),
+    );
+    const crc = zip.slice();
+    crc[30 + 'a.wav'.length] = 9; // el contenido ya no casa con su CRC
+    expect(readZip(crc)).toBeNull();
+    const directory = zip.slice();
+    directory[zip.length - 22 - 46 - 'a.wav'.length] = 0; // firma del directorio central
+    expect(readZip(directory)).toBeNull();
+    expect(readZip(new Uint8Array(10))).toBeNull();
+  });
+
   it('guarda los archivos tal cual, con su CRC, y se vuelve a leer', () => {
     expect(crc32(new TextEncoder().encode('123456789'))).toBe(0xcbf43926);
     const a = new Uint8Array([1, 2, 3]);
