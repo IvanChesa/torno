@@ -196,7 +196,7 @@ const layersRule = {
 
 const ENGINE_ONLY =
   'Solo src/app/audio/engine/ toca Web Audio, el micrófono y el almacenamiento del audio (PLAN §4.2).';
-const WEB_AUDIO_GLOBALS = [
+const WEB_AUDIO_NAMES = [
   'AudioContext',
   'webkitAudioContext',
   'OfflineAudioContext',
@@ -209,7 +209,18 @@ const WEB_AUDIO_GLOBALS = [
   'MediaStreamAudioSourceNode',
   'MediaRecorder',
   'indexedDB',
-].map((name) => ({ name, message: ENGINE_ONLY }));
+];
+const WEB_AUDIO_GLOBALS = WEB_AUDIO_NAMES.map((name) => ({ name, message: ENGINE_ONLY }));
+/** Los mismos nombres a través del objeto global (`new window.AudioContext()`…), que `no-restricted-globals` no ve. */
+const WEB_AUDIO_VIA_GLOBAL = {
+  selector: `MemberExpression[object.name=/^(window|globalThis|self)$/][property.name=/^(${WEB_AUDIO_NAMES.join('|')})$/]`,
+  message: ENGINE_ONLY,
+};
+/** El micrófono, se llegue como se llegue (`navigator.mediaDevices`, `window.navigator.mediaDevices`…). */
+const MICROPHONE = {
+  selector: 'MemberExpression[property.name=/^(mediaDevices|getUserMedia)$/]',
+  message: ENGINE_ONLY,
+};
 
 const PURE =
   'Las capas de TS puro no usan el navegador ni Node: se ejecutan igual en el worklet, en los workers y en los tests (PLAN §4.2).';
@@ -320,7 +331,11 @@ export default defineConfig([
   {
     files: ['src/**/*.ts'],
     plugins: { torno: { rules: { capas: layersRule } } },
-    rules: { 'torno/capas': 'error' },
+    rules: {
+      'torno/capas': 'error',
+      // Nada de console.log olvidados; los errores sí se pueden registrar.
+      'no-console': ['error', { allow: ['error', 'warn'] }],
+    },
   },
   {
     files: ['src/**/*.ts'],
@@ -328,7 +343,7 @@ export default defineConfig([
     rules: {
       'no-restricted-globals': ['error', ...WEB_AUDIO_GLOBALS],
       'no-restricted-properties': ['error', MEDIA_DEVICES],
-      'no-restricted-syntax': ['error', NEW_WORKER],
+      'no-restricted-syntax': ['error', NEW_WORKER, WEB_AUDIO_VIA_GLOBAL, MICROPHONE],
     },
   },
   {

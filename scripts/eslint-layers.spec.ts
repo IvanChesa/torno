@@ -11,6 +11,7 @@ const LAYER_RULES = new Set([
   'no-restricted-globals',
   'no-restricted-properties',
   'no-restricted-syntax',
+  'no-console',
 ]);
 
 let eslint: ESLint;
@@ -97,6 +98,16 @@ describe('capas de la arquitectura (ESLint)', { timeout: 60_000 }, () => {
       "export const w = new Worker(new URL('./w.worker', import.meta.url));",
       'crea workers',
     ],
+    // …tampoco dando un rodeo por el objeto global.
+    ['src/app/features/x/x.ts', 'export const c = new window.AudioContext();', 'Web Audio'],
+    ['src/app/state/x.ts', 'export const c = new globalThis.AudioContext();', 'Web Audio'],
+    [
+      'src/app/pages/x/x.ts',
+      'export const m = window.navigator.mediaDevices.getUserMedia({ audio: true });',
+      'micrófono',
+    ],
+    // Higiene: nada de console.log olvidados.
+    ['src/app/features/x/x.ts', "console.log('depurando');", 'console'],
   ];
 
   it.each(forbidden)('rechaza en %s: %s', async (file, code, reason) => {
@@ -119,6 +130,11 @@ describe('capas de la arquitectura (ESLint)', { timeout: 60_000 }, () => {
     ['src/app/scene/x.ts', "import { Mesh } from 'three';\nimport { X } from '../instrument';"],
     ['src/app/features/x/x.ts', "import { unlockAudio } from '../../audio/engine';"],
     ['src/app/features/x/x.ts', "export const s = () => import('../../scene');"],
+    ['src/app/features/x/x.ts', "console.error('algo ha fallado');"],
+    [
+      'src/app/audio/engine/x.ts',
+      'export const m = window.navigator.mediaDevices.getUserMedia({ audio: true });',
+    ],
     [
       'src/app/pages/x/x.ts',
       "import { AudioProbe } from '../../features/audio-probe/audio-probe';",
