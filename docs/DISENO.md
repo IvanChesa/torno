@@ -2,7 +2,7 @@
 
 Elegida por Iván el 24-10-2026 (`docs/PLAN.md` §10, D23). Este documento la desarrolla y es la referencia de todo lo visual: la web, el instrumento HTML (fase 2) y el aparato en 3D (fase 5). Los valores viven en un solo sitio, `src/styles/tokens.css`; aquí se explican.
 
-- **Fuente única:** `src/styles/tokens.css`. Ningún componente escribe un color, un tamaño o una duración a mano: usa un token.
+- **Fuente única:** `src/styles/tokens.css`. Ningún componente escribe a mano un color, un tamaño de letra, un peso, un interlineado, un espaciado o una duración: usa un token. Las medidas propias de un componente (el ancho de una columna, el tamaño de una muestra de color) sí pueden ir en el componente.
 - **Comprobado por tests:** el contraste de cada combinación (`scripts/contrast.spec.ts`), el color de la barra del navegador frente al fondo (`site.config.spec.ts`) y la ausencia de violaciones de axe (`e2e/static.spec.ts`).
 - **Muestrario:** la portada de la fase 0 enseña los tokens (`features/design-sample`, temporal hasta la fase 7). Capturas en `docs/informes/img/fase-0/`.
 
@@ -116,6 +116,7 @@ Escala fluida con `clamp()` entre 360 y 1440 px de ancho. **Cinco tamaños a la 
 | `--text-l` | `clamp(1.25rem, 1.1rem + 0.65vw, 1.625rem)` | 20 | 22,6 | 26 | Entradilla, `h3`, marca de la cabecera |
 | `--text-xl` | `clamp(1.75rem, 1.35rem + 1.8vw, 2.75rem)` | 28,1 | 35,4 | 44 | `h2` |
 | `--text-display` | `clamp(3rem, 1.6rem + 6.4vw, 6rem)` | 48,6 | 74,8 | 96 | `h1` |
+| `--text-colossal` | `clamp(5rem, 2rem + 18vw, 16rem)` | 96,8 | 170,2 | 256 | Solo el nombre que cierra la página (decorativo, fuera de la escala de lectura) |
 
 | Token | Valor | Uso |
 |---|---|---|
@@ -123,9 +124,12 @@ Escala fluida con `clamp()` entre 360 y 1440 px de ancho. **Cinco tamaños a la 
 | `--leading-heading` | 1,1 | `h2`, `h3` |
 | `--leading-lead` | 1,4 | Entradillas |
 | `--leading-text` | 1,55 | Texto corrido |
+| `--leading-colossal` | 0,8 | El nombre del pie |
 | `--tracking-display` | −0,03 em | `h1` |
 | `--tracking-heading` | −0,015 em | `h2` y marca |
+| `--tracking-colossal` | −0,04 em | El nombre del pie |
 | `--weight-text` / `--weight-strong` / `--weight-heading` | 400 / 600 / 560 | Texto, énfasis y botones, títulos |
+| `--weight-brand` | 640 | La marca «Torno» (cabecera y pie) |
 | `--soft-display` / `--soft-text` | 100 / 0 | Eje `SOFT` de Fraunces en títulos / en texto |
 
 ---
@@ -180,13 +184,12 @@ Todos en `src/styles/base.css` (compartidos) o en el componente que los usa.
 | **Botón principal** (`.button`) | Relleno de terracota, texto `--color-on-accent` en peso 600, píldora, ≥ 44 px de alto | Encima: `--color-accent-hover`. Pulsado: escala 0,97. Foco: anillo de tinta a 3 px. Desactivado: `aria-disabled="true"` u opacidad 0,55 y cursor de prohibido. |
 | **Botón secundario** (`.button--secondary`) | Relleno `--color-surface-2`, texto de tinta | Encima: `--color-surface` |
 | **Enlace** | Tinta con subrayado de terracota (0,08 em, separado 0,2 em) | Encima: el subrayado pasa a tinta. En la navegación, el subrayado aparece solo en la página activa (`aria-current="page"`) y al pasar por encima. |
-| **Saltar al contenido** (`.skip-link`) | Píldora invertida (fondo de tinta) | Oculta hasta que recibe el foco; es lo primero de la página |
+| **Saltar al contenido** (`.skip-link`) | Píldora invertida (fondo de tinta). Su `href` lleva la ruta actual (`/ruta#contenido`): con `<base href="/">`, un `#contenido` suelto llevaría a la portada. Con JS, el clic lleva el foco a `main` sin tocar la URL. | Oculta hasta que recibe el foco; es lo primero de la página (probado con teclado en e2e) |
 | **Panel** | `--color-surface`, `--radius-panel`, relleno de 32 px, sin borde ni sombra | — |
 | **Estado en vivo** | `role="status"`, Geist Mono, tinta suave; reserva 3 líneas para no mover el diseño | Reposo, cargando, hecho y error, siempre con texto |
 | **Tecla** (`kbd`) | Geist Mono sobre `--color-surface-2`, `--radius-s` | — |
-| **Cabecera** | Marca «Torno» (Fraunces `SOFT` 100, peso 640) y dos enlaces. Sin barra ni fondo propio. | — |
-| **Pie** | El nombre vuelve en grande (`--color-ink-faint`, decorativo, `aria-hidden`), autor, nota de privacidad y enlaces legales | — |
-
+| **Cabecera** | Marca «Torno» (Fraunces `SOFT` 100, `--weight-brand`) y dos enlaces, todos con 44 px de zona pulsable. Sin barra ni fondo propio. | — |
+| **Pie** | El nombre vuelve en grande (`--text-colossal` en `--color-ink-faint`, decorativo, `aria-hidden`), autor, nota de privacidad y enlaces legales | — |
 **Superficies del navegador**, tematizadas también: selección (`--color-accent` con `--color-on-accent`), cursor de texto (`caret-color` de terracota), barra de desplazamiento (`scrollbar-color`), `color-scheme: dark` para los controles nativos y `theme-color` igual al fondo.
 
 ---

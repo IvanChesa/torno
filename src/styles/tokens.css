@@ -46,18 +46,24 @@
   --text-l: clamp(1.25rem, 1.1rem + 0.65vw, 1.625rem);
   --text-xl: clamp(1.75rem, 1.35rem + 1.8vw, 2.75rem);
   --text-display: clamp(3rem, 1.6rem + 6.4vw, 6rem);
+  /* Solo el nombre que cierra cada página (decorativo, fuera de la escala de lectura). */
+  --text-colossal: clamp(5rem, 2rem + 18vw, 16rem);
   --leading-display: 0.96;
   --leading-heading: 1.1;
   --leading-lead: 1.4;
   --leading-text: 1.55;
+  --leading-colossal: 0.8;
   --tracking-display: -0.03em;
   --tracking-heading: -0.015em;
+  --tracking-colossal: -0.04em;
   /* Fraunces: títulos suaves (eje SOFT, «barro»); el texto, con el corte normal. */
   --soft-display: 100;
   --soft-text: 0;
   --weight-text: 400;
   --weight-strong: 600;
   --weight-heading: 560;
+  /* La marca «Torno» (cabecera y pie). */
+  --weight-brand: 640;
 
   /* --- Espacio (base 4 px) --- */
   --space-1: 0.25rem;

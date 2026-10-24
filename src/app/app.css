@@ -17,8 +17,11 @@
 }
 
 .wordmark {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
   font-size: var(--text-l);
-  font-weight: 640;
+  font-weight: var(--weight-brand);
   font-variation-settings: 'SOFT' var(--soft-display);
   letter-spacing: var(--tracking-heading);
   text-decoration: none;
@@ -62,11 +65,11 @@ main:focus {
 
 .site-footer__name {
   color: var(--color-ink-faint);
-  font-size: clamp(5rem, 2rem + 18vw, 16rem);
-  font-weight: 640;
+  font-size: var(--text-colossal);
+  font-weight: var(--weight-brand);
   font-variation-settings: 'SOFT' var(--soft-display);
-  line-height: 0.8;
-  letter-spacing: -0.04em;
+  line-height: var(--leading-colossal);
+  letter-spacing: var(--tracking-colossal);
   user-select: none;
 }
 
