@@ -274,10 +274,15 @@ describe('SessionStore', () => {
     await store.openFile(file);
     expect(store.message()).toMatchObject({ screen: 'NO SE HA PODIDO CARGAR', tone: 'error' });
     expect(store.busy()).toBe('idle');
+    expect(engine.calls.some((call) => call[0] === 'scheduleAutosave')).toBe(false);
     engine.opened = { takeBars: 4, countIn: true, metronome: false, fitTempo: true, inputGain: 1 };
     await store.openFile(file);
     expect(store.message()?.screen).toBe('SESIÓN CARGADA');
     expect(store.state().settings.takeBars).toBe(4);
+    // Cargada, se autoguarda (si se recarga, se ofrece la sesión cargada, no la de antes).
+    expect(engine.calls.filter((call) => call[0] === 'scheduleAutosave').at(-1)?.[1]).toMatchObject(
+      { takeBars: 4 },
+    );
   });
 
   it('autoguardado: ofrece recuperar y, al empezar de cero, lo borra', async () => {

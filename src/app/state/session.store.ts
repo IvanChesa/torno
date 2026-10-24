@@ -249,7 +249,11 @@ export class SessionStore {
     try {
       // «Cargada» solo si el motor la ha cargado; si no, ya ha avisado él.
       const settings = await engine.openFile(file);
-      if (settings) this.#loaded(settings, text.messages.loaded);
+      if (settings) {
+        this.#loaded(settings, text.messages.loaded);
+        // Si se recarga justo después, se ofrece recuperar la sesión cargada, no la de antes.
+        this.#autosave();
+      }
     } catch {
       this.#show(text.problems['load-failed'], 'error');
     } finally {
