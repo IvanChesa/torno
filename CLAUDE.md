@@ -68,7 +68,7 @@ Buenas prácticas oficiales de Angular: @docs/angular-buenas-practicas.md
   - `three` solo se importa en `scene/`. `scene/` no conoce Angular ni el audio.
   - Los componentes llegan al audio y al 3D **solo** por `audio/engine/index.ts` y `scene/index.ts`; el modelo del instrumento (`instrument/`) lo usan directamente.
 - **Hilo de audio** (`audio/core/` y `audio/worklet/`):
-  - Sin asignaciones de memoria, `async`, `console` ni cierres nuevos dentro de `process()`: todo se reserva antes.
+  - Sin asignaciones de memoria, `async`, `console` ni cierres nuevos dentro de `process()`: todo se reserva antes. Única excepción: el `postMessage` de los eventos agrupados (≤ 30/s), reutilizando el mismo objeto.
   - **Un solo reloj:** el de muestras del worklet. La animación lee la posición del transporte; nunca al revés.
   - Todo parámetro que cambie en directo se suaviza: ni clics ni chasquidos.
   - Mensajes tipados (`audio/core/protocol.ts`). Eventos hacia el hilo principal ≤ 30/s, agrupados.

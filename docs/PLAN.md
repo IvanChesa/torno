@@ -128,7 +128,8 @@ Parámetros de `/`: `?sin3d=1` (instrumento HTML, para pruebas y sin WebGL) y `?
 | Node ≥ 22.22.3 o ≥ 24.15 | ✅ v24.22.1 | — |
 | Nombre y carpeta del proyecto | ✅ `torno` | — |
 | **Dirección visual** (§10) | ✅ B «Barro» (24-10) | — |
-| **GitHub CLI + repo privado en GitHub** | ❌ | Iván, **antes del bloque B (fase 4)** |
+| **Repo en GitHub** | ✅ `IvanChesa/torno`, público (24-10) | Se conecta al empezar el bloque A; push de `main` tras cada fusión |
+| **GitHub CLI** (`gh auth login`, para los secrets del staging) | ❌ | Iván, **antes del bloque B (fase 4)** |
 | **Staging en cPanel** | ❌ | Iván, antes de la fase 4: subdominio `staging-torno.ivanchesa.es` con AutoSSL, protección con contraseña, cuenta FTP limitada a esa carpeta y `gh secret set` de las credenciales |
 | Móvil Android real | Iván | Desde la fase 4, por la URL de staging |
 | **Un iPhone para probar** (aunque sea prestado) | Iván | **Fase 4**: el audio en iOS es el mayor riesgo del proyecto |
@@ -173,6 +174,7 @@ scripts/              build-worklet, make-fake-mic, render-poster, demo-sounds, 
 - `audio/engine/`: sin Angular ni `three`; puede usar `audio/core/` (protocolo) y `audio/files/`.
 - `scene/`: sin Angular, sin RxJS y sin `audio/`; puede usar `instrument/` (modelo de controles y de pantalla). **Único sitio donde se importa `three`.**
 - `state/`, `features/` y `pages/`: llegan al audio y al 3D **solo** por `audio/engine/index.ts` y `scene/index.ts`; pueden usar `instrument/`, `core/` y `state/`.
+- **Patrón de las API** (`audio/engine/index.ts` y `scene/index.ts`): exportan tipos y funciones diminutas que cargan la implementación con `import()`. Del motor, solo el desbloqueo de audio (§4.9) va de verdad en el bundle inicial.
 
 ### 4.3 Audio: hilos, reloj y mensajes
 - **Hilo de audio (worklet):** `LoopCore` es la **fuente de verdad** del audio (PCM de las capas, transporte, cola). `process()` no reserva memoria.
@@ -260,7 +262,8 @@ scripts/              build-worklet, make-fake-mic, render-poster, demo-sounds, 
 ### 4.9 Prerenderizado y carga
 - `/` se prerenderiza con el texto y un **póster** del instrumento (render del propio motor, fase 7). El LCP es el H1 o el póster, **nunca el canvas**.
 - El 3D se carga con `@defer` (al entrar en pantalla o en reposo) y sustituye al póster con un fundido cuando su primer frame está listo, en la misma caja (CLS 0).
-- **Desbloqueo de audio** en el bundle inicial (< 2 kB): en el primer gesto sobre el instrumento crea y reanuda el `AudioContext` y reproduce un búfer silencioso de una muestra **antes de cualquier `await`**; el `AudioEngine` diferido adopta ese contexto. Si el módulo del worklet tarda, el contexto ya está en marcha y el sonido empieza al cargar.
+- **Desbloqueo de audio** en el bundle inicial (< 2 kB): una escucha **nativa** en fase de captura (`addEventListener`, no un enlace de plantilla de Angular), registrada al arrancar, que reacciona al primer gesto que activa el audio (`click`, `pointerup`, `touchend` o `keydown`) sobre un elemento marcado (`[data-audio-unlock]`: el instrumento y los botones «Tocar»). En ese gesto y **antes de cualquier `await`**: pone `navigator.audioSession.type = 'playback'` si existe (en iOS, así suena aunque el interruptor de silencio esté activado), crea y reanuda el `AudioContext` y reproduce un búfer silencioso de una muestra. El `AudioEngine` diferido adopta ese contexto. Si el módulo del worklet tarda, el contexto ya está en marcha y el sonido empieza al cargar.
+- **Hidratación y repetición de eventos** (`withEventReplay`): un toque anterior a la hidratación se repite después, ya fuera del gesto. Como la escucha nativa actúa en el gesto real, el contexto ya está desbloqueado cuando llega la repetición. Si el toque fue anterior a la carga del propio JS, no se puede desbloquear: la interfaz pide otro toque («Toca para activar el sonido»), sin error.
 - El motor de audio se precarga cuando el puntero o el foco se acercan al instrumento.
 
 ---
@@ -269,7 +272,7 @@ scripts/              build-worklet, make-fake-mic, render-poster, demo-sounds, 
 
 | Área | Objetivo |
 |---|---|
-| JS inicial | Aviso > 300 kB · error > 400 kB, en bruto (todo lo nuevo va diferido) |
+| JS de la primera visita a cada ruta | `main` + chunks iniciales + `modulepreload` de la ruta (lo que mide `check-bundles`): aviso > 330 kB · error > 400 kB, en bruto. Angular solo ya ocupa ~280 kB: lo que no se ve en la primera pantalla va en `@defer` y el motor y el 3D, con `import()` |
 | Chunk 3D (three + escena) | Aviso > 800 kB en bruto; tamaño en cada informe |
 | Motor de audio · worklet · workers | ≤ 60 kB · ≤ 40 kB · ≤ 40 kB cada uno, en bruto |
 | Fuentes | ≤ 150 kB en total, con subconjunto latino |
@@ -376,7 +379,7 @@ Criterios de aceptación:
 **Objetivo:** tocar el instrumento completo en el navegador con controles HTML accesibles, antes de que exista el 3D.
 
 Tareas:
-1. **Desbloqueo de audio** en el bundle inicial y **`AudioEngine`** (§4.3, §4.9): worklet, adopción del contexto, tiempo de espera de 5 s con «Reintentar», errores visibles, `navigator.audioSession`, interrupciones, `visibilitychange` (pestaña oculta = toma cancelada, pausa y micrófono liberado) y reposo.
+1. **Desbloqueo de audio** en el bundle inicial, con escucha nativa (§4.9), y **`AudioEngine`** (§4.3): worklet, adopción del contexto, tiempo de espera de 5 s con «Reintentar», errores visibles, `navigator.audioSession`, interrupciones, `visibilitychange` (pestaña oculta = toma cancelada, pausa y micrófono liberado) y reposo. El motor devuelve **códigos de error**; los textos los pone la interfaz desde archivos de contenido con `reviewed: false`. La sonda temporal de la fase 0 desaparece.
 2. **Micrófono:** permiso tras la acción, cancelación de la petición pendiente, ganancia de entrada, liberación garantizada de la pista.
 3. **Latencia:** cálculo automático + **calibración por clic** + ajuste manual.
 4. **Archivos** (§4.8): `.torno` (guardar y cargar, con validación y remuestreo), WAV estéreo de 24 bits con repeticiones y fundido, y pistas por separado, con `export.worker`.
@@ -389,7 +392,8 @@ Tareas:
 
 Criterios de aceptación:
 - [ ] e2e: reproducir → salida no silenciosa; grabar con el micrófono sintético → la capa contiene la toma **alineada** (ataques ±2 ms tras compensar); la pista del micrófono queda `ended` tras terminar, cancelar, reposo y pestaña oculta.
-- [ ] e2e: con el worklet retrasado 1,5 s, el contexto está en `running` dentro del gesto y suena al cargar.
+- [ ] e2e: con la carga del worklet retrasada 1,5 s (instrumentando `addModule`, porque Playwright no puede retrasar esa descarga), el contexto se crea y se reanuda dentro del gesto (`window.event` anotado, con control negativo) y suena al cargar.
+- [ ] e2e: un toque sobre el instrumento antes de la hidratación termina con el audio desbloqueado o con el aviso «Toca para activar el sonido», nunca con un error ni en silencio sin explicación.
 - [ ] `.torno`: ida y vuelta idéntica byte a byte (misma frecuencia) y correcta con remuestreo; **1000 archivos malformados** rechazados sin cambiar el estado.
 - [ ] WAV válidos (los lee el test y `decodeAudioData`); la mezcla exportada coincide con el render del núcleo.
 - [ ] Autoguardado: recargar y recuperar devuelve la misma sesión.
@@ -416,10 +420,10 @@ Criterios de aceptación:
 
 ### Fase 4: Staging, entrega continua y móviles reales
 
-**Requisitos de Iván** (§3): repo en GitHub, subdominio de staging protegido, cuenta FTP y secrets. **Si no están, se aplaza.**
+**Requisitos de Iván** (§3): GitHub CLI, subdominio de staging protegido, cuenta FTP y secrets. **Si no están, se aplaza.**
 
 Tareas:
-1. Primer push y **CI verde en GitHub** (lint, test, build y e2e con Chromium).
+1. **CI verde en GitHub** (lint, test, build y e2e con Chromium). El remoto está conectado desde el bloque A.
 2. **`public/.htaccess`:**
    - HTTPS obligatorio (el micrófono y el AudioWorklet lo exigen);
    - URLs sin barra final, `ErrorDocument 404`, `Options -Indexes`;
@@ -508,7 +512,7 @@ Criterios de aceptación:
 Tareas:
 1. **Móvil:** encuadres, tamaños, gestos y orientación vertical y horizontal.
 2. **Sin WebGL o con el contexto perdido:** instrumento HTML automático con aviso.
-3. **Accesibilidad:** axe en todas las rutas, contraste, foco, zoom al 200 % y prueba manual con NVDA o Narrador (notas en el informe).
+3. **Accesibilidad:** axe en todas las rutas, contraste, foco (también al navegar dentro de la SPA: a `main` o al `h1`, salvo en la primera carga), zoom al 200 % y prueba manual con NVDA o Narrador (notas en el informe).
 4. **Rendimiento:** tabla de todos los presupuestos de §5 medidos por nivel de calidad.
 5. **iOS Safari en un iPhone real** (Iván): audio, micrófono, segundo plano, memoria y gestos.
 6. **Regresión visual** con `toHaveScreenshot` y `?captura=1`, con referencias generadas en el CI (Linux).
@@ -528,7 +532,8 @@ Criterios de aceptación:
 1. **`deploy-production.yml`:** despliegue con una etiqueta `v*` (o manual), reutilizando el build verificado.
 2. Verificación en producción con `curl` y Lighthouse.
 3. **README de portfolio** (capturas, vídeo o GIF corto, stack, arquitectura, mediciones), **LICENSE**, **CHANGELOG** y etiqueta **`v1.0.0`**. El repo pasa a público.
-4. Lista para Iván: ficha del proyecto en ivanchesa.es (en su propio repo) y difusión.
+4. **Indexación:** `indexable: true` en `site.config.ts` (hasta aquí todo lleva `noindex`) y comprobar que solo la 404 lo conserva. Comprobar también que los enlaces legales de ivanchesa.es siguen existiendo tras su rediseño.
+5. Lista para Iván: ficha del proyecto en ivanchesa.es (en su propio repo) y difusión.
 
 Criterios de aceptación:
 - [ ] `v1.0.0` en producción con HTTPS, desplegada por etiqueta.

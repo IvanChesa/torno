@@ -9,7 +9,8 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 - [x] Dirección visual: **B «Barro»** (24-10).
 
 ## Antes del bloque B (fase 4)
-- [ ] Instalar GitHub CLI (`winget install --id GitHub.cli`), `gh auth login` y crear el repo privado.
+- [x] Repo en GitHub: `IvanChesa/torno`, público; se conecta en el bloque A (24-10).
+- [ ] Instalar GitHub CLI (`winget install --id GitHub.cli`) y `gh auth login`, para los secrets del staging.
 - [ ] Staging en cPanel: `staging-torno.ivanchesa.es` con AutoSSL, protección con contraseña, cuenta FTP limitada y secrets con `gh secret set`.
 - [ ] Conseguir un iPhone para probar (aunque sea prestado) y tener a mano unos auriculares, mejor con cable.
 
