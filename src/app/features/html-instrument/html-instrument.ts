@@ -62,6 +62,8 @@ export class HtmlInstrument {
   protected readonly playing = computed(() => this.store.audio().transport === 'playing');
   private frame = 0;
   private lastPaint = 0;
+  /** Movimiento reducido: la consulta se crea una vez (su `matches` sigue los cambios). */
+  private reducedMotion: MediaQueryList | null = null;
   /** Solo se pinta en el navegador, tras el primer render. */
   private rendered = false;
 
@@ -69,6 +71,7 @@ export class HtmlInstrument {
     const destroyRef = inject(DestroyRef);
     afterNextRender(() => {
       this.rendered = true;
+      this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
       this.store.setFilePicker(() => this.fileInput().nativeElement.click());
       void this.store.checkAutosave();
       this.paint(performance.now());
@@ -139,7 +142,7 @@ export class HtmlInstrument {
 
   /** Medidores (RMS de cada capa) y marca del disco, directamente en el DOM. */
   private paint(time: number): void {
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced = this.reducedMotion?.matches ?? false;
     if (reduced && time - this.lastPaint < REDUCED_FRAME_MS) return;
     this.lastPaint = time;
     const status = this.store.latestStatus;

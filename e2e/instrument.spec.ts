@@ -285,6 +285,24 @@ test.describe('instrumento HTML', () => {
     await page.keyboard.up('Space');
   });
 
+  test('con movimiento reducido, el disco no gira solo; sin él, gira', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await instrumentAudio(page);
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    await driver.chooseSound(MENU.categories.drums);
+    await driver.control('play').click();
+    await driver.expectScreen('EN MARCHA');
+    const disc = driver.control('disc');
+    const turn = () => disc.evaluate((element) => element.style.getPropertyValue('--turn'));
+    const first = await turn();
+    await page.waitForTimeout(1000);
+    expect(await turn()).toBe(first);
+    // La preferencia cambia sin recargar: el disco vuelve a girar.
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await expect.poll(turn).not.toBe(first);
+  });
+
   test('al ocultar la pestaña, el núcleo suelta el disco', async ({ page }) => {
     await instrumentAudio(page);
     const driver = new InstrumentDriver(page);
