@@ -160,6 +160,62 @@ describe('varispeed y reverso', () => {
   });
 });
 
+describe('cambios seguidos en una capa', () => {
+  /** Una capa sonando, `blocks` bloques de 128 con `change(i)` antes de cada uno, y el salto máximo. */
+  function changes(
+    setup: (h: Harness) => void,
+    change: (h: Harness, block: number) => void,
+    blocks: number,
+  ): { own: number; worst: number } {
+    const h = new Harness({ sampleRate: RATE });
+    setup(h);
+    h.send({ type: 'play' });
+    const before = h.render(RATE / 2).left;
+    const out = new Float32Array(blocks * 128 + RATE / 10);
+    out[0] = before[before.length - 1]!;
+    for (let b = 0; b < blocks; b++) {
+      change(h, b);
+      out.set(h.render(128).left, 1 + b * 128);
+    }
+    out.set(h.render(RATE / 10 - 1).left, 1 + blocks * 128);
+    return { own: maxJump(before, RATE / 4), worst: maxJump(out) };
+  }
+
+  it('reverso alternado en cada bloque de 128 muestras: sin clics (8 voces por capa)', () => {
+    const { own, worst } = changes(
+      (h) => h.send({ type: 'set-sound', layer: 0, sound: sineSound(RATE, CYCLES, 0.9) }),
+      (h, b) => h.send({ type: 'set-reverse', layer: 0, reversed: b % 2 === 0 }),
+      40,
+    );
+    expect(worst).toBeLessThanOrEqual(own + 0.01);
+  });
+
+  it('deshacer y rehacer alternados en cada bloque, con ±0,9: sin clics', () => {
+    const { own, worst } = changes(
+      (h) => {
+        h.send({ type: 'set-sound', layer: 0, sound: sineSound(RATE, CYCLES, 0.9) });
+        h.send({ type: 'set-sound', layer: 0, sound: sineSound(RATE, CYCLES, -0.9) });
+      },
+      (h, b) => h.send({ type: b % 2 === 0 ? 'undo' : 'redo', layer: 0 }),
+      40,
+    );
+    expect(worst).toBeLessThanOrEqual(own + 0.01);
+  });
+
+  it('una ráfaga de 12 cambios en el mismo bloque solo roba voces que aún no han sonado', () => {
+    const { own, worst } = changes(
+      (h) => h.send({ type: 'set-sound', layer: 0, sound: sineSound(RATE, CYCLES, 0.9) }),
+      (h, b) => {
+        if (b !== 3) return;
+        for (let i = 0; i < 12; i++)
+          h.send({ type: 'set-reverse', layer: 0, reversed: i % 2 === 0 });
+      },
+      8,
+    );
+    expect(worst).toBeLessThanOrEqual(own + 0.01);
+  });
+});
+
 describe('cola de sonidos', () => {
   it.each([
     [48_000, 90],
@@ -342,6 +398,31 @@ describe('limitador en el núcleo', () => {
     expect(peak).toBeGreaterThan(0.9 * ceiling);
     // La ganancia mínima del limitador en el último estado (sin forzar uno nuevo).
     expect(h.core.status.limiterGain).toBeLessThan(0.5);
+  });
+
+  it('el metrónomo va después del limitador: los clics no hacen bombear la música', () => {
+    const h = new Harness({ sampleRate: RATE });
+    // 0,85 a la izquierda: por debajo del codo (−0,48 dBFS), el limitador es transparente al bit.
+    h.send({ type: 'set-sound', layer: 0, sound: constantSound(RATE, 0.85) });
+    h.send({ type: 'set-pan', layer: 0, pan: -1 });
+    h.send({ type: 'set-metronome', enabled: true });
+    h.send({ type: 'play' });
+    h.render(24_000);
+    const { left } = h.render(3 * 32_000);
+    const ceiling = Math.fround(10 ** (-0.3 / 20));
+    const d = h.core.outputLatency;
+    for (const beat of [1, 2, 3]) {
+      const click = beat * 32_000 - 24_000 + d;
+      // Con el clic, la suma sigue bajo el techo (saturación de seguridad).
+      expect(Math.max(...left.subarray(click, click + 3000).map(Math.abs))).toBeLessThanOrEqual(
+        ceiling,
+      );
+      expect(left[click + 5]).not.toBe(Math.fround(0.85));
+      // Pasado el clic (60 ms), la música sigue intacta: el limitador no ha bajado la ganancia.
+      expect(
+        left.subarray(click + 3000, click + 23_000).every((x) => x === Math.fround(0.85)),
+      ).toBe(true);
+    }
   });
 });
 

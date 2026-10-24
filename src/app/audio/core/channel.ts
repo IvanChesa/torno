@@ -158,9 +158,11 @@ export class LayerChannel {
   ): void {
     // Con el disco mantenido, la voz nueva empieza donde está la cabeza del disco.
     const start = this.discHeld ? this.#discHead() : beat;
+    // Las voces que ya se están apagando siguen con su fundido: si se reiniciara en cada cambio,
+    // con cambios seguidos no acabarían nunca y habría que robar una que aún suena.
     for (let i = 0; i < VOICES_PER_LAYER; i++) {
       const voice = this.voices[i]!;
-      if (voice.active) voice.fadeOut(fade);
+      if (voice.active && voice.gain.target !== 0) voice.fadeOut(fade);
     }
     this.#current = -1;
     if (!content) return;
