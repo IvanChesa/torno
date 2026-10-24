@@ -5,6 +5,7 @@
  */
 export * from './catalog';
 export * from './constants';
+export * from './control-value';
 export * from './display';
 export * from './gestures';
 export * from './instrument';

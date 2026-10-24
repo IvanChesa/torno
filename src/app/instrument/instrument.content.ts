@@ -20,7 +20,7 @@ export const INSTRUMENT_CONTENT = {
       hint: 'Gira para el nivel, pulsa para elegirla y mantén para silenciarla.',
     }),
     main: {
-      name: 'Dial principal',
+      name: 'Tempo y menú',
       hint: 'Gira para el tempo o para recorrer el menú; pulsa para entrar o confirmar; mantén para volver.',
     },
     disc: {

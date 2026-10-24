@@ -120,6 +120,10 @@ describe('teclado', () => {
     expect(keyDown(dial, key('ArrowUp', { ctrlKey: true }))).toBeNull();
     // El brazo no se pulsa ni se mantiene.
     expect(keyDown(control('arm'), key('Enter'))).toBeNull();
+    // Recorriendo una lista del menú, la flecha abajo va al elemento siguiente.
+    expect(keyDown(control('main'), key('ArrowDown'), true)).toEqual({ type: 'step', steps: 1 });
+    expect(keyDown(control('main'), key('ArrowUp'), true)).toEqual({ type: 'step', steps: -1 });
+    expect(keyDown(control('main'), key('ArrowRight'), true)).toEqual({ type: 'step', steps: 1 });
   });
 
   it('en las teclas, Intro y Espacio son nativos; Mayús+Intro mantiene', () => {

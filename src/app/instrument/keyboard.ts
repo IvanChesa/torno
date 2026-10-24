@@ -32,8 +32,14 @@ export type KeyAction =
 /**
  * Lo que hace `keydown` sobre un control, o `null` si no la usa (puede ser un atajo). Los botones
  * se pulsan con su Intro y su Espacio nativos (`click`); aquí solo se añade Mayús+Intro = mantener.
+ * `listNavigation`: el dial recorre una lista del menú, y la flecha abajo baja por ella (el
+ * elemento siguiente), como en cualquier lista; en lo demás, arriba sube el valor.
  */
-export function keyDown(spec: ControlSpec, input: KeyInput): KeyAction | null {
+export function keyDown(
+  spec: ControlSpec,
+  input: KeyInput,
+  listNavigation = false,
+): KeyAction | null {
   if (input.ctrlKey || input.altKey || input.metaKey) return null;
   const { key, shiftKey } = input;
   if (spec.role === 'button') {
@@ -57,7 +63,9 @@ export function keyDown(spec: ControlSpec, input: KeyInput): KeyAction | null {
   if (key === 'PageUp') return { type: 'step', steps: BIG_STEP };
   if (key === 'PageDown') return { type: 'step', steps: -BIG_STEP };
   const steps = arrowSteps(key, shiftKey);
-  return steps === null ? null : { type: 'step', steps };
+  if (steps === null) return null;
+  const vertical = key === 'ArrowUp' || key === 'ArrowDown';
+  return { type: 'step', steps: listNavigation && vertical ? -steps : steps };
 }
 
 /** Lo que hace `keyup`: solo soltar el disco. */

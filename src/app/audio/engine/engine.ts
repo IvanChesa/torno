@@ -143,6 +143,11 @@ export class AudioEngine {
   #latency: LatencySetting = loadLatency();
 
   #synth: Worker | null = null;
+  /**
+   * El worker de exportación se crea al arrancar y se reutiliza: exportar no hace ninguna petición
+   * de red (PLAN §5, privacidad).
+   */
+  #exporter: Worker | null = null;
   #autosaveTimer: ReturnType<typeof setTimeout> | undefined;
   #autosaveSettings: TornoSettings | null = null;
   readonly #sounds = new Map<string, { pcm: Float32Array; lengthBeats: number }>();
@@ -244,6 +249,7 @@ export class AudioEngine {
       node.port.onmessage = (event: MessageEvent<unknown>) => this.#receive(event.data);
       node.connect(context.destination);
       this.#node = node;
+      this.#exportWorker();
       for (const { command, transfer } of this.#queue.splice(0)) {
         node.port.postMessage(command, transfer);
       }
@@ -658,15 +664,14 @@ export class AudioEngine {
       this.#emit({ type: 'problem', code: 'export-empty' });
       return null;
     }
-    const worker = new Worker(new URL('../workers/export.worker', import.meta.url), {
-      type: 'module',
-      name: 'torno-exportacion',
-    });
+    const worker = this.#exportWorker();
     const message = request(this.#nextId++, session);
     try {
       const response = await new Promise<ExportWorkerResponse>((resolve, reject) => {
         worker.onmessage = (event: MessageEvent<unknown>) => {
-          if (isCurrentMessage(event.data)) resolve(event.data as ExportWorkerResponse);
+          if (!isCurrentMessage(event.data)) return;
+          const data = event.data as ExportWorkerResponse;
+          if (data.id === message.id) resolve(data);
         };
         worker.onerror = (event) => {
           event.preventDefault();
@@ -678,14 +683,25 @@ export class AudioEngine {
         }
         worker.postMessage(message, transfer);
       });
-      if (response.type === 'exported' && response.id === message.id) return response.files;
+      if (response.type === 'exported') return response.files;
       throw new Error('export');
     } catch {
+      // Un worker que ha fallado no se reutiliza.
+      worker.terminate();
+      this.#exporter = null;
       this.#emit({ type: 'problem', code: 'export-failed' });
       return null;
     } finally {
-      worker.terminate();
+      worker.onmessage = null;
+      worker.onerror = null;
     }
+  }
+
+  #exportWorker(): Worker {
+    return (this.#exporter ??= new Worker(new URL('../workers/export.worker', import.meta.url), {
+      type: 'module',
+      name: 'torno-exportacion',
+    }));
   }
 
   // --- Autoguardado ------------------------------------------------------------------------------

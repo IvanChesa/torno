@@ -3,6 +3,7 @@
 // pantalla con su resumen para leer en voz.
 import { describe, expect, it } from 'vitest';
 import type { ControlId } from './catalog';
+import { controlValue } from './control-value';
 import { displayModel, sentences, type DisplayContext } from './display';
 import {
   initialState,
@@ -397,5 +398,44 @@ describe('pantalla', () => {
     expect(sentences(['CAPA 2 · VACÍA', 'EN COLA · CAPA 3'])).toBe(
       'Capa 2, vacía. En cola, capa 3.',
     );
+  });
+});
+
+describe('valor de los controles para los lectores de pantalla', () => {
+  it('diales de capa, tempo, brazo, rueda y disco', () => {
+    const { state } = play([turn('layer-1', -30), hold('layer-1'), turn('arm', 40)]);
+    expect(controlValue('layer-1', state, status())).toEqual({
+      now: 70,
+      min: 0,
+      max: 100,
+      text: '70 %, en silencio',
+    });
+    expect(controlValue('main', state, status())).toEqual({
+      now: 90,
+      min: 40,
+      max: 240,
+      text: '90 pulsos por minuto',
+    });
+    expect(controlValue('arm', state, status())?.text).toBe('Filtro al 40 %');
+    expect(controlValue('arm', initialState(), status())?.text).toBe('Sin filtro');
+    expect(controlValue('volume', state, status())?.text).toBe('100 %');
+    const playing = status({
+      layers: [{ ...LIBRARY, positionBeats: 2.46 }, EMPTY, RECORDING, EMPTY],
+    });
+    expect(controlValue('disc', initialState(), playing)).toEqual({
+      now: 2.5,
+      min: 0,
+      max: 8,
+      text: 'Pulso 3,5 de 8',
+    });
+    expect(controlValue('disc', { ...initialState(), selected: 1 }, playing)?.text).toBe(
+      'Sin capa',
+    );
+    expect(controlValue('play', state, status())).toBeNull();
+  });
+
+  it('con el menú abierto, el dial principal dice el elemento y su valor', () => {
+    const { state } = play([press('main'), turn('main', 1), press('main')]);
+    expect(controlValue('main', state, status())?.text).toBe('Menú: duración: libre');
   });
 });

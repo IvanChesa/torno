@@ -5,7 +5,14 @@
  */
 import type { AudioEngine } from './engine';
 
-export { installAudioUnlock, unlockAudio } from './unlock';
+export {
+  installAudioUnlock,
+  isAudioUnlocked,
+  missedAudioGesture,
+  noteInstrumentTap,
+  onAudioUnlock,
+  unlockAudio,
+} from './unlock';
 export type {
   AudioEngine,
   EngineErrorCode,

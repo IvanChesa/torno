@@ -32,6 +32,8 @@ let sessionType: AudioSessionType = 'playback';
 /** Un mismo toque da `pointerup` y `click`: con una reanudación en marcha, no se pide otra. */
 let resuming: Promise<void> | undefined;
 const listeners = new Set<() => void>();
+/** Un toque sobre el instrumento llegó cuando aún no se podía desbloquear (antes del JS). */
+let missed = false;
 
 /** Registra la escucha del desbloqueo (una vez, al arrancar). */
 export function installAudioUnlock(target: Document): void {
@@ -67,7 +69,26 @@ export function unlockAudio(): void {
   source.buffer = context.createBuffer(1, 1, context.sampleRate);
   source.connect(context.destination);
   source.start();
+  missed = false;
   for (const listener of listeners) listener();
+}
+
+/** ¿Ha habido un gesto que haya creado (o esté reanudando) el contexto? */
+export function isAudioUnlocked(): boolean {
+  return context !== undefined && context.state !== 'closed';
+}
+
+/**
+ * Un toque sobre el instrumento que Angular atiende (también uno repetido tras la hidratación): si
+ * no desbloqueó el audio en el gesto real, la interfaz pedirá otro («Toca para activar el sonido»).
+ */
+export function noteInstrumentTap(): void {
+  if (!isAudioUnlocked()) missed = true;
+}
+
+/** ¿Hubo un toque que no pudo desbloquear el audio, y aún no se ha desbloqueado? */
+export function missedAudioGesture(): boolean {
+  return missed && !isAudioUnlocked();
 }
 
 /** El contexto desbloqueado, si lo hay (para el motor; no forma parte de la API pública). */
