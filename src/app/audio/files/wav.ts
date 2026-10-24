@@ -75,6 +75,42 @@ export function encodeWav(
   return writer.bytes;
 }
 
+/** Cabecera de un WAV en coma flotante: `fmt ` de 18 bytes y `fact`, como pide el formato. */
+const FLOAT_HEADER_BYTES = 58;
+
+/**
+ * Un WAV mono en coma flotante de 32 bits con `pcm` repetido `times` veces, tal cual (sin recortar).
+ * Sirve para remuestrear con `decodeAudioData` del navegador: no se exporta.
+ */
+export function encodeFloatWav(pcm: Float32Array, sampleRate: number, times = 1): ArrayBuffer {
+  const frames = pcm.length * times;
+  const buffer = new ArrayBuffer(FLOAT_HEADER_BYTES + frames * 4);
+  const bytes = new Uint8Array(buffer);
+  const view = new DataView(buffer);
+  ascii(bytes, 0, 'RIFF');
+  view.setUint32(4, buffer.byteLength - 8, true);
+  ascii(bytes, 8, 'WAVE');
+  ascii(bytes, 12, 'fmt ');
+  view.setUint32(16, 18, true);
+  view.setUint16(20, 3, true); // IEEE float
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 4, true);
+  view.setUint16(32, 4, true);
+  view.setUint16(34, 32, true);
+  view.setUint16(36, 0, true);
+  ascii(bytes, 38, 'fact');
+  view.setUint32(42, 4, true);
+  view.setUint32(46, frames, true);
+  ascii(bytes, 50, 'data');
+  view.setUint32(54, frames * 4, true);
+  let at = FLOAT_HEADER_BYTES;
+  for (let t = 0; t < times; t++) {
+    for (let i = 0; i < pcm.length; i++, at += 4) view.setFloat32(at, pcm[i]!, true);
+  }
+  return buffer;
+}
+
 export interface DecodedWav {
   readonly sampleRate: number;
   readonly bitsPerSample: number;

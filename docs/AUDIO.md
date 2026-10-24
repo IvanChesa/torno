@@ -119,7 +119,7 @@ El núcleo corre en el AudioWorklet; alrededor, el motor del hilo principal (`au
 
 ### Archivos
 - **`.torno`** (`audio/files/torno-format.ts`): firma `\x89TORNO\r\n`, versión (1), cabecera JSON en ASCII y PCM float32 LE. Se valida entero antes de devolver nada, también cada muestra (finitas y en ±16). Ida y vuelta idéntica byte a byte; 1000 archivos malformados rechazados con su código.
-- **Remuestreo** al cargar una sesión de otra frecuencia: `OfflineAudioContext` sobre tres vueltas seguidas, quedándose con la del medio (sin junta).
+- **Remuestreo** al cargar una sesión de otra frecuencia: `decodeAudioData` de un `OfflineAudioContext` sobre un WAV en coma flotante con tres vueltas seguidas, quedándose con la del medio (sin junta). Es el remuestreador de calidad del navegador. Un `AudioBufferSourceNode` de otra frecuencia interpola linealmente en Chromium: un tono de 15 kHz bajaba 3,44 dB y dejaba imágenes a −15 dB.
 - **WAV** de 24 bits (mezcla estéreo y pistas mono), escrito por tramos directamente en el archivo. La mezcla sale del mismo núcleo (`OfflineRenderer`) con 1–8 vueltas y fundido final opcional de 2 s; las pistas, cada capa sola, sin panorama y sin silenciar, en un ZIP sin compresión.
 - **Worker de exportación** (38,6 kB): se crea al arrancar el motor y se reutiliza, así exportar no hace ninguna petición de red.
 - **Autoguardado** (IndexedDB): un `.torno` 1,5 s después de la última edición, nunca durante una toma; una sesión vacía lo borra. Al volver: «Recuperar la sesión anterior» o «Empezar de cero». La cuota llena se avisa.
@@ -134,3 +134,4 @@ El núcleo corre en el AudioWorklet; alrededor, el motor del hilo principal (`au
 | Latencia del retorno por `MediaStream` en cuatro aperturas | 20,7 · 20,7 · 21,3 · 12,0 ms | calibración repetida en Chromium (fase 2) |
 | Peticiones de red al grabar, guardar y exportar | 0 | e2e `files.spec.ts` |
 | La mezcla exportada frente al render del núcleo | ≤ 1 LSB de 24 bits | e2e `files.spec.ts` |
+| Remuestreo de 44,1 a 48 kHz, tono de 15 kHz a −6 dBFS | 0,00 dB; imágenes a 18,9 y 11,1 kHz: −87,8 y −105,4 dB (con la interpolación lineal de antes: −3,44 dB; −15,0 y −27,3 dB) | e2e `files.spec.ts` en Chromium (DFT de la vuelta, que es periódica) |

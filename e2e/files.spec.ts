@@ -36,6 +36,21 @@ async function openFile(driver: InstrumentDriver, name: string, bytes: Uint8Arra
   await driver.closeMenu();
 }
 
+const contextRate = (page: Page) =>
+  page.evaluate(() => window.__torno?.contexts[0]?.sampleRate ?? 0);
+
+/** Amplitud de la componente de `frequency` Hz (DFT de una vuelta que es periódica). */
+function amplitudeAt(pcm: Float32Array, rate: number, frequency: number): number {
+  const w = (2 * Math.PI * frequency) / rate;
+  let re = 0;
+  let im = 0;
+  for (let i = 0; i < pcm.length; i++) {
+    re += pcm[i]! * Math.cos(w * i);
+    im -= pcm[i]! * Math.sin(w * i);
+  }
+  return (2 * Math.hypot(re, im)) / pcm.length;
+}
+
 async function decodeInPage(page: Page, bytes: Uint8Array) {
   return page.evaluate(async (base64) => {
     const data = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
@@ -91,36 +106,50 @@ test.describe('archivos', () => {
     await instrumentAudio(page);
     const driver = new InstrumentDriver(page);
     await driver.open();
-    // 441 Hz durante 8 pulsos a 90 BPM y 44,1 kHz: 2352 ciclos justos.
-    const frames = 235_200;
-    const sine = Float32Array.from(
-      { length: frames },
-      (_, i) => 0.5 * Math.sin((2 * Math.PI * 441 * i) / 44_100),
-    );
+    // Un gesto antes, para que el audio esté en marcha al cargar; la sesión, a otra frecuencia.
+    await driver.control('layer-0').click();
+    await expect.poll(() => contextRate(page)).toBeGreaterThan(0);
+    const from = (await contextRate(page)) === 44_100 ? 48_000 : 44_100;
+    // 8 pulsos a 90 BPM: 441 Hz son 2352 ciclos justos; 15 kHz, 80.000 (y sus imágenes, también
+    // ciclos justos: la vuelta es periódica y su DFT no tiene fugas).
+    const frames = (from * 16) / 3;
+    const tone = (frequency: number) =>
+      Float32Array.from(
+        { length: frames },
+        (_, i) => 0.5 * Math.sin((2 * Math.PI * frequency * i) / from),
+      );
+    const recording = { ...EMPTY_LAYER, lengthBeats: 8, source: { kind: 'recording' as const } };
     const session: SessionState = {
-      sampleRate: 44_100,
+      sampleRate: from,
       bpm: 90,
       layers: [
-        {
-          ...EMPTY_LAYER,
-          pcm: sine,
-          lengthBeats: 8,
-          source: { kind: 'recording' },
-        },
-        EMPTY_LAYER,
+        { ...recording, pcm: tone(441) },
+        { ...recording, pcm: tone(15_000) },
         EMPTY_LAYER,
         EMPTY_LAYER,
       ],
     };
-    // Un gesto antes, para que el audio esté en marcha al cargar.
-    await driver.control('layer-0').click();
-    await openFile(driver, '44k.torno', writeTorno(session, DEFAULT_SETTINGS));
+    await openFile(driver, 'otra-frecuencia.torno', writeTorno(session, DEFAULT_SETTINGS));
     await driver.expectScreen('CAPA 1 · GRABACIÓN');
     const { file } = await saveSession(driver);
     const rate = file.session.sampleRate;
     const pcm = file.session.layers[0]!.pcm!;
-    expect(pcm.length).toBe(Math.round((frames * rate) / 44_100));
+    expect(pcm.length).toBe(Math.round((frames * rate) / from));
     expect(file.session.layers[0]!.lengthBeats).toBe(8);
+    // El tono agudo conserva su nivel (±0,5 dB) y sus imágenes quedan por debajo de −60 dB.
+    const high = file.session.layers[1]!.pcm!;
+    const fold = (f: number) => (f % rate > rate / 2 ? rate - (f % rate) : f % rate);
+    const level = 20 * Math.log10(amplitudeAt(high, rate, 15_000) / 0.5);
+    const images = [from - 15_000, from + 15_000].map(
+      (f) => 20 * Math.log10(amplitudeAt(high, rate, fold(f)) / 0.5),
+    );
+    console.info(
+      `Remuestreo de ${from} a ${rate} Hz, tono de 15 kHz: ${level.toFixed(2)} dB; imágenes ` +
+        `a ${fold(from - 15_000)} y ${fold(from + 15_000)} Hz: ` +
+        images.map((db) => `${db.toFixed(1)} dB`).join(' y '),
+    );
+    expect(Math.abs(level)).toBeLessThan(0.5);
+    for (const db of images) expect(db).toBeLessThan(-60);
     // El tono sigue siendo de 441 Hz: los mismos cruces por cero (±2) y la misma amplitud.
     let crossings = 0;
     let peak = 0;

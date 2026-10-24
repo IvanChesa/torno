@@ -5,7 +5,7 @@ import { renderOffline } from '../core/offline';
 import { EMPTY_LAYER, type SessionState } from '../core/session';
 import { seededRandom } from '../core/test-harness';
 import { renderMixWav, renderStemWavs, sessionLoopFrames } from './export';
-import { encodeWav, readWav, WavWriter } from './wav';
+import { encodeFloatWav, encodeWav, readWav, WavWriter } from './wav';
 import { createZip, crc32, readZip } from './zip';
 
 const RATE = 48_000;
@@ -107,6 +107,37 @@ describe('lector de WAV', () => {
     new DataView(truncated.buffer).setUint32(40, 400, true);
     expect(readWav(truncated)).toBeNull();
     expect(readWav(new TextEncoder().encode('RIFF....WAVEdata'))).toBeNull();
+  });
+});
+
+describe('WAV en coma flotante (para remuestrear)', () => {
+  it('lleva la cabecera de IEEE float de 32 bits y las muestras repetidas, tal cual', () => {
+    const pcm = Float32Array.from([0.5, -1, 2.5, 1e-7]);
+    const buffer = encodeFloatWav(pcm, 44_100, 3);
+    const view = new DataView(buffer);
+    const text = (at: number) => String.fromCharCode(...new Uint8Array(buffer, at, 4));
+    expect([text(0), text(8), text(12), text(38), text(50)]).toEqual([
+      'RIFF',
+      'WAVE',
+      'fmt ',
+      'fact',
+      'data',
+    ]);
+    expect(view.getUint32(4, true)).toBe(buffer.byteLength - 8);
+    expect(view.getUint32(16, true)).toBe(18);
+    expect(view.getUint16(20, true)).toBe(3);
+    expect(view.getUint16(22, true)).toBe(1);
+    expect(view.getUint32(24, true)).toBe(44_100);
+    expect(view.getUint32(28, true)).toBe(44_100 * 4);
+    expect(view.getUint16(32, true)).toBe(4);
+    expect(view.getUint16(34, true)).toBe(32);
+    expect(view.getUint32(46, true)).toBe(12);
+    expect(view.getUint32(54, true)).toBe(48);
+    expect(buffer.byteLength).toBe(58 + 48);
+    const samples = Array.from({ length: 12 }, (_, i) => view.getFloat32(58 + 4 * i, true));
+    expect(samples).toEqual([...pcm, ...pcm, ...pcm]);
+    // No es PCM: el lector de 16 y 24 bits no lo toma.
+    expect(readWav(buffer)).toBeNull();
   });
 });
 
