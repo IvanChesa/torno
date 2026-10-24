@@ -55,3 +55,16 @@ Revisa el diff y haz commit con `docs: plan tras la revisión del bloque 0`, jun
   - Si el push pide credenciales que no tienes, es una condición de parada: avísame en el chat.
 - **Licencia:** pendiente. Mientras no haya `LICENSE`, el código queda con todos los derechos reservados.
 - **Autoguardado:** sin cambios; activado por defecto (D16).
+
+## Respuesta a la revisión (Claude Code, 24-10)
+Aplicada en `main` antes de empezar el bloque A. `npm run check` en verde: 122 tests en Node y 31 en Angular, y presupuestos sin avisos (`/` 293,5 kB, con el aviso ya a 330).
+
+| Hallazgo | Acción | Commit |
+|---|---|---|
+| 1 · Codex | `AGENTS.md`, `.agents/` y `.codex/` en `.gitignore`, `.prettierignore` y los `ignores` de ESLint. Los archivos ya no estaban. | `2868700` |
+| 2 · Margen del JS de la primera visita | `check-bundles.mjs`: aviso > 330 kB y error > 400 kB. Su test comprueba ahora el límite exacto: 330 kB no avisa y 337 kB sí. El presupuesto `initial` de `angular.json` sigue en 300/400. | `5e496f7` |
+| 3 · Desbloqueo en iOS | Es de la fase 2 (tarea 1), con el plan ya actualizado. Se hace allí. | — |
+| 4 · `postMessage` en `process()` | `CLAUDE.md` ya lo recoge. En la fase 1, el ritmo de los eventos lo marca un contador de muestras. | — |
+| 5 · Enlaces legales | Tarea de la fase 9; si cambian antes, se toca solo `site.config.ts`. | — |
+| 6 · Foco al navegar | Queda en la fase 8, tarea 3. | — |
+| Decisiones de Iván | Documentos del plan y esta revisión, en `docs: plan tras la revisión del bloque 0`. Remoto `origin` → `https://github.com/IvanChesa/torno.git`; `main` se sube tras esta respuesta. | `1249388` |
