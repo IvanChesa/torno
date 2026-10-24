@@ -22,15 +22,15 @@ export class Voice {
   /** Pulso al que va la cabeza del disco (lo pone el canal antes de cada tramo). */
   discTarget = 0;
   readonly gain: Ramp;
-  private speed = 0;
-  private framesPerBeat = 1;
-  private frames = 1;
+  #speed = 0;
+  #framesPerBeat = 1;
+  #frames = 1;
 
-  constructor(
-    fade: Float32Array,
-    /** Coeficiente del suavizado con el que la cabeza sigue al disco. */
-    private readonly discFollow = 1,
-  ) {
+  /** Coeficiente del suavizado con el que la cabeza sigue al disco. */
+  readonly #discFollow: number;
+
+  constructor(fade: Float32Array, discFollow = 1) {
+    this.#discFollow = discFollow;
     this.gain = new Ramp(0, fade);
   }
 
@@ -48,16 +48,16 @@ export class Voice {
     fade: Float32Array,
   ): void {
     this.content = content;
-    this.frames = content.frames;
-    this.framesPerBeat = content.frames / content.lengthBeats;
+    this.#frames = content.frames;
+    this.#framesPerBeat = content.frames / content.lengthBeats;
     this.reversed = reversed;
     this.disc = disc;
     this.headBeat = beat;
     this.discTarget = beat;
-    let position = wrap(beat - content.offsetBeats, content.lengthBeats) * this.framesPerBeat;
-    if (position >= this.frames) position -= this.frames;
+    let position = wrap(beat - content.offsetBeats, content.lengthBeats) * this.#framesPerBeat;
+    if (position >= this.#frames) position -= this.#frames;
     this.position = position;
-    this.speed = beatsPerFrame * this.framesPerBeat;
+    this.#speed = beatsPerFrame * this.#framesPerBeat;
     this.gain.set(0);
     this.gain.start(1, fade);
   }
@@ -66,10 +66,11 @@ export class Voice {
   sync(clock: Clock): void {
     const content = this.content;
     if (!content) return;
-    let position = wrap(clock.beat - content.offsetBeats, content.lengthBeats) * this.framesPerBeat;
-    if (position >= this.frames) position -= this.frames;
+    let position =
+      wrap(clock.beat - content.offsetBeats, content.lengthBeats) * this.#framesPerBeat;
+    if (position >= this.#frames) position -= this.#frames;
     this.position = position;
-    this.speed = clock.beatsPerFrame * this.framesPerBeat;
+    this.#speed = clock.beatsPerFrame * this.#framesPerBeat;
   }
 
   fadeOut(fade: Float32Array): void {
@@ -111,8 +112,8 @@ export class Voice {
       if (transport) for (let i = 0; i < frames; i++) gains[i] = gains[i]! * transport[i]!;
     }
     const data = content.data;
-    const n = this.frames;
-    const speed = this.speed;
+    const n = this.#frames;
+    const speed = this.#speed;
     const reversed = this.reversed;
     let p = this.position;
     for (let i = 0; i < frames; i++) {
@@ -149,13 +150,13 @@ export class Voice {
     const ramping = this.gain.ramping;
     const constant = this.gain.current;
     const targetBeat = this.discTarget;
-    const follow = this.discFollow;
+    const follow = this.#discFollow;
     if (ramping) this.gain.renderInto(gains, frames);
     const data = content.data;
-    const n = this.frames;
+    const n = this.#frames;
     const offset = content.offsetBeats;
     const length = content.lengthBeats;
-    const framesPerBeat = this.framesPerBeat;
+    const framesPerBeat = this.#framesPerBeat;
     const reversed = this.reversed;
     let head = this.headBeat;
     for (let i = 0; i < frames; i++) {

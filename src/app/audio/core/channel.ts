@@ -33,7 +33,7 @@ export class LayerChannel {
   readonly history = new LayerHistory();
   readonly voices: Voice[] = [];
   /** Voz que suena ahora (la última que ha empezado), o −1. */
-  private current = -1;
+  #current = -1;
   reversed = false;
 
   // Cambio de sonido en cola (al siguiente límite de compás).
@@ -45,61 +45,61 @@ export class LayerChannel {
 
   // Disco.
   discHeld = false;
-  private discHoldBeat = 0;
-  private discTarget = 0;
-  private readonly discFollow: number;
+  #discHoldBeat = 0;
+  #discTarget = 0;
+  readonly #discFollow: number;
 
   // Mezcla.
   level = 1;
   muted = false;
   pan = 0;
-  private targetL = Math.SQRT1_2;
-  private targetR = Math.SQRT1_2;
-  private gainL = Math.SQRT1_2;
-  private gainR = Math.SQRT1_2;
-  private readonly smoothing: number;
+  #targetL = Math.SQRT1_2;
+  #targetR = Math.SQRT1_2;
+  #gainL = Math.SQRT1_2;
+  #gainR = Math.SQRT1_2;
+  readonly #smoothing: number;
 
   // Filtro.
   amountTarget = 0;
-  private amount = 0;
-  private filterState: FilterState = 'bypass';
-  private settlePending = false;
-  private coefficientCountdown = 0;
-  private readonly amountStep: number;
-  private readonly svf: LowpassSvf;
-  private readonly wet: Ramp;
+  #amount = 0;
+  #filterState: FilterState = 'bypass';
+  #settlePending = false;
+  #coefficientCountdown = 0;
+  readonly #amountStep: number;
+  readonly #svf: LowpassSvf;
+  readonly #wet: Ramp;
 
   // Medidor: suma de cuadrados antes del nivel.
-  private meterSum = 0;
-  private meterFrames = 0;
+  #meterSum = 0;
+  #meterFrames = 0;
 
   // Espacio de trabajo.
-  private readonly buffer: Float32Array;
-  private readonly gains: Float32Array;
-  private readonly dry: Float32Array;
-  private readonly wetGains: Float32Array;
+  readonly #buffer: Float32Array;
+  readonly #gains: Float32Array;
+  readonly #dry: Float32Array;
+  readonly #wetGains: Float32Array;
 
   readonly changeFade: Float32Array;
   readonly releaseFade: Float32Array;
 
-  constructor(
-    private readonly sampleRate: number,
-    maxFrames: number,
-  ) {
+  readonly #sampleRate: number;
+
+  constructor(sampleRate: number, maxFrames: number) {
+    this.#sampleRate = sampleRate;
     this.changeFade = fadeTable(framesOf(CHANGE_FADE_SECONDS, sampleRate));
     this.releaseFade = fadeTable(framesOf(DISC_RELEASE_FADE_SECONDS, sampleRate));
-    this.discFollow = onePoleCoefficient(DISC_FOLLOW_SECONDS, sampleRate);
+    this.#discFollow = onePoleCoefficient(DISC_FOLLOW_SECONDS, sampleRate);
     for (let i = 0; i < VOICES_PER_LAYER; i++) {
-      this.voices.push(new Voice(this.changeFade, this.discFollow));
+      this.voices.push(new Voice(this.changeFade, this.#discFollow));
     }
-    this.smoothing = onePoleCoefficient(SMOOTHING_SECONDS, sampleRate);
-    this.amountStep = 1 - Math.exp(-FILTER_BLOCK / (SMOOTHING_SECONDS * sampleRate));
-    this.svf = new LowpassSvf(sampleRate);
-    this.wet = new Ramp(0, this.changeFade);
-    this.buffer = new Float32Array(maxFrames);
-    this.gains = new Float32Array(maxFrames);
-    this.dry = new Float32Array(maxFrames);
-    this.wetGains = new Float32Array(maxFrames);
+    this.#smoothing = onePoleCoefficient(SMOOTHING_SECONDS, sampleRate);
+    this.#amountStep = 1 - Math.exp(-FILTER_BLOCK / (SMOOTHING_SECONDS * sampleRate));
+    this.#svf = new LowpassSvf(sampleRate);
+    this.#wet = new Ramp(0, this.changeFade);
+    this.#buffer = new Float32Array(maxFrames);
+    this.#gains = new Float32Array(maxFrames);
+    this.#dry = new Float32Array(maxFrames);
+    this.#wetGains = new Float32Array(maxFrames);
   }
 
   /** Contenido actual (el del historial). */
@@ -117,7 +117,7 @@ export class LayerChannel {
     layer.positionBeats = 0;
     if (content) {
       // La cabeza que suena: la del disco si se mantiene, si no la de la línea de tiempo.
-      const voice = this.current >= 0 ? this.voices[this.current] : undefined;
+      const voice = this.#current >= 0 ? this.voices[this.#current] : undefined;
       const beat = voice?.disc ? voice.headBeat : clock.beat;
       const rel = (beat - content.offsetBeats) % content.lengthBeats;
       layer.positionBeats = rel < 0 ? rel + content.lengthBeats : rel;
@@ -128,14 +128,14 @@ export class LayerChannel {
     layer.reversed = this.reversed;
     layer.filter = this.amountTarget;
     // RMS desde el último estado, después del nivel y el silencio.
-    const frames = this.meterFrames;
+    const frames = this.#meterFrames;
     layer.rms =
       frames === 0
         ? 0
-        : Math.sqrt(this.meterSum / frames) *
-          Math.sqrt(this.gainL * this.gainL + this.gainR * this.gainR);
-    this.meterSum = 0;
-    this.meterFrames = 0;
+        : Math.sqrt(this.#meterSum / frames) *
+          Math.sqrt(this.#gainL * this.#gainL + this.#gainR * this.#gainR);
+    this.#meterSum = 0;
+    this.#meterFrames = 0;
     layer.pending = this.pendingActive;
     layer.undo = this.history.undoCount;
     layer.redo = this.history.redoCount;
@@ -152,22 +152,22 @@ export class LayerChannel {
     fade = this.changeFade,
   ): void {
     // Con el disco mantenido, la voz nueva empieza donde está la cabeza del disco.
-    const start = this.discHeld ? this.discHead() : beat;
+    const start = this.discHeld ? this.#discHead() : beat;
     for (let i = 0; i < VOICES_PER_LAYER; i++) {
       const voice = this.voices[i]!;
       if (voice.active) voice.fadeOut(fade);
     }
-    this.current = -1;
+    this.#current = -1;
     if (!content) return;
-    const index = this.acquire();
+    const index = this.#acquire();
     this.voices[index]!.begin(content, this.reversed, this.discHeld, start, beatsPerFrame, fade);
-    this.current = index;
+    this.#current = index;
   }
 
   /** Pulso de la cabeza del disco: el de la voz que lo sigue o, si aún no hay, el del agarre. */
-  private discHead(): number {
-    const voice = this.current >= 0 ? this.voices[this.current]! : undefined;
-    return voice?.disc ? voice.headBeat : this.discTarget;
+  #discHead(): number {
+    const voice = this.#current >= 0 ? this.voices[this.#current]! : undefined;
+    return voice?.disc ? voice.headBeat : this.#discTarget;
   }
 
   /** Recalcula la posición exacta de las voces de la línea de tiempo. */
@@ -188,14 +188,14 @@ export class LayerChannel {
   holdDisc(beat: number, beatsPerFrame: number): void {
     if (this.discHeld) return;
     this.discHeld = true;
-    this.discHoldBeat = beat;
-    this.discTarget = beat;
+    this.#discHoldBeat = beat;
+    this.#discTarget = beat;
     this.show(this.content, beat, beatsPerFrame);
   }
 
   /** Arrastrar: `turns` vueltas desde que se mantuvo (1 vuelta = 1 compás, negativo = atrás). */
   moveDisc(turns: number): void {
-    if (this.discHeld) this.discTarget = this.discHoldBeat + turns * DISC_BEATS_PER_TURN;
+    if (this.discHeld) this.#discTarget = this.#discHoldBeat + turns * DISC_BEATS_PER_TURN;
   }
 
   /** Soltar: vuelve a su sitio en la línea de tiempo con un fundido de ~15 ms. */
@@ -208,7 +208,7 @@ export class LayerChannel {
   /** Corta todo en seco (cargar una sesión con la salida ya apagada). */
   silence(): void {
     for (let i = 0; i < VOICES_PER_LAYER; i++) this.voices[i]!.release();
-    this.current = -1;
+    this.#current = -1;
     this.discHeld = false;
   }
 
@@ -221,43 +221,43 @@ export class LayerChannel {
     const gain = muted ? 0 : level;
     const angle = ((pan + 1) * Math.PI) / 4;
     // En los extremos, silencio exacto en el otro canal (cos(π/2) no da 0 en coma flotante).
-    this.targetL = pan >= 1 ? 0 : gain * Math.cos(angle);
-    this.targetR = pan <= -1 ? 0 : gain * Math.sin(angle);
+    this.#targetL = pan >= 1 ? 0 : gain * Math.cos(angle);
+    this.#targetR = pan <= -1 ? 0 : gain * Math.sin(angle);
   }
 
   /** Salta a los objetivos de la mezcla sin suavizar (al cargar una sesión). */
   settleMix(): void {
-    this.gainL = this.targetL;
-    this.gainR = this.targetR;
+    this.#gainL = this.#targetL;
+    this.#gainR = this.#targetR;
   }
 
   setFilter(amount: number): void {
     this.amountTarget = amount;
-    if (amount > 0 && this.filterState === 'bypass') {
-      this.filterState = 'on';
-      this.amount = 0;
-      this.coefficientCountdown = 0;
-      this.settlePending = true;
-      this.wet.set(0);
-      this.wet.start(1);
-    } else if (amount > 0 && this.wet.target === 0) {
-      this.wet.start(1);
+    if (amount > 0 && this.#filterState === 'bypass') {
+      this.#filterState = 'on';
+      this.#amount = 0;
+      this.#coefficientCountdown = 0;
+      this.#settlePending = true;
+      this.#wet.set(0);
+      this.#wet.start(1);
+    } else if (amount > 0 && this.#wet.target === 0) {
+      this.#wet.start(1);
     }
   }
 
   /** Salta al estado final del filtro sin fundidos (al cargar una sesión con la salida parada). */
   settleFilter(): void {
-    this.coefficientCountdown = 0;
+    this.#coefficientCountdown = 0;
     if (this.amountTarget > 0) {
-      this.filterState = 'on';
-      this.amount = this.amountTarget;
-      this.settlePending = true;
-      this.wet.set(1);
+      this.#filterState = 'on';
+      this.#amount = this.amountTarget;
+      this.#settlePending = true;
+      this.#wet.set(1);
     } else {
-      this.filterState = 'bypass';
-      this.amount = 0;
-      this.wet.set(0);
-      this.svf.reset();
+      this.#filterState = 'bypass';
+      this.#amount = 0;
+      this.#wet.set(0);
+      this.#svf.reset();
     }
   }
 
@@ -274,46 +274,41 @@ export class LayerChannel {
     advancing: boolean,
     transport: Float32Array | null,
   ): void {
-    const buffer = this.buffer;
+    const buffer = this.#buffer;
     let sounding = false;
     buffer.fill(0, 0, frames);
     for (let i = 0; i < VOICES_PER_LAYER; i++) {
       const voice = this.voices[i]!;
       if (!voice.active) continue;
       if (voice.disc) {
-        voice.discTarget = this.discTarget;
-        voice.renderDiscAdd(buffer, frames, this.gains);
+        voice.discTarget = this.#discTarget;
+        voice.renderDiscAdd(buffer, frames, this.#gains);
         sounding = true;
       } else if (advancing) {
-        voice.renderTimelineAdd(buffer, frames, this.gains, transport);
+        voice.renderTimelineAdd(buffer, frames, this.#gains, transport);
         sounding = true;
       } else {
         voice.skip(frames);
       }
-      if (!voice.active && this.current === i) this.current = -1;
+      if (!voice.active && this.#current === i) this.#current = -1;
     }
-    if (this.filterState !== 'bypass') {
-      this.renderFilter(buffer, frames);
+    if (this.#filterState !== 'bypass') {
+      this.#renderFilter(buffer, frames);
       sounding = true;
     }
     if (!sounding) {
-      this.gainL = this.targetL;
-      this.gainR = this.targetR;
+      this.#gainL = this.#targetL;
+      this.#gainR = this.#targetR;
       return;
     }
-    this.renderMix(buffer, busL, busR, frames);
+    this.#renderMix(buffer, busL, busR, frames);
   }
 
-  private renderMix(
-    buffer: Float32Array,
-    busL: Float32Array,
-    busR: Float32Array,
-    frames: number,
-  ): void {
-    const targetL = this.targetL;
-    const targetR = this.targetR;
-    let gainL = this.gainL;
-    let gainR = this.gainR;
+  #renderMix(buffer: Float32Array, busL: Float32Array, busR: Float32Array, frames: number): void {
+    const targetL = this.#targetL;
+    const targetR = this.#targetR;
+    let gainL = this.#gainL;
+    let gainR = this.#gainR;
     let sum = 0;
     if (gainL === targetL && gainR === targetR) {
       for (let i = 0; i < frames; i++) {
@@ -324,7 +319,7 @@ export class LayerChannel {
       }
     } else {
       // El encaje en el objetivo se decide muestra a muestra: así no depende del tamaño de bloque.
-      const a = this.smoothing;
+      const a = this.#smoothing;
       for (let i = 0; i < frames; i++) {
         gainL += (targetL - gainL) * a;
         gainR += (targetR - gainR) * a;
@@ -338,63 +333,63 @@ export class LayerChannel {
         sum += y * y;
       }
     }
-    this.gainL = gainL;
-    this.gainR = gainR;
-    this.meterSum += sum;
-    this.meterFrames += frames;
+    this.#gainL = gainL;
+    this.#gainR = gainR;
+    this.#meterSum += sum;
+    this.#meterFrames += frames;
   }
 
   /** Filtro con el corte recalculado cada `FILTER_BLOCK` muestras y fundido con la señal seca. */
-  private renderFilter(buffer: Float32Array, frames: number): void {
-    if (this.settlePending) {
-      this.svf.settle(buffer[0]!);
-      this.settlePending = false;
+  #renderFilter(buffer: Float32Array, frames: number): void {
+    if (this.#settlePending) {
+      this.#svf.settle(buffer[0]!);
+      this.#settlePending = false;
     }
-    const wetMixing = this.wet.ramping || this.wet.value < 1;
+    const wetMixing = this.#wet.ramping || this.#wet.value < 1;
     if (wetMixing) {
-      const dry = this.dry;
+      const dry = this.#dry;
       for (let j = 0; j < frames; j++) dry[j] = buffer[j]!;
-      this.wet.renderInto(this.wetGains, frames);
+      this.#wet.renderInto(this.#wetGains, frames);
     }
     let i = 0;
     while (i < frames) {
-      if (this.coefficientCountdown === 0) {
-        this.amount += (this.amountTarget - this.amount) * this.amountStep;
-        if (Math.abs(this.amountTarget - this.amount) < SNAP) this.amount = this.amountTarget;
-        this.svf.setCutoff(cutoffForAmount(this.amount, this.sampleRate));
-        this.coefficientCountdown = FILTER_BLOCK;
+      if (this.#coefficientCountdown === 0) {
+        this.#amount += (this.amountTarget - this.#amount) * this.#amountStep;
+        if (Math.abs(this.amountTarget - this.#amount) < SNAP) this.#amount = this.amountTarget;
+        this.#svf.setCutoff(cutoffForAmount(this.#amount, this.#sampleRate));
+        this.#coefficientCountdown = FILTER_BLOCK;
         // Con el brazo de vuelta al extremo exterior, el filtro se retira (en un instante que no
         // depende del tamaño de bloque) y, al terminar el fundido, pasa a bypass.
         if (
           this.amountTarget === 0 &&
-          this.amount < FILTER_RELEASE_AMOUNT &&
-          this.wet.target === 1
+          this.#amount < FILTER_RELEASE_AMOUNT &&
+          this.#wet.target === 1
         ) {
-          this.wet.start(0);
+          this.#wet.start(0);
         }
       }
-      const n = Math.min(frames - i, this.coefficientCountdown);
-      this.svf.processInPlace(buffer, i, n);
-      this.coefficientCountdown -= n;
+      const n = Math.min(frames - i, this.#coefficientCountdown);
+      this.#svf.processInPlace(buffer, i, n);
+      this.#coefficientCountdown -= n;
       i += n;
     }
     if (wetMixing) {
-      const dry = this.dry;
-      const wet = this.wetGains;
+      const dry = this.#dry;
+      const wet = this.#wetGains;
       for (let j = 0; j < frames; j++) {
         const d = dry[j]!;
         buffer[j] = d + wet[j]! * (buffer[j]! - d);
       }
     }
-    this.svf.sanitize();
-    if (this.amountTarget === 0 && this.wet.target === 0 && !this.wet.ramping) {
-      this.filterState = 'bypass';
-      this.amount = 0;
-      this.svf.reset();
+    this.#svf.sanitize();
+    if (this.amountTarget === 0 && this.#wet.target === 0 && !this.#wet.ramping) {
+      this.#filterState = 'bypass';
+      this.#amount = 0;
+      this.#svf.reset();
     }
   }
 
-  private acquire(): number {
+  #acquire(): number {
     let quietest = 0;
     let quietestLevel = Infinity;
     for (let i = 0; i < VOICES_PER_LAYER; i++) {

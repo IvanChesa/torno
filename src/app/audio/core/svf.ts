@@ -18,47 +18,50 @@ export function cutoffForAmount(amount: number, sampleRate: number): number {
 }
 
 export class LowpassSvf {
-  private ic1 = 0;
-  private ic2 = 0;
-  private a1 = 1;
-  private a2 = 0;
-  private a3 = 0;
+  #ic1 = 0;
+  #ic2 = 0;
+  #a1 = 1;
+  #a2 = 0;
+  #a3 = 0;
 
-  constructor(
-    private readonly sampleRate: number,
-    private readonly k = BUTTERWORTH_K,
-  ) {}
+  readonly #sampleRate: number;
+  readonly #k: number;
+
+  constructor(sampleRate: number, k = BUTTERWORTH_K) {
+    this.#sampleRate = sampleRate;
+    this.#k = k;
+  }
 
   setCutoff(hz: number): void {
-    const g = Math.tan((Math.PI * hz) / this.sampleRate);
-    this.a1 = 1 / (1 + g * (g + this.k));
-    this.a2 = g * this.a1;
-    this.a3 = g * this.a2;
+    const g = Math.tan((Math.PI * hz) / this.#sampleRate);
+    this.#a1 = 1 / (1 + g * (g + this.#k));
+    this.#a2 = g * this.#a1;
+    this.#a3 = g * this.#a2;
   }
 
   /** Estado de reposo para una entrada constante `x`: la salida empieza en `x`, sin transitorio. */
   settle(x: number): void {
-    this.ic1 = 0;
-    this.ic2 = x;
+    this.#ic1 = 0;
+    this.#ic2 = x;
   }
 
   /** Filtra una muestra. */
   tick(x: number): number {
-    const v3 = x - this.ic2;
-    const v1 = this.a1 * this.ic1 + this.a2 * v3;
-    const v2 = this.ic2 + this.a2 * this.ic1 + this.a3 * v3;
-    this.ic1 = 2 * v1 - this.ic1;
-    this.ic2 = 2 * v2 - this.ic2;
+    const v3 = x - this.#ic2;
+    const v1 = this.#a1 * this.#ic1 + this.#a2 * v3;
+    const v2 = this.#ic2 + this.#a2 * this.#ic1 + this.#a3 * v3;
+    this.#ic1 = 2 * v1 - this.#ic1;
+    this.#ic2 = 2 * v2 - this.#ic2;
     return v2;
   }
 
   /** Filtra `frames` muestras de `buffer` (desde `offset`) en el sitio. */
   processInPlace(buffer: Float32Array, offset: number, frames: number): void {
-    let ic1 = this.ic1;
-    let ic2 = this.ic2;
-    const a1 = this.a1;
-    const a2 = this.a2;
-    const a3 = this.a3;
+    let ic1 = this.#ic1;
+    let ic2 = this.#ic2;
+    const a1 = this.#a1;
+    const a2 = this.#a2;
+    const a3 = this.#a3;
     const end = offset + frames;
     for (let i = offset; i < end; i++) {
       const v3 = buffer[i]! - ic2;
@@ -68,17 +71,17 @@ export class LowpassSvf {
       ic2 = 2 * v2 - ic2;
       buffer[i] = v2;
     }
-    this.ic1 = ic1;
-    this.ic2 = ic2;
+    this.#ic1 = ic1;
+    this.#ic2 = ic2;
   }
 
   reset(): void {
-    this.ic1 = 0;
-    this.ic2 = 0;
+    this.#ic1 = 0;
+    this.#ic2 = 0;
   }
 
   /** Si un `NaN` o un infinito ha llegado al estado, lo limpia (nunca debería pasar). */
   sanitize(): void {
-    if (!Number.isFinite(this.ic1) || !Number.isFinite(this.ic2)) this.reset();
+    if (!Number.isFinite(this.#ic1) || !Number.isFinite(this.#ic2)) this.reset();
   }
 }

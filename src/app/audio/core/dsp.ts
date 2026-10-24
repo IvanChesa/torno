@@ -65,20 +65,20 @@ export class Ramp {
    * (en V8, un número que vuelve de una llamada no integrada se empaqueta en el heap).
    */
   current = 0;
-  private from = 0;
-  private to = 0;
-  private table: Float32Array;
-  private position = 0;
-  private length = 0;
+  #from = 0;
+  #to = 0;
+  #table: Float32Array;
+  #position = 0;
+  #length = 0;
 
-  constructor(
-    initial: number,
-    private readonly defaultTable: Float32Array,
-  ) {
-    this.from = initial;
-    this.to = initial;
+  readonly #defaultTable: Float32Array;
+
+  constructor(initial: number, defaultTable: Float32Array) {
+    this.#defaultTable = defaultTable;
+    this.#from = initial;
+    this.#to = initial;
     this.current = initial;
-    this.table = defaultTable;
+    this.#table = defaultTable;
   }
 
   /** Valor actual (el de la próxima muestra). */
@@ -87,65 +87,65 @@ export class Ramp {
   }
 
   get target(): number {
-    return this.to;
+    return this.#to;
   }
 
   get ramping(): boolean {
-    return this.position < this.length;
+    return this.#position < this.#length;
   }
 
   /** Muestras que le quedan al fundido. */
   get remaining(): number {
-    return this.length - this.position;
+    return this.#length - this.#position;
   }
 
   /** Empieza un fundido desde el valor actual hasta `to` con la forma de `table`. */
-  start(to: number, table: Float32Array = this.defaultTable): void {
-    this.from = this.value;
-    this.to = to;
-    this.table = table;
-    this.length = table.length;
-    this.position = this.from === to ? this.length : 0;
-    this.update();
+  start(to: number, table: Float32Array = this.#defaultTable): void {
+    this.#from = this.value;
+    this.#to = to;
+    this.#table = table;
+    this.#length = table.length;
+    this.#position = this.#from === to ? this.#length : 0;
+    this.#update();
   }
 
   /** Salta a `value` sin fundido. */
   set(value: number): void {
-    this.from = value;
-    this.to = value;
+    this.#from = value;
+    this.#to = value;
     this.current = value;
-    this.position = this.length;
+    this.#position = this.#length;
   }
 
   /** Escribe los próximos `frames` valores en `out` (desde 0) y avanza la rampa. */
   renderInto(out: Float32Array, frames: number): void {
-    let position = this.position;
-    const length = this.length;
-    const from = this.from;
-    const span = this.to - from;
-    const table = this.table;
+    let position = this.#position;
+    const length = this.#length;
+    const from = this.#from;
+    const span = this.#to - from;
+    const table = this.#table;
     for (let i = 0; i < frames; i++) {
       if (position < length) {
         out[i] = from + span * table[position]!;
         position++;
       } else {
-        out[i] = this.to;
+        out[i] = this.#to;
       }
     }
-    this.position = position;
-    this.update();
+    this.#position = position;
+    this.#update();
   }
 
   /** Avanza la rampa `frames` muestras sin escribir nada. */
   skip(frames: number): void {
-    this.position = Math.min(this.length, this.position + frames);
-    this.update();
+    this.#position = Math.min(this.#length, this.#position + frames);
+    this.#update();
   }
 
-  private update(): void {
+  #update(): void {
     this.current =
-      this.position < this.length
-        ? this.from + (this.to - this.from) * this.table[this.position]!
-        : this.to;
+      this.#position < this.#length
+        ? this.#from + (this.#to - this.#from) * this.#table[this.#position]!
+        : this.#to;
   }
 }

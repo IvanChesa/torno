@@ -21,32 +21,32 @@ export interface Clock {
 export class Transport {
   /** Muestra actual del transporte (entera). */
   frame = 0;
-  private segmentFrame = 0;
-  private segmentBeat = 0;
-  private tempo = DEFAULT_BPM;
-  private perFrame: number;
+  #segmentFrame = 0;
+  #segmentBeat = 0;
+  #tempo = DEFAULT_BPM;
+  #perFrame: number;
 
   constructor(
     readonly sampleRate: number,
     bpm = DEFAULT_BPM,
   ) {
     if (!(sampleRate > 0)) throw new RangeError(`Frecuencia de muestreo no válida: ${sampleRate}`);
-    this.tempo = clampBpm(bpm);
-    this.perFrame = this.tempo / 60 / sampleRate;
+    this.#tempo = clampBpm(bpm);
+    this.#perFrame = this.#tempo / 60 / sampleRate;
   }
 
   get bpm(): number {
-    return this.tempo;
+    return this.#tempo;
   }
 
   /** Pulsos por muestra con el tempo actual. */
   get beatsPerFrame(): number {
-    return this.perFrame;
+    return this.#perFrame;
   }
 
   /** Muestras por pulso con el tempo actual (no tiene por qué ser entero). */
   get framesPerBeat(): number {
-    return (60 * this.sampleRate) / this.tempo;
+    return (60 * this.sampleRate) / this.#tempo;
   }
 
   /** Pulso en la muestra actual. */
@@ -56,13 +56,13 @@ export class Transport {
 
   /** Escribe en `clock` el pulso de la muestra actual y los pulsos por muestra. */
   writeClock(clock: Clock): void {
-    clock.beat = this.segmentBeat + (this.frame - this.segmentFrame) * this.perFrame;
-    clock.beatsPerFrame = this.perFrame;
+    clock.beat = this.#segmentBeat + (this.frame - this.#segmentFrame) * this.#perFrame;
+    clock.beatsPerFrame = this.#perFrame;
   }
 
   /** Pulso en una muestra del tramo actual. */
   beatAt(frame: number): number {
-    return this.segmentBeat + (frame - this.segmentFrame) * this.perFrame;
+    return this.#segmentBeat + (frame - this.#segmentFrame) * this.#perFrame;
   }
 
   /**
@@ -71,7 +71,7 @@ export class Transport {
    */
   frameAtBeat(target: number): number {
     if (this.beatAt(this.frame) >= target) return this.frame;
-    let f = this.segmentFrame + Math.ceil((target - this.segmentBeat) / this.perFrame);
+    let f = this.#segmentFrame + Math.ceil((target - this.#segmentBeat) / this.#perFrame);
     if (f <= this.frame) f = this.frame + 1;
     while (f - 1 > this.frame && this.beatAt(f - 1) >= target) f--;
     while (this.beatAt(f) < target) f++;
@@ -81,31 +81,31 @@ export class Transport {
   /** Cambia el tempo a partir de la muestra actual (la posición no salta). */
   setTempo(bpm: number): void {
     const beat = this.beat;
-    this.tempo = clampBpm(bpm);
-    this.perFrame = this.tempo / 60 / this.sampleRate;
-    this.segmentBeat = beat;
-    this.segmentFrame = this.frame;
+    this.#tempo = clampBpm(bpm);
+    this.#perFrame = this.#tempo / 60 / this.sampleRate;
+    this.#segmentBeat = beat;
+    this.#segmentFrame = this.frame;
   }
 
   /** Pone la muestra actual en el pulso `beat`. */
   locate(beat: number): void {
-    this.segmentBeat = beat;
-    this.segmentFrame = this.frame;
+    this.#segmentBeat = beat;
+    this.#segmentFrame = this.frame;
   }
 
   /** Vuelve a la muestra 0 y al pulso 0 (parar). */
   rewind(): void {
     this.frame = 0;
-    this.segmentFrame = 0;
-    this.segmentBeat = 0;
+    this.#segmentFrame = 0;
+    this.#segmentBeat = 0;
   }
 
   /** Redefine la línea de tiempo: la muestra `frame` pasa a ser el pulso `beat`, con otro tempo. */
   redefine(frame: number, beat: number, bpm: number): void {
-    this.tempo = clampBpm(bpm);
-    this.perFrame = this.tempo / 60 / this.sampleRate;
-    this.segmentFrame = frame;
-    this.segmentBeat = beat;
+    this.#tempo = clampBpm(bpm);
+    this.#perFrame = this.#tempo / 60 / this.sampleRate;
+    this.#segmentFrame = frame;
+    this.#segmentBeat = beat;
   }
 
   advance(frames: number): void {

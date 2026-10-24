@@ -12,25 +12,25 @@ const FLOAT_BYTES = 4;
 
 /** Cuenta bytes de búferes distintos. Sin reservas al contar (vale dentro de `process()`). */
 export class MemoryCounter {
-  private readonly seen: (ArrayBufferLike | null)[];
-  private count = 0;
+  readonly #seen: (ArrayBufferLike | null)[];
+  #count = 0;
   total = 0;
 
   constructor(capacity: number) {
-    this.seen = new Array<ArrayBufferLike | null>(capacity).fill(null);
+    this.#seen = new Array<ArrayBufferLike | null>(capacity).fill(null);
   }
 
   reset(): void {
-    for (let i = 0; i < this.count; i++) this.seen[i] = null;
-    this.count = 0;
+    for (let i = 0; i < this.#count; i++) this.#seen[i] = null;
+    this.#count = 0;
     this.total = 0;
   }
 
   add(data: Float32Array | null | undefined): void {
     if (!data) return;
     const buffer = data.buffer;
-    for (let i = 0; i < this.count; i++) if (this.seen[i] === buffer) return;
-    if (this.count < this.seen.length) this.seen[this.count++] = buffer;
+    for (let i = 0; i < this.#count; i++) if (this.#seen[i] === buffer) return;
+    if (this.#count < this.#seen.length) this.#seen[this.#count++] = buffer;
     this.total += buffer.byteLength;
   }
 }

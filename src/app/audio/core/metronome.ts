@@ -29,50 +29,50 @@ export function clickTable(sampleRate: number, frequency: number, gain: number):
 }
 
 export class Metronome {
-  private readonly accent: Float32Array;
-  private readonly normal: Float32Array;
-  private table: Float32Array;
+  readonly #accent: Float32Array;
+  readonly #normal: Float32Array;
+  #table: Float32Array;
   /** Muestra del clic que suena a continuación (≥ longitud: no suena nada). */
-  private position: number;
+  #position: number;
   /** Muestras que faltan, desde el principio del próximo tramo, para que empiece el clic. */
-  private delay = 0;
+  #delay = 0;
 
   constructor(sampleRate: number) {
-    this.accent = clickTable(sampleRate, ACCENT.frequency, ACCENT.gain);
-    this.normal = clickTable(sampleRate, NORMAL.frequency, NORMAL.gain);
-    this.table = this.normal;
-    this.position = this.normal.length;
+    this.#accent = clickTable(sampleRate, ACCENT.frequency, ACCENT.gain);
+    this.#normal = clickTable(sampleRate, NORMAL.frequency, NORMAL.gain);
+    this.#table = this.#normal;
+    this.#position = this.#normal.length;
   }
 
   get active(): boolean {
-    return this.position < this.table.length;
+    return this.#position < this.#table.length;
   }
 
   /** Programa un clic que empieza `delay` muestras después del principio del próximo tramo. */
   trigger(accent: boolean, delay: number): void {
-    this.table = accent ? this.accent : this.normal;
-    this.position = 0;
-    this.delay = delay;
+    this.#table = accent ? this.#accent : this.#normal;
+    this.#position = 0;
+    this.#delay = delay;
   }
 
   /** Calla el clic que esté sonando. */
   stop(): void {
-    this.position = this.table.length;
+    this.#position = this.#table.length;
   }
 
   /** Suma el clic a las dos salidas en las `frames` primeras muestras. */
   renderAdd(outL: Float32Array, outR: Float32Array, frames: number): void {
-    const table = this.table;
+    const table = this.#table;
     const length = table.length;
-    let position = this.position;
+    let position = this.#position;
     if (position >= length) return;
-    const start = this.delay < frames ? this.delay : frames;
-    this.delay -= start;
+    const start = this.#delay < frames ? this.#delay : frames;
+    this.#delay -= start;
     for (let i = start; i < frames && position < length; i++) {
       const sample = table[position++]!;
       outL[i] = outL[i]! + sample;
       outR[i] = outR[i]! + sample;
     }
-    this.position = position;
+    this.#position = position;
   }
 }

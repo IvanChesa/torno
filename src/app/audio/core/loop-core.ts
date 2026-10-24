@@ -89,113 +89,113 @@ export class LoopCore {
   /** `process` ha dejado un estado nuevo en `status` (≤ 30/s); lo baja quien lo envía. */
   statusReady = false;
 
-  private readonly transport: Transport;
-  private readonly channels: LayerChannel[] = [];
-  private readonly recorder: Recorder;
-  private readonly limiter: Limiter;
-  private readonly metronome: Metronome;
-  private readonly memory = new MemoryCounter(LAYER_COUNT * 8);
-  private readonly memoryBudget: number;
-  private readonly fixedBytes: number;
-  private memoryBytes = 0;
-  private memoryDirty = true;
+  readonly #transport: Transport;
+  readonly #channels: LayerChannel[] = [];
+  readonly #recorder: Recorder;
+  readonly #limiter: Limiter;
+  readonly #metronome: Metronome;
+  readonly #memory = new MemoryCounter(LAYER_COUNT * 8);
+  readonly #memoryBudget: number;
+  readonly #fixedBytes: number;
+  #memoryBytes = 0;
+  #memoryDirty = true;
 
-  private transportStateValue: TransportState = 'stopped';
-  private readonly transportGain: Ramp;
-  private stopAfterFade = false;
+  #transportStateValue: TransportState = 'stopped';
+  readonly #transportGain: Ramp;
+  #stopAfterFade = false;
   /** Cambia cada vez que el transporte vuelve al principio (las tomas lo comprueban). */
-  private generation = 0;
-  private takeGeneration = 0;
-  private pendingLoad: PreparedSession | null = null;
+  #generation = 0;
+  #takeGeneration = 0;
+  #pendingLoad: PreparedSession | null = null;
 
-  private metronomeEnabled = false;
-  private nextClickBeat = Number.NaN;
-  private timerRunning = false;
-  private timerTotal = 0;
-  private timerClick = 0;
+  #metronomeEnabled = false;
+  #nextClickBeat = Number.NaN;
+  #timerRunning = false;
+  #timerTotal = 0;
+  #timerClick = 0;
 
-  private latency = 0;
-  private volumeTarget = 1;
-  private volume = 1;
-  private inputGainTarget = 1;
-  private inputGain = 1;
-  private readonly smoothing: number;
+  #latency = 0;
+  #volumeTarget = 1;
+  #volume = 1;
+  #inputGainTarget = 1;
+  #inputGain = 1;
+  readonly #smoothing: number;
 
-  private plannedFrames = 0;
-  private discLayer = -1;
-  private anchorDirty = true;
+  #plannedFrames = 0;
+  #discLayer = -1;
+  #anchorDirty = true;
   /** Pulso y velocidad del transporte al principio del tramo: las voces los leen de aquí. */
-  private readonly clock: Clock = { beat: 0, beatsPerFrame: 0 };
+  readonly #clock: Clock = { beat: 0, beatsPerFrame: 0 };
   /**
    * Los instantes programados (cola, inicio de la toma, clics) se guardan en muestras enteras del
    * transporte; si el tempo o la línea de tiempo cambian, se recalculan.
    */
-  private scheduleDirty = false;
-  private takeStartFrame = 0;
-  private nextClickFrame = 0;
+  #scheduleDirty = false;
+  #takeStartFrame = 0;
+  #nextClickFrame = 0;
 
-  private readonly statusInterval: number;
-  private statusCountdown: number;
-  private readonly queued: Notice[] = [];
-  private queuedCount = 0;
-  private dropped = 0;
+  readonly #statusInterval: number;
+  #statusCountdown: number;
+  readonly #queued: Notice[] = [];
+  #queuedCount = 0;
+  #dropped = 0;
 
-  private readonly busL = new Float32Array(MAX_SEGMENT);
-  private readonly busR = new Float32Array(MAX_SEGMENT);
-  private readonly transportBuffer = new Float32Array(MAX_SEGMENT);
-  private readonly inputGains = new Float32Array(MAX_SEGMENT);
-  private readonly minFreeFrames: number;
-  private readonly maxTakeFrames: number;
-  private readonly maxLayerFrames: number;
+  readonly #busL = new Float32Array(MAX_SEGMENT);
+  readonly #busR = new Float32Array(MAX_SEGMENT);
+  readonly #transportBuffer = new Float32Array(MAX_SEGMENT);
+  readonly #inputGains = new Float32Array(MAX_SEGMENT);
+  readonly #minFreeFrames: number;
+  readonly #maxTakeFrames: number;
+  readonly #maxLayerFrames: number;
 
   constructor(options: LoopCoreOptions) {
     const rate = options.sampleRate;
     if (!(rate >= 8000 && rate <= 384_000)) throw new RangeError(`Frecuencia no válida: ${rate}`);
     this.sampleRate = rate;
     this.live = options.live ?? true;
-    this.memoryBudget = options.memoryBudgetBytes ?? MEMORY_BUDGET_BYTES;
-    this.transport = new Transport(rate, DEFAULT_BPM);
-    for (let i = 0; i < LAYER_COUNT; i++) this.channels.push(new LayerChannel(rate, MAX_SEGMENT));
-    this.recorder = new Recorder(rate, fadeTable(framesOf(JUNCTION_FADE_SECONDS, rate)));
-    this.limiter = new Limiter(rate);
-    this.metronome = new Metronome(rate);
-    this.outputLatency = this.limiter.lookahead;
-    this.transportGain = new Ramp(0, fadeTable(framesOf(TRANSPORT_FADE_SECONDS, rate)));
-    this.smoothing = onePoleCoefficient(SMOOTHING_SECONDS, rate);
-    this.statusInterval = Math.ceil(rate / STATUS_RATE_HZ);
-    this.statusCountdown = this.statusInterval;
-    this.minFreeFrames = Math.round(MIN_FREE_TAKE_SECONDS * rate);
-    this.maxTakeFrames = Math.round(MAX_TAKE_SECONDS * rate);
-    this.maxLayerFrames = Math.round(MAX_LAYER_SECONDS * rate);
+    this.#memoryBudget = options.memoryBudgetBytes ?? MEMORY_BUDGET_BYTES;
+    this.#transport = new Transport(rate, DEFAULT_BPM);
+    for (let i = 0; i < LAYER_COUNT; i++) this.#channels.push(new LayerChannel(rate, MAX_SEGMENT));
+    this.#recorder = new Recorder(rate, fadeTable(framesOf(JUNCTION_FADE_SECONDS, rate)));
+    this.#limiter = new Limiter(rate);
+    this.#metronome = new Metronome(rate);
+    this.outputLatency = this.#limiter.lookahead;
+    this.#transportGain = new Ramp(0, fadeTable(framesOf(TRANSPORT_FADE_SECONDS, rate)));
+    this.#smoothing = onePoleCoefficient(SMOOTHING_SECONDS, rate);
+    this.#statusInterval = Math.ceil(rate / STATUS_RATE_HZ);
+    this.#statusCountdown = this.#statusInterval;
+    this.#minFreeFrames = Math.round(MIN_FREE_TAKE_SECONDS * rate);
+    this.#maxTakeFrames = Math.round(MAX_TAKE_SECONDS * rate);
+    this.#maxLayerFrames = Math.round(MAX_LAYER_SECONDS * rate);
     // Memoria fija: espacio de trabajo, fundidos, limitador y clics (orden de magnitud).
-    this.fixedBytes =
+    this.#fixedBytes =
       LAYER_COUNT * 4 * MAX_SEGMENT * 4 + 4 * MAX_SEGMENT * 4 + Math.ceil(rate * 0.2) * 4;
-    for (let i = 0; i < NOTICE_CAPACITY; i++) this.queued.push(emptyNotice());
+    for (let i = 0; i < NOTICE_CAPACITY; i++) this.#queued.push(emptyNotice());
     this.status = createStatus();
-    this.updateStatus();
+    this.#updateStatus();
   }
 
   // --- API ------------------------------------------------------------------------------------
 
   get bpm(): number {
-    return this.transport.bpm;
+    return this.#transport.bpm;
   }
 
   get beat(): number {
-    return this.transport.beat;
+    return this.#transport.beat;
   }
 
   get transportFrame(): number {
-    return this.transport.frame;
+    return this.#transport.frame;
   }
 
   get transportState(): TransportState {
-    return this.transportStateValue;
+    return this.#transportStateValue;
   }
 
   /** Contenido actual de una capa (para tests y para guardar). */
   layerContent(layer: number): LayerContent | null {
-    return this.channels[layer]?.content ?? null;
+    return this.#channels[layer]?.content ?? null;
   }
 
   /**
@@ -211,36 +211,36 @@ export class LoopCore {
   ): void {
     let done = 0;
     while (done < frames) {
-      this.processEvents();
-      const n = this.segmentLength(frames - done);
-      this.renderSegment(input, outL, outR, offset + done, n);
+      this.#processEvents();
+      const n = this.#segmentLength(frames - done);
+      this.#renderSegment(input, outL, outR, offset + done, n);
       done += n;
     }
   }
 
   /** Arranca sin fundido de entrada: la exportación empieza en el pulso 0 a volumen pleno. */
   playImmediately(): void {
-    this.transportStateValue = 'playing';
-    this.transportGain.set(1);
-    this.stopAfterFade = false;
-    this.anchorDirty = true;
+    this.#transportStateValue = 'playing';
+    this.#transportGain.set(1);
+    this.#stopAfterFade = false;
+    this.#anchorDirty = true;
   }
 
   /** Actualiza `status` ya, sin esperar al siguiente intervalo. */
   flushStatus(): CoreStatus {
-    this.updateStatus();
+    this.#updateStatus();
     return this.status;
   }
 
   /** Bytes de audio en uso (búferes vivos + memoria fija). */
   get memoryInUse(): number {
-    this.updateMemory();
-    return this.memoryBytes;
+    this.#updateMemory();
+    return this.#memoryBytes;
   }
 
   /** Copia del estado de la sesión para guardar, autoguardar o exportar (reserva memoria). */
   exportState(): SessionState {
-    const layers: LayerState[] = this.channels.map((channel) => {
+    const layers: LayerState[] = this.#channels.map((channel) => {
       const content = channel.content;
       return {
         pcm: content ? content.data.slice(0, content.frames) : null,
@@ -254,7 +254,7 @@ export class LoopCore {
         filter: channel.amountTarget,
       };
     });
-    return { sampleRate: this.sampleRate, bpm: this.transport.bpm, layers };
+    return { sampleRate: this.sampleRate, bpm: this.#transport.bpm, layers };
   }
 
   // --- Comandos -----------------------------------------------------------------------------
@@ -264,161 +264,163 @@ export class LoopCore {
    * comprueba, y un comando no válido se ignora con un aviso `rejected`.
    */
   handle(command: CoreCommand): void {
-    const transport = this.transport;
+    const transport = this.#transport;
     switch (command.type) {
       case 'play':
-        this.startTransport();
+        this.#startTransport();
         return;
       case 'pause':
-        this.pause(false);
+        this.#pause(false);
         return;
       case 'stop':
-        this.pause(true);
+        this.#pause(true);
         return;
       case 'set-tempo':
-        if (this.locked(command.type)) return;
-        if (!isNumberIn(command.bpm, MIN_BPM, MAX_BPM)) return this.reject(command.type, 'range');
+        if (this.#locked(command.type)) return;
+        if (!isNumberIn(command.bpm, MIN_BPM, MAX_BPM)) return this.#reject(command.type, 'range');
         transport.setTempo(command.bpm);
-        this.timelineMoved();
+        this.#timelineMoved();
         return;
       case 'set-level': {
-        const channel = this.channelAt(command.layer);
-        if (!channel || !isNumberIn(command.level, 0, 1)) return this.reject(command.type, 'range');
+        const channel = this.#channelAt(command.layer);
+        if (!channel || !isNumberIn(command.level, 0, 1))
+          return this.#reject(command.type, 'range');
         channel.setMix(command.level, channel.muted, channel.pan);
         return;
       }
       case 'set-mute': {
-        const channel = this.channelAt(command.layer);
+        const channel = this.#channelAt(command.layer);
         if (!channel || typeof command.muted !== 'boolean')
-          return this.reject(command.type, 'range');
+          return this.#reject(command.type, 'range');
         channel.setMix(channel.level, command.muted, channel.pan);
         return;
       }
       case 'set-pan': {
-        const channel = this.channelAt(command.layer);
-        if (!channel || !isNumberIn(command.pan, -1, 1)) return this.reject(command.type, 'range');
+        const channel = this.#channelAt(command.layer);
+        if (!channel || !isNumberIn(command.pan, -1, 1)) return this.#reject(command.type, 'range');
         channel.setMix(channel.level, channel.muted, command.pan);
         return;
       }
       case 'set-reverse': {
-        if (this.locked(command.type)) return;
-        const channel = this.channelAt(command.layer);
+        if (this.#locked(command.type)) return;
+        const channel = this.#channelAt(command.layer);
         if (!channel || typeof command.reversed !== 'boolean') {
-          return this.reject(command.type, 'range');
+          return this.#reject(command.type, 'range');
         }
         channel.setReversed(command.reversed, transport.beat, transport.beatsPerFrame);
         return;
       }
       case 'set-filter': {
-        const channel = this.channelAt(command.layer);
+        const channel = this.#channelAt(command.layer);
         if (!channel || !isNumberIn(command.amount, 0, 1))
-          return this.reject(command.type, 'range');
+          return this.#reject(command.type, 'range');
         channel.setFilter(command.amount);
         return;
       }
       case 'set-sound':
-        if (this.locked(command.type)) return;
-        this.setSound(command.layer, command.sound);
+        if (this.#locked(command.type)) return;
+        this.#setSound(command.layer, command.sound);
         return;
       case 'clear-layer': {
-        if (this.locked(command.type)) return;
-        const channel = this.channelAt(command.layer);
-        if (!channel) return this.reject(command.type, 'range');
+        if (this.#locked(command.type)) return;
+        const channel = this.#channelAt(command.layer);
+        if (!channel) return this.#reject(command.type, 'range');
         channel.pendingActive = false;
         channel.pendingContent = null;
-        this.applyContent(command.layer, null);
+        this.#applyContent(command.layer, null);
         return;
       }
       case 'undo':
       case 'redo':
-        if (this.locked(command.type)) return;
-        this.moveHistory(command.layer, command.type === 'undo');
+        if (this.#locked(command.type)) return;
+        this.#moveHistory(command.layer, command.type === 'undo');
         return;
       case 'disc-hold': {
-        if (this.locked(command.type)) return;
-        const channel = this.channelAt(command.layer);
-        if (!channel) return this.reject(command.type, 'range');
-        if (this.discLayer >= 0 && this.discLayer !== command.layer) this.releaseDisc();
-        this.discLayer = command.layer;
+        if (this.#locked(command.type)) return;
+        const channel = this.#channelAt(command.layer);
+        if (!channel) return this.#reject(command.type, 'range');
+        if (this.#discLayer >= 0 && this.#discLayer !== command.layer) this.#releaseDisc();
+        this.#discLayer = command.layer;
         channel.holdDisc(transport.beat, transport.beatsPerFrame);
         return;
       }
       case 'disc-move':
-        if (this.discLayer < 0) return;
-        if (!Number.isFinite(command.turns)) return this.reject(command.type, 'range');
-        this.channels[this.discLayer]!.moveDisc(command.turns);
+        if (this.#discLayer < 0) return;
+        if (!Number.isFinite(command.turns)) return this.#reject(command.type, 'range');
+        this.#channels[this.#discLayer]!.moveDisc(command.turns);
         return;
       case 'disc-release':
-        this.releaseDisc();
+        this.#releaseDisc();
         return;
       case 'record':
-        this.record(command.layer, command.bars, command.countIn, command.fitTempo);
+        this.#record(command.layer, command.bars, command.countIn, command.fitTempo);
         return;
       case 'cancel-recording':
-        this.cancelTake('cancelled');
+        this.#cancelTake('cancelled');
         return;
       case 'set-volume':
-        if (!isNumberIn(command.volume, 0, 1)) return this.reject(command.type, 'range');
-        this.volumeTarget = command.volume;
+        if (!isNumberIn(command.volume, 0, 1)) return this.#reject(command.type, 'range');
+        this.#volumeTarget = command.volume;
         return;
       case 'set-input-gain':
-        if (!isNumberIn(command.gain, 0, MAX_INPUT_GAIN)) return this.reject(command.type, 'range');
-        this.inputGainTarget = command.gain;
+        if (!isNumberIn(command.gain, 0, MAX_INPUT_GAIN))
+          return this.#reject(command.type, 'range');
+        this.#inputGainTarget = command.gain;
         return;
       case 'set-metronome':
-        if (typeof command.enabled !== 'boolean') return this.reject(command.type, 'range');
-        this.metronomeEnabled = command.enabled;
+        if (typeof command.enabled !== 'boolean') return this.#reject(command.type, 'range');
+        this.#metronomeEnabled = command.enabled;
         return;
       case 'set-latency':
         if (
           !Number.isInteger(command.frames) ||
           !isNumberIn(command.frames, 0, MAX_LATENCY_SECONDS * this.sampleRate)
         ) {
-          return this.reject(command.type, 'range');
+          return this.#reject(command.type, 'range');
         }
-        this.latency = command.frames;
+        this.#latency = command.frames;
         return;
       case 'load-session':
-        if (this.locked(command.type)) return;
-        this.load(command.session);
+        if (this.#locked(command.type)) return;
+        this.#load(command.session);
         return;
       case 'reset':
-        if (this.locked(command.type)) return;
-        this.load(this.emptySession());
+        if (this.#locked(command.type)) return;
+        this.#load(this.#emptySession());
         return;
       case 'standby':
-        this.cancelTake('standby');
-        this.pause(false);
+        this.#cancelTake('standby');
+        this.#pause(false);
         return;
       default:
-        this.reject(String((command as { type?: unknown }).type), 'unknown');
+        this.#reject(String((command as { type?: unknown }).type), 'unknown');
     }
   }
 
-  private channelAt(layer: number): LayerChannel | undefined {
+  #channelAt(layer: number): LayerChannel | undefined {
     return Number.isInteger(layer) && layer >= 0 && layer < LAYER_COUNT
-      ? this.channels[layer]
+      ? this.#channels[layer]
       : undefined;
   }
 
   /** Durante una toma (también en la cuenta previa) se bloquean los cambios que la romperían. */
-  private locked(type: CoreCommandType): boolean {
-    if (!this.recorder.active) return false;
-    this.notify('locked', this.recorder.layer, 0, type);
+  #locked(type: CoreCommandType): boolean {
+    if (!this.#recorder.active) return false;
+    this.#notify('locked', this.#recorder.layer, 0, type);
     return true;
   }
 
-  private reject(type: string, reason: string): void {
-    this.notify('rejected', -1, 0, `${type}: ${reason}`);
+  #reject(type: string, reason: string): void {
+    this.#notify('rejected', -1, 0, `${type}: ${reason}`);
   }
 
-  private setSound(layer: number, sound: LibrarySound | null): void {
-    const channel = this.channelAt(layer);
-    if (!channel) return this.reject('set-sound', 'range');
+  #setSound(layer: number, sound: LibrarySound | null): void {
+    const channel = this.#channelAt(layer);
+    if (!channel) return this.#reject('set-sound', 'range');
     let content: LayerContent | null = null;
     if (sound !== null) {
-      if (!this.isValidSound(sound)) return this.reject('set-sound', 'invalid');
-      if (!this.ensureMemory(sound.pcm.byteLength)) return this.reject('set-sound', 'no-memory');
+      if (!this.#isValidSound(sound)) return this.#reject('set-sound', 'invalid');
+      if (!this.#ensureMemory(sound.pcm.byteLength)) return this.#reject('set-sound', 'no-memory');
       content = {
         data: sound.pcm,
         frames: sound.pcm.length,
@@ -427,149 +429,149 @@ export class LoopCore {
         source: { kind: 'library', id: sound.id },
       };
     }
-    if (this.transportStateValue === 'playing') {
+    if (this.#transportStateValue === 'playing') {
       // En marcha: espera al siguiente límite de compás (exacto a la muestra).
       channel.pendingActive = true;
       channel.pendingContent = content;
-      channel.pendingBeat = nextBarAfter(this.transport.beat);
-      channel.pendingFrame = this.transport.frameAtBeat(channel.pendingBeat);
-      this.memoryDirty = true;
+      channel.pendingBeat = nextBarAfter(this.#transport.beat);
+      channel.pendingFrame = this.#transport.frameAtBeat(channel.pendingBeat);
+      this.#memoryDirty = true;
       return;
     }
     channel.pendingActive = false;
     channel.pendingContent = null;
-    this.applyContent(layer, content);
-    this.notify('sound-applied', layer, this.transport.frame, '');
+    this.#applyContent(layer, content);
+    this.#notify('sound-applied', layer, this.#transport.frame, '');
   }
 
-  private isValidSound(sound: LibrarySound): boolean {
+  #isValidSound(sound: LibrarySound): boolean {
     if (typeof sound !== 'object' || sound === null) return false;
     const { pcm, lengthBeats, id } = sound;
     if (!(pcm instanceof Float32Array) || typeof id !== 'string' || id.length > 64) return false;
-    if (pcm.length < 1 || pcm.length > this.maxLayerFrames) return false;
+    if (pcm.length < 1 || pcm.length > this.#maxLayerFrames) return false;
     if (!isNumberIn(lengthBeats, 1e-3, 10_000)) return false;
     const nativeBpm = (60 * this.sampleRate * lengthBeats) / pcm.length;
     return nativeBpm >= MIN_BPM * 0.99 && nativeBpm <= MAX_BPM * 1.01;
   }
 
   /** Deshacer o rehacer. Deshacer con un cambio en cola solo cancela la cola. */
-  private moveHistory(layer: number, undo: boolean): void {
-    const channel = this.channelAt(layer);
-    if (!channel) return this.reject(undo ? 'undo' : 'redo', 'range');
+  #moveHistory(layer: number, undo: boolean): void {
+    const channel = this.#channelAt(layer);
+    if (!channel) return this.#reject(undo ? 'undo' : 'redo', 'range');
     if (undo && channel.pendingActive) {
       channel.pendingActive = false;
       channel.pendingContent = null;
-      this.memoryDirty = true;
+      this.#memoryDirty = true;
       return;
     }
     const moved = undo ? channel.history.undo() : channel.history.redo();
-    if (!moved) return this.reject(undo ? 'undo' : 'redo', 'empty');
-    channel.show(channel.content, this.transport.beat, this.transport.beatsPerFrame);
+    if (!moved) return this.#reject(undo ? 'undo' : 'redo', 'empty');
+    channel.show(channel.content, this.#transport.beat, this.#transport.beatsPerFrame);
   }
 
-  private releaseDisc(): void {
-    if (this.discLayer < 0) return;
-    const channel = this.channels[this.discLayer]!;
-    channel.releaseDisc(this.transport.beat, this.transport.beatsPerFrame);
-    this.discLayer = -1;
+  #releaseDisc(): void {
+    if (this.#discLayer < 0) return;
+    const channel = this.#channels[this.#discLayer]!;
+    channel.releaseDisc(this.#transport.beat, this.#transport.beatsPerFrame);
+    this.#discLayer = -1;
   }
 
   // --- Transporte -----------------------------------------------------------------------------
 
-  private startTransport(): void {
-    if (this.transportStateValue === 'playing') return;
-    this.transportStateValue = 'playing';
-    this.transportGain.start(1);
-    this.stopAfterFade = false;
-    this.anchorDirty = true;
+  #startTransport(): void {
+    if (this.#transportStateValue === 'playing') return;
+    this.#transportStateValue = 'playing';
+    this.#transportGain.start(1);
+    this.#stopAfterFade = false;
+    this.#anchorDirty = true;
   }
 
   /** Pausar (o parar y volver al pulso 0): cierra la toma o cancela la cuenta previa. */
-  private pause(stop: boolean): void {
-    const recorder = this.recorder;
-    if (recorder.state === 'count-in') this.cancelTake('cancelled');
-    else if (recorder.state === 'recording') recorder.close(this.transport.frame);
-    if (this.transportStateValue === 'stopped') {
-      if (stop) this.rewind();
+  #pause(stop: boolean): void {
+    const recorder = this.#recorder;
+    if (recorder.state === 'count-in') this.#cancelTake('cancelled');
+    else if (recorder.state === 'recording') recorder.close(this.#transport.frame);
+    if (this.#transportStateValue === 'stopped') {
+      if (stop) this.#rewind();
       return;
     }
-    if (stop) this.stopAfterFade = true;
-    if (this.transportStateValue === 'playing') {
-      this.transportStateValue = 'pausing';
-      this.transportGain.start(0);
+    if (stop) this.#stopAfterFade = true;
+    if (this.#transportStateValue === 'playing') {
+      this.#transportStateValue = 'pausing';
+      this.#transportGain.start(0);
     }
   }
 
   /** La salida ya se ha apagado: se aplica la cola y, si era parar, se vuelve al principio. */
-  private finishPause(): void {
-    this.transportStateValue = 'stopped';
+  #finishPause(): void {
+    this.#transportStateValue = 'stopped';
     for (let i = 0; i < LAYER_COUNT; i++) {
-      if (this.channels[i]!.pendingActive) this.applyPending(i);
+      if (this.#channels[i]!.pendingActive) this.#applyPending(i);
     }
-    if (this.stopAfterFade) {
-      this.stopAfterFade = false;
-      this.rewind();
+    if (this.#stopAfterFade) {
+      this.#stopAfterFade = false;
+      this.#rewind();
     }
-    const load = this.pendingLoad;
+    const load = this.#pendingLoad;
     if (load) {
-      this.pendingLoad = null;
-      this.applyLoad(load);
+      this.#pendingLoad = null;
+      this.#applyLoad(load);
     }
-    this.notify('stopped', -1, 0, '');
+    this.#notify('stopped', -1, 0, '');
   }
 
-  private rewind(): void {
-    this.transport.rewind();
-    this.generation++;
-    this.timelineMoved();
+  #rewind(): void {
+    this.#transport.rewind();
+    this.#generation++;
+    this.#timelineMoved();
   }
 
   /** La línea de tiempo ha cambiado de golpe: las voces y el metrónomo se recolocan. */
-  private timelineMoved(): void {
-    this.anchorDirty = true;
-    this.nextClickBeat = Number.NaN;
-    this.scheduleDirty = true;
+  #timelineMoved(): void {
+    this.#anchorDirty = true;
+    this.#nextClickBeat = Number.NaN;
+    this.#scheduleDirty = true;
   }
 
   /** Recalcula en muestras los instantes programados (tras un cambio de tempo o de línea de tiempo). */
-  private reschedule(): void {
-    const transport = this.transport;
+  #reschedule(): void {
+    const transport = this.#transport;
     for (let i = 0; i < LAYER_COUNT; i++) {
-      const channel = this.channels[i]!;
+      const channel = this.#channels[i]!;
       if (channel.pendingActive) channel.pendingFrame = transport.frameAtBeat(channel.pendingBeat);
     }
-    const recorder = this.recorder;
+    const recorder = this.#recorder;
     if (recorder.state === 'count-in' && recorder.startBeat === recorder.startBeat) {
-      this.takeStartFrame = transport.frameAtBeat(recorder.startBeat);
+      this.#takeStartFrame = transport.frameAtBeat(recorder.startBeat);
     }
-    this.scheduleDirty = false;
+    this.#scheduleDirty = false;
   }
 
   // --- Cola y contenido -----------------------------------------------------------------------
 
-  private applyPending(layer: number): void {
-    const channel = this.channels[layer]!;
+  #applyPending(layer: number): void {
+    const channel = this.#channels[layer]!;
     const content = channel.pendingContent;
     channel.pendingActive = false;
     channel.pendingContent = null;
-    this.applyContent(layer, content);
-    this.notify('sound-applied', layer, this.transport.frame, '');
+    this.#applyContent(layer, content);
+    this.#notify('sound-applied', layer, this.#transport.frame, '');
   }
 
   /** Una edición: el contenido nuevo entra en el historial y suena con un fundido cruzado. */
-  private applyContent(layer: number, content: LayerContent | null): void {
-    const channel = this.channels[layer]!;
-    this.memoryDirty = true;
+  #applyContent(layer: number, content: LayerContent | null): void {
+    const channel = this.#channels[layer]!;
+    this.#memoryDirty = true;
     if (content === channel.content) return;
     channel.history.push(content);
-    channel.show(content, this.transport.beat, this.transport.beatsPerFrame);
+    channel.show(content, this.#transport.beat, this.#transport.beatsPerFrame);
   }
 
   /** Duración del bucle de la sesión: la de la capa más larga (también si está en cola). */
-  private loopBeats(): number {
+  #loopBeats(): number {
     let beats = 0;
     for (let i = 0; i < LAYER_COUNT; i++) {
-      const channel = this.channels[i]!;
+      const channel = this.#channels[i]!;
       const content = channel.content;
       if (content && content.lengthBeats > beats) beats = content.lengthBeats;
       const pending = channel.pendingActive ? channel.pendingContent : null;
@@ -581,55 +583,55 @@ export class LoopCore {
   // --- Tomas ----------------------------------------------------------------------------------
 
   /** Grabar: empieza una toma, la termina o cancela la cuenta previa. */
-  private record(layer: number, bars: number, countIn: boolean, fitTempo: boolean): void {
-    const recorder = this.recorder;
-    if (!this.channelAt(layer)) return this.reject('record', 'range');
+  #record(layer: number, bars: number, countIn: boolean, fitTempo: boolean): void {
+    const recorder = this.#recorder;
+    if (!this.#channelAt(layer)) return this.#reject('record', 'range');
     if (recorder.active) {
       if (layer !== recorder.layer) {
-        this.notify('locked', recorder.layer, 0, 'record');
+        this.#notify('locked', recorder.layer, 0, 'record');
         return;
       }
-      if (recorder.state === 'count-in') this.cancelTake('cancelled');
-      else recorder.close(this.transport.frame);
+      if (recorder.state === 'count-in') this.#cancelTake('cancelled');
+      else recorder.close(this.#transport.frame);
       return;
     }
-    if (!(TAKE_BARS as readonly number[]).includes(bars)) return this.reject('record', 'range');
-    if (this.discLayer >= 0) return this.reject('record', 'disc');
-    if (!this.planTake(layer, bars, fitTempo === true)) return;
-    if (this.transportStateValue === 'playing') {
-      this.scheduleTakeStart(countIn === true);
+    if (!(TAKE_BARS as readonly number[]).includes(bars)) return this.#reject('record', 'range');
+    if (this.#discLayer >= 0) return this.#reject('record', 'disc');
+    if (!this.#planTake(layer, bars, fitTempo === true)) return;
+    if (this.#transportStateValue === 'playing') {
+      this.#scheduleTakeStart(countIn === true);
       return;
     }
     if (countIn === true) {
       // Con el transporte parado, la cuenta previa va antes de arrancarlo.
-      const beatFrames = (60 * this.sampleRate) / this.transport.bpm;
+      const beatFrames = (60 * this.sampleRate) / this.#transport.bpm;
       recorder.timerBeatFrames = beatFrames;
       recorder.timerFrames = Math.round(COUNT_IN_BEATS * beatFrames);
-      this.timerTotal = recorder.timerFrames;
-      this.timerClick = 0;
-      this.timerRunning = true;
+      this.#timerTotal = recorder.timerFrames;
+      this.#timerClick = 0;
+      this.#timerRunning = true;
       return;
     }
-    this.startTransport();
-    this.scheduleTakeStart(false);
+    this.#startTransport();
+    this.#scheduleTakeStart(false);
   }
 
   /**
    * Reserva el búfer de la toma. Primera toma libre: 60 s. Con duración: la de la toma o, si se
    * sobregraba, la de la capa (repetida si la toma es más larga), con su contenido copiado.
    */
-  private planTake(layer: number, bars: number, fitTempo: boolean): boolean {
-    const channel = this.channels[layer]!;
-    if (channel.pendingActive) this.applyPending(layer);
+  #planTake(layer: number, bars: number, fitTempo: boolean): boolean {
+    const channel = this.#channels[layer]!;
+    if (channel.pendingActive) this.#applyPending(layer);
     const content = channel.content;
-    const sessionBeats = this.loopBeats();
+    const sessionBeats = this.#loopBeats();
     const kind: TakeKind = bars > 0 ? 'fixed' : sessionBeats > 0 ? 'follow' : 'first';
     let target: MutableLayerContent;
     if (kind === 'first') {
-      if (!this.ensureMemory(this.maxTakeFrames * 4)) return this.rejectFalse('no-memory');
-      this.plannedFrames = -1;
+      if (!this.#ensureMemory(this.#maxTakeFrames * 4)) return this.#rejectFalse('no-memory');
+      this.#plannedFrames = -1;
       target = {
-        data: new Float32Array(this.maxTakeFrames),
+        data: new Float32Array(this.#maxTakeFrames),
         frames: 0,
         lengthBeats: 0,
         offsetBeats: 0,
@@ -637,11 +639,11 @@ export class LoopCore {
       };
     } else {
       const takeBeats = kind === 'fixed' ? bars * BEATS_PER_BAR : sessionBeats;
-      const frames = Math.round((takeBeats * 60 * this.sampleRate) / this.transport.bpm);
-      if (frames > this.maxTakeFrames) return this.rejectFalse('too-long');
-      this.plannedFrames = frames;
+      const frames = Math.round((takeBeats * 60 * this.sampleRate) / this.#transport.bpm);
+      if (frames > this.#maxTakeFrames) return this.#rejectFalse('too-long');
+      this.#plannedFrames = frames;
       if (!content) {
-        if (!this.ensureMemory(frames * 4)) return this.rejectFalse('no-memory');
+        if (!this.#ensureMemory(frames * 4)) return this.#rejectFalse('no-memory');
         target = {
           data: new Float32Array(frames),
           frames,
@@ -655,8 +657,8 @@ export class LoopCore {
           lengthBeats > content.lengthBeats
             ? Math.round((lengthBeats * content.frames) / content.lengthBeats)
             : content.frames;
-        if (total > this.maxLayerFrames) return this.rejectFalse('too-long');
-        if (!this.ensureMemory(total * 4)) return this.rejectFalse('no-memory');
+        if (total > this.#maxLayerFrames) return this.#rejectFalse('too-long');
+        if (!this.#ensureMemory(total * 4)) return this.#rejectFalse('no-memory');
         const data = new Float32Array(total);
         // Lo que había, repetido si la capa crece: es lo que se oye durante la toma.
         for (let at = 0; at < total; at += content.frames) {
@@ -673,42 +675,42 @@ export class LoopCore {
     }
     // Una toma en una capa vacía suena tal como se ha tocado.
     if (!content) channel.reversed = false;
-    this.recorder.arm(layer, kind, target, content !== null, fitTempo, this.maxTakeFrames);
-    this.memoryDirty = true;
+    this.#recorder.arm(layer, kind, target, content !== null, fitTempo, this.#maxTakeFrames);
+    this.#memoryDirty = true;
     return true;
   }
 
-  private rejectFalse(reason: string): false {
-    this.reject('record', reason);
+  #rejectFalse(reason: string): false {
+    this.#reject('record', reason);
     return false;
   }
 
   /** Pulso de inicio: tras la cuenta previa, en el siguiente compás (fija) o ya (libre). */
-  private scheduleTakeStart(withCountIn: boolean): void {
-    const recorder = this.recorder;
-    const beat = this.transport.beat;
+  #scheduleTakeStart(withCountIn: boolean): void {
+    const recorder = this.#recorder;
+    const beat = this.#transport.beat;
     if (withCountIn) recorder.startBeat = barAtOrAfter(beat + COUNT_IN_BEATS);
     else if (recorder.kind === 'fixed') recorder.startBeat = barAtOrAfter(beat);
     else recorder.startBeat = beat;
-    this.takeStartFrame = this.transport.frameAtBeat(recorder.startBeat);
-    if (beat >= recorder.startBeat) this.beginTake();
+    this.#takeStartFrame = this.#transport.frameAtBeat(recorder.startBeat);
+    if (beat >= recorder.startBeat) this.#beginTake();
   }
 
   /** Empieza a grabar en la muestra actual del transporte. */
-  private beginTake(): void {
-    const recorder = this.recorder;
-    const transport = this.transport;
-    const channel = this.channels[recorder.layer]!;
+  #beginTake(): void {
+    const recorder = this.#recorder;
+    const transport = this.#transport;
+    const channel = this.#channels[recorder.layer]!;
     const target = recorder.target!;
     const beat = transport.beat;
     recorder.startBeat = beat;
-    this.takeGeneration = this.generation;
+    this.#takeGeneration = this.#generation;
     let takeFrames = -1;
     let writeStart = 0;
     let direction = 1;
     let speed = 1;
     if (recorder.kind !== 'first') {
-      takeFrames = this.plannedFrames;
+      takeFrames = this.#plannedFrames;
       if (!recorder.overdub) {
         // La muestra 0 de la toma suena en el pulso en que empieza.
         target.offsetBeats = wrap(beat, target.lengthBeats);
@@ -730,25 +732,25 @@ export class LoopCore {
     recorder.begin(
       transport.frame,
       takeFrames,
-      this.latency + this.outputLatency,
+      this.#latency + this.outputLatency,
       writeStart,
       direction,
       speed,
     );
-    this.notify('take-started', recorder.layer, transport.frame, '');
+    this.#notify('take-started', recorder.layer, transport.frame, '');
   }
 
   /** La toma está completa (también su final cruzado con la junta): entra en la capa. */
-  private commitTake(): void {
-    const recorder = this.recorder;
-    const transport = this.transport;
+  #commitTake(): void {
+    const recorder = this.#recorder;
+    const transport = this.#transport;
     const layer = recorder.layer;
-    const channel = this.channels[layer]!;
+    const channel = this.#channels[layer]!;
     const target = recorder.target!;
     if (recorder.kind === 'first') {
       const frames = recorder.closedFrames;
-      if (frames < this.minFreeFrames) {
-        this.cancelTake('too-short');
+      if (frames < this.#minFreeFrames) {
+        this.#cancelTake('too-short');
         return;
       }
       target.frames = frames;
@@ -759,53 +761,54 @@ export class LoopCore {
         if (bars > 0) {
           beats = bars * BEATS_PER_BAR;
           bpm = (beats * 60 * this.sampleRate) / frames;
-          this.notify('tempo-fitted', layer, bpm, '');
+          this.#notify('tempo-fitted', layer, bpm, '');
         }
       }
       target.lengthBeats = beats;
       target.offsetBeats = 0;
       // La primera toma empieza en el pulso 0. Sin otras capas, redefinir la línea de tiempo no
       // mueve nada que suene; si se paró entre medias, ya está en el pulso 0.
-      if (this.takeGeneration === this.generation) transport.redefine(recorder.startFrame, 0, bpm);
+      if (this.#takeGeneration === this.#generation)
+        transport.redefine(recorder.startFrame, 0, bpm);
       else transport.setTempo(bpm);
-      this.timelineMoved();
+      this.#timelineMoved();
       for (let i = 0; i < LAYER_COUNT; i++) {
-        const other = this.channels[i]!;
+        const other = this.#channels[i]!;
         if (other.pendingActive) other.pendingBeat = nextBarAfter(transport.beat);
       }
     }
     channel.history.push(target);
     channel.show(target, transport.beat, transport.beatsPerFrame);
-    this.notify('take-committed', layer, target.frames, '');
+    this.#notify('take-committed', layer, target.frames, '');
     recorder.finish();
-    this.memoryDirty = true;
+    this.#memoryDirty = true;
   }
 
-  private cancelTake(reason: string): void {
-    const recorder = this.recorder;
+  #cancelTake(reason: string): void {
+    const recorder = this.#recorder;
     if (!recorder.active) return;
     const layer = recorder.layer;
-    this.timerRunning = false;
+    this.#timerRunning = false;
     recorder.finish();
-    this.memoryDirty = true;
-    this.notify('take-cancelled', layer, 0, reason);
+    this.#memoryDirty = true;
+    this.#notify('take-cancelled', layer, 0, reason);
   }
 
   // --- Sesión ---------------------------------------------------------------------------------
 
-  private emptySession(): SessionState {
+  #emptySession(): SessionState {
     const layers: LayerState[] = [];
     for (let i = 0; i < LAYER_COUNT; i++) layers.push(EMPTY_LAYER);
     return { sampleRate: this.sampleRate, bpm: DEFAULT_BPM, layers };
   }
 
   /** Cargar (o sesión nueva): con la salida en marcha, primero se apaga y después se carga. */
-  private load(session: SessionState): void {
+  #load(session: SessionState): void {
     const checked = validateSessionState(session, {
       sampleRate: this.sampleRate,
       checkSamples: false,
     });
-    if (typeof checked === 'string') return this.reject('load-session', checked);
+    if (typeof checked === 'string') return this.#reject('load-session', checked);
     // Los contenidos se crean aquí (en el manejador del comando): si hay que esperar al fundido,
     // aplicar la sesión dentro de `process()` ya no reserva nada.
     const prepared: PreparedSession = {
@@ -823,23 +826,23 @@ export class LoopCore {
           : null,
       ),
     };
-    if (this.transportStateValue !== 'stopped') {
-      this.pendingLoad = prepared;
-      this.pause(true);
+    if (this.#transportStateValue !== 'stopped') {
+      this.#pendingLoad = prepared;
+      this.#pause(true);
       return;
     }
-    this.applyLoad(prepared);
+    this.#applyLoad(prepared);
   }
 
-  private applyLoad(session: PreparedSession): void {
-    this.releaseDisc();
-    this.rewind();
-    this.transport.setTempo(session.bpm);
-    const perFrame = this.transport.beatsPerFrame;
+  #applyLoad(session: PreparedSession): void {
+    this.#releaseDisc();
+    this.#rewind();
+    this.#transport.setTempo(session.bpm);
+    const perFrame = this.#transport.beatsPerFrame;
     for (let i = 0; i < LAYER_COUNT; i++) {
       const state = session.layers[i] ?? EMPTY_LAYER;
       const content = session.contents[i] ?? null;
-      const channel = this.channels[i]!;
+      const channel = this.#channels[i]!;
       channel.silence();
       channel.pendingActive = false;
       channel.pendingContent = null;
@@ -852,33 +855,33 @@ export class LoopCore {
       // Con la salida parada, las voces entran ya a volumen pleno (el transporte hará el fundido).
       channel.show(content, 0, perFrame, INSTANT_FADE);
     }
-    this.memoryDirty = true;
+    this.#memoryDirty = true;
   }
 
   // --- Estado, avisos y memoria ---------------------------------------------------------------
 
-  private notify(code: NoticeCode, layer: number, value: number, reason: string): void {
-    if (this.queuedCount >= NOTICE_CAPACITY) {
-      this.dropped++;
+  #notify(code: NoticeCode, layer: number, value: number, reason: string): void {
+    if (this.#queuedCount >= NOTICE_CAPACITY) {
+      this.#dropped++;
       return;
     }
-    const notice = this.queued[this.queuedCount++]!;
+    const notice = this.#queued[this.#queuedCount++]!;
     notice.code = code;
     notice.layer = layer;
     notice.value = value;
     notice.reason = reason;
   }
 
-  private updateStatus(): void {
+  #updateStatus(): void {
     const status = this.status;
-    const transport = this.transport;
-    const recorder = this.recorder;
-    const clock = this.clock;
+    const transport = this.#transport;
+    const recorder = this.#recorder;
+    const clock = this.#clock;
     transport.writeClock(clock);
     status.frame = transport.frame;
     status.beat = clock.beat;
     status.bpm = transport.bpm;
-    status.transport = this.transportStateValue;
+    status.transport = this.#transportStateValue;
     status.recording = recorder.state;
     status.recordLayer = recorder.layer;
     status.recordSeconds = 0;
@@ -891,66 +894,66 @@ export class LoopCore {
       status.recordSeconds = shown / this.sampleRate;
       status.recordProgress = length > 0 ? shown / length : -1;
     } else if (recorder.state === 'count-in') {
-      status.countInBeats = this.timerRunning
+      status.countInBeats = this.#timerRunning
         ? recorder.timerFrames / recorder.timerBeatFrames
         : Math.max(0, recorder.startBeat - clock.beat);
     }
-    for (let i = 0; i < LAYER_COUNT; i++) this.channels[i]!.writeStatus(status.layers[i]!, clock);
-    this.updateMemory();
-    status.memoryBytes = this.memoryBytes;
-    status.limiterGain = this.limiter.minGain;
-    this.limiter.resetMinGain();
-    for (let i = 0; i < this.queuedCount; i++) {
-      const from = this.queued[i]!;
+    for (let i = 0; i < LAYER_COUNT; i++) this.#channels[i]!.writeStatus(status.layers[i]!, clock);
+    this.#updateMemory();
+    status.memoryBytes = this.#memoryBytes;
+    status.limiterGain = this.#limiter.minGain;
+    this.#limiter.resetMinGain();
+    for (let i = 0; i < this.#queuedCount; i++) {
+      const from = this.#queued[i]!;
       const to = status.notices[i]!;
       to.code = from.code;
       to.layer = from.layer;
       to.value = from.value;
       to.reason = from.reason;
     }
-    status.noticeCount = this.queuedCount;
-    status.noticesDropped = this.dropped;
-    this.queuedCount = 0;
-    this.dropped = 0;
+    status.noticeCount = this.#queuedCount;
+    status.noticesDropped = this.#dropped;
+    this.#queuedCount = 0;
+    this.#dropped = 0;
   }
 
   /** Recalcula los bytes en uso si algo ha cambiado (sin reservas). */
-  private updateMemory(): void {
-    if (!this.memoryDirty) return;
-    const memory = this.memory;
+  #updateMemory(): void {
+    if (!this.#memoryDirty) return;
+    const memory = this.#memory;
     memory.reset();
     for (let i = 0; i < LAYER_COUNT; i++) {
-      const channel = this.channels[i]!;
+      const channel = this.#channels[i]!;
       const history = channel.history;
       for (let j = 0; j < history.size; j++) memory.add(history.at(j)?.data);
       if (channel.pendingActive) memory.add(channel.pendingContent?.data);
     }
-    memory.add(this.recorder.target?.data);
-    this.memoryBytes = memory.total + this.fixedBytes;
-    this.memoryDirty = false;
+    memory.add(this.#recorder.target?.data);
+    this.#memoryBytes = memory.total + this.#fixedBytes;
+    this.#memoryDirty = false;
   }
 
   /**
    * ¿Caben `extra` bytes más en el presupuesto? Si no, se olvida el deshacer más antiguo de la capa
    * con más estados guardados, hasta que quepan o no quede nada que soltar.
    */
-  private ensureMemory(extra: number): boolean {
-    this.memoryDirty = true;
-    this.updateMemory();
-    while (this.memoryBytes + extra > this.memoryBudget) {
+  #ensureMemory(extra: number): boolean {
+    this.#memoryDirty = true;
+    this.#updateMemory();
+    while (this.#memoryBytes + extra > this.#memoryBudget) {
       let best = -1;
       let most = 1;
       for (let i = 0; i < LAYER_COUNT; i++) {
-        const size = this.channels[i]!.history.size;
+        const size = this.#channels[i]!.history.size;
         if (size > most) {
           most = size;
           best = i;
         }
       }
       if (best < 0) return false;
-      this.channels[best]!.history.dropOldest();
-      this.memoryDirty = true;
-      this.updateMemory();
+      this.#channels[best]!.history.dropOldest();
+      this.#memoryDirty = true;
+      this.#updateMemory();
     }
     return true;
   }
@@ -958,28 +961,29 @@ export class LoopCore {
   // --- Proceso --------------------------------------------------------------------------------
 
   /** Lo que ocurre justo en la muestra actual: cola, inicio y cierre de tomas, fin de fundidos. */
-  private processEvents(): void {
-    const transport = this.transport;
-    const recorder = this.recorder;
-    if (this.scheduleDirty) this.reschedule();
-    if (this.transportStateValue === 'pausing' && !this.transportGain.ramping) this.finishPause();
-    if (recorder.state === 'count-in' && this.timerRunning && recorder.timerFrames <= 0) {
-      this.timerRunning = false;
-      this.startTransport();
-      this.scheduleTakeStart(false);
+  #processEvents(): void {
+    const transport = this.#transport;
+    const recorder = this.#recorder;
+    if (this.#scheduleDirty) this.#reschedule();
+    if (this.#transportStateValue === 'pausing' && !this.#transportGain.ramping)
+      this.#finishPause();
+    if (recorder.state === 'count-in' && this.#timerRunning && recorder.timerFrames <= 0) {
+      this.#timerRunning = false;
+      this.#startTransport();
+      this.#scheduleTakeStart(false);
     }
-    if (this.transportStateValue === 'playing') {
+    if (this.#transportStateValue === 'playing') {
       const frame = transport.frame;
       for (let i = 0; i < LAYER_COUNT; i++) {
-        const channel = this.channels[i]!;
-        if (channel.pendingActive && frame >= channel.pendingFrame) this.applyPending(i);
+        const channel = this.#channels[i]!;
+        if (channel.pendingActive && frame >= channel.pendingFrame) this.#applyPending(i);
       }
       if (
         recorder.state === 'count-in' &&
         recorder.startBeat === recorder.startBeat &&
-        frame >= this.takeStartFrame
+        frame >= this.#takeStartFrame
       ) {
-        this.beginTake();
+        this.#beginTake();
       }
       if (
         recorder.state === 'recording' &&
@@ -989,32 +993,32 @@ export class LoopCore {
         recorder.close(recorder.endFrame());
       }
     }
-    if (recorder.complete) this.commitTake();
+    if (recorder.complete) this.#commitTake();
   }
 
   /** Muestras hasta el siguiente instante exacto (o hasta el final del bloque). */
-  private segmentLength(remaining: number): number {
-    const transport = this.transport;
-    const recorder = this.recorder;
+  #segmentLength(remaining: number): number {
+    const transport = this.#transport;
+    const recorder = this.#recorder;
     let n = remaining < MAX_SEGMENT ? remaining : MAX_SEGMENT;
-    if (this.transportStateValue !== 'stopped') {
+    if (this.#transportStateValue !== 'stopped') {
       const toAnchor = ANCHOR_FRAMES - (transport.frame % ANCHOR_FRAMES);
       if (toAnchor < n) n = toAnchor;
     }
-    if (this.transportStateValue === 'pausing') {
-      const left = this.transportGain.remaining;
+    if (this.#transportStateValue === 'pausing') {
+      const left = this.#transportGain.remaining;
       if (left > 0 && left < n) n = left;
     }
-    if (this.transportStateValue === 'playing') {
+    if (this.#transportStateValue === 'playing') {
       const frame = transport.frame;
       for (let i = 0; i < LAYER_COUNT; i++) {
-        const channel = this.channels[i]!;
+        const channel = this.#channels[i]!;
         if (!channel.pendingActive) continue;
         const d = channel.pendingFrame - frame;
         if (d > 0 && d < n) n = d;
       }
       if (recorder.state === 'count-in' && recorder.startBeat === recorder.startBeat) {
-        const d = this.takeStartFrame - frame;
+        const d = this.#takeStartFrame - frame;
         if (d > 0 && d < n) n = d;
       }
       if (recorder.state === 'recording' && recorder.closedFrames < 0) {
@@ -1022,7 +1026,7 @@ export class LoopCore {
         if (d > 0 && d < n) n = d;
       }
     }
-    if (recorder.state === 'count-in' && this.timerRunning) {
+    if (recorder.state === 'count-in' && this.#timerRunning) {
       const d = recorder.timerFrames;
       if (d > 0 && d < n) n = d;
     }
@@ -1033,99 +1037,99 @@ export class LoopCore {
     return n;
   }
 
-  private renderSegment(
+  #renderSegment(
     input: Float32Array | null,
     outL: Float32Array,
     outR: Float32Array,
     offset: number,
     n: number,
   ): void {
-    const transport = this.transport;
-    const advancing = this.transportStateValue !== 'stopped';
-    transport.writeClock(this.clock);
-    if (advancing && (this.anchorDirty || transport.frame % ANCHOR_FRAMES === 0)) {
-      for (let i = 0; i < LAYER_COUNT; i++) this.channels[i]!.syncTimeline(this.clock);
-      this.anchorDirty = false;
+    const transport = this.#transport;
+    const advancing = this.#transportStateValue !== 'stopped';
+    transport.writeClock(this.#clock);
+    if (advancing && (this.#anchorDirty || transport.frame % ANCHOR_FRAMES === 0)) {
+      for (let i = 0; i < LAYER_COUNT; i++) this.#channels[i]!.syncTimeline(this.#clock);
+      this.#anchorDirty = false;
     }
     let gain: Float32Array | null = null;
-    if (this.transportGain.ramping) {
-      this.transportGain.renderInto(this.transportBuffer, n);
-      gain = this.transportBuffer;
+    if (this.#transportGain.ramping) {
+      this.#transportGain.renderInto(this.#transportBuffer, n);
+      gain = this.#transportBuffer;
     }
-    const busL = this.busL;
-    const busR = this.busR;
+    const busL = this.#busL;
+    const busR = this.#busR;
     busL.fill(0, 0, n);
     busR.fill(0, 0, n);
     for (let i = 0; i < LAYER_COUNT; i++)
-      this.channels[i]!.renderAdd(busL, busR, n, advancing, gain);
-    if (this.live) this.renderClicks(n);
-    this.renderInput(input, offset, n);
-    this.limiter.processInto(busL, busR, outL, outR, offset, n);
-    this.renderVolume(outL, outR, offset, n);
+      this.#channels[i]!.renderAdd(busL, busR, n, advancing, gain);
+    if (this.live) this.#renderClicks(n);
+    this.#renderInput(input, offset, n);
+    this.#limiter.processInto(busL, busR, outL, outR, offset, n);
+    this.#renderVolume(outL, outR, offset, n);
     if (advancing) transport.advance(n);
-    if (this.timerRunning) this.recorder.timerFrames -= n;
-    this.statusCountdown -= n;
-    if (this.statusCountdown <= 0) {
-      this.statusCountdown += this.statusInterval;
-      this.updateStatus();
+    if (this.#timerRunning) this.#recorder.timerFrames -= n;
+    this.#statusCountdown -= n;
+    if (this.#statusCountdown <= 0) {
+      this.#statusCountdown += this.#statusInterval;
+      this.#updateStatus();
       this.statusReady = true;
     }
   }
 
   /** Metrónomo y cuenta previa: un clic en la muestra exacta de cada pulso. */
-  private renderClicks(n: number): void {
-    const transport = this.transport;
-    const recorder = this.recorder;
+  #renderClicks(n: number): void {
+    const transport = this.#transport;
+    const recorder = this.#recorder;
     const countIn = recorder.state === 'count-in';
-    const counting = countIn && !this.timerRunning;
-    if (this.transportStateValue === 'playing' && (this.metronomeEnabled || counting)) {
-      if (this.nextClickBeat !== this.nextClickBeat) {
-        this.nextClickBeat = Math.ceil(this.clock.beat);
-        this.nextClickFrame = transport.frameAtBeat(this.nextClickBeat);
+    const counting = countIn && !this.#timerRunning;
+    if (this.#transportStateValue === 'playing' && (this.#metronomeEnabled || counting)) {
+      if (this.#nextClickBeat !== this.#nextClickBeat) {
+        this.#nextClickBeat = Math.ceil(this.#clock.beat);
+        this.#nextClickFrame = transport.frameAtBeat(this.#nextClickBeat);
       }
-      const delay = this.nextClickFrame - transport.frame;
+      const delay = this.#nextClickFrame - transport.frame;
       if (delay < n) {
-        this.metronome.trigger(wrap(this.nextClickBeat, BEATS_PER_BAR) === 0, delay);
-        this.nextClickBeat++;
-        this.nextClickFrame = transport.frameAtBeat(this.nextClickBeat);
+        this.#metronome.trigger(wrap(this.#nextClickBeat, BEATS_PER_BAR) === 0, delay);
+        this.#nextClickBeat++;
+        this.#nextClickFrame = transport.frameAtBeat(this.#nextClickBeat);
       }
     } else {
-      this.nextClickBeat = Number.NaN;
+      this.#nextClickBeat = Number.NaN;
     }
-    if (countIn && this.timerRunning && this.timerClick < COUNT_IN_BEATS) {
-      const elapsed = this.timerTotal - recorder.timerFrames;
-      const at = Math.round(this.timerClick * recorder.timerBeatFrames);
+    if (countIn && this.#timerRunning && this.#timerClick < COUNT_IN_BEATS) {
+      const elapsed = this.#timerTotal - recorder.timerFrames;
+      const at = Math.round(this.#timerClick * recorder.timerBeatFrames);
       if (at - elapsed < n) {
-        this.metronome.trigger(this.timerClick === 0, at > elapsed ? at - elapsed : 0);
-        this.timerClick++;
+        this.#metronome.trigger(this.#timerClick === 0, at > elapsed ? at - elapsed : 0);
+        this.#timerClick++;
       }
     }
-    this.metronome.renderAdd(this.busL, this.busR, n);
+    this.#metronome.renderAdd(this.#busL, this.#busR, n);
   }
 
   /** Ganancia de entrada suavizada y grabación. */
-  private renderInput(input: Float32Array | null, offset: number, n: number): void {
-    const target = this.inputGainTarget;
-    if (this.recorder.state !== 'recording') {
-      this.inputGain = target;
+  #renderInput(input: Float32Array | null, offset: number, n: number): void {
+    const target = this.#inputGainTarget;
+    if (this.#recorder.state !== 'recording') {
+      this.#inputGain = target;
       return;
     }
-    const gains = this.inputGains;
-    const a = this.smoothing;
-    let g = this.inputGain;
+    const gains = this.#inputGains;
+    const a = this.#smoothing;
+    let g = this.#inputGain;
     for (let i = 0; i < n; i++) {
       g += (target - g) * a;
       if (Math.abs(target - g) < 1e-6) g = target;
       gains[i] = g;
     }
-    this.inputGain = g;
-    this.recorder.processInput(input, offset, n, gains);
+    this.#inputGain = g;
+    this.#recorder.processInput(input, offset, n, gains);
   }
 
   /** Volumen general (rueda), suavizado, después del limitador. */
-  private renderVolume(outL: Float32Array, outR: Float32Array, offset: number, n: number): void {
-    const target = this.volumeTarget;
-    let v = this.volume;
+  #renderVolume(outL: Float32Array, outR: Float32Array, offset: number, n: number): void {
+    const target = this.#volumeTarget;
+    let v = this.#volume;
     const end = offset + n;
     if (v === target) {
       if (v === 1) return;
@@ -1135,14 +1139,14 @@ export class LoopCore {
       }
       return;
     }
-    const a = this.smoothing;
+    const a = this.#smoothing;
     for (let i = offset; i < end; i++) {
       v += (target - v) * a;
       if (Math.abs(target - v) < 1e-6) v = target;
       outL[i] = outL[i]! * v;
       outR[i] = outR[i]! * v;
     }
-    this.volume = v;
+    this.#volume = v;
   }
 }
 
