@@ -108,6 +108,43 @@ describe('capas de la arquitectura (ESLint)', { timeout: 60_000 }, () => {
     ],
     // Higiene: nada de console.log olvidados.
     ['src/app/features/x/x.ts', "console.log('depurando');", 'console'],
+    // Ruta caliente del hilo de audio: process*/render* no reservan memoria ni lanzan.
+    [
+      'src/app/audio/core/x.ts',
+      'export class A { process(): number[] { return [1]; } }',
+      'ruta caliente',
+    ],
+    [
+      'src/app/audio/core/x.ts',
+      'export class A { renderMix(out: Float32Array): number { return out.subarray(1).length; } }',
+      'ruta caliente',
+    ],
+    [
+      'src/app/audio/worklet/x.ts',
+      'export class A { process(): boolean { const f = () => 1; return f() > 0; } }',
+      'ruta caliente',
+    ],
+    [
+      'src/app/audio/core/x.ts',
+      'export function renderAll(x: number): string { return `${x}`; }',
+      'ruta caliente',
+    ],
+    [
+      'src/app/audio/core/x.ts',
+      "export class A { processInto(): void { throw new RangeError('x'); } }",
+      'ruta caliente',
+    ],
+    // …también en los métodos auxiliares que llama process() (todos salvo los del manejador).
+    [
+      'src/app/audio/core/x.ts',
+      'export class A { #commit(): number[] { return [1]; } }',
+      'ruta caliente',
+    ],
+    [
+      'src/app/audio/core/x.ts',
+      'export class A { get status() { return { a: 1 }; } }',
+      'ruta caliente',
+    ],
   ];
 
   it.each(forbidden)('rechaza en %s: %s', async (file, code, reason) => {
@@ -142,6 +179,19 @@ describe('capas de la arquitectura (ESLint)', { timeout: 60_000 }, () => {
     [
       'src/app/audio/core/x.spec.ts',
       "import { it } from 'vitest';\nimport { hash } from 'node:crypto';",
+    ],
+    // Fuera de la ruta caliente (constructores, el manejador de comandos, render sin conexión) sí.
+    [
+      'src/app/audio/core/x.ts',
+      'export class A { handle(): number[] { return [1]; } process(out: Float32Array): void { out[0] = 1; } }',
+    ],
+    [
+      'src/app/audio/core/x.ts',
+      'export class A { readonly b: number[]; constructor() { this.b = [1]; } #planTake(): object { return {}; } }',
+    ],
+    [
+      'src/app/audio/core/x.ts',
+      'export function renderOffline(): Float32Array { return new Float32Array(4); }',
     ],
   ];
 

@@ -260,6 +260,33 @@ const NEW_WORKER = {
   message: 'Solo src/app/audio/engine/ crea workers (PLAN §4.2).',
 };
 
+// --- Ruta caliente del hilo de audio (CLAUDE.md, «Hilo de audio») ---------------------------------
+//
+// En audio/core y audio/worklet, ningún método reserva memoria: ni `new`, ni literales de objeto o de
+// array, ni cierres, ni plantillas, ni `...`, ni métodos que copian. Tampoco `throw`, `await` ni
+// `console`. Todos pueden acabar llamados desde `process()`. Las únicas excepciones son los
+// constructores y los métodos del manejador de comandos que preparan memoria antes de usarla
+// (`handle`, la copia de la sesión, los búferes de una toma, una carga y un sonido nuevo). Entre las
+// funciones sueltas, las `process*` y `render*` (salvo `renderOffline`). El test de memoria de
+// LoopCore lo comprueba además en ejecución, con el perfil de muestreo del heap de V8.
+const ALLOCATING_METHODS = /^(handle|exportState|planTake|load|setSound|emptySession)$/;
+const HOT_PATH = `:matches(MethodDefinition[kind!="constructor"]:not([key.name=${ALLOCATING_METHODS}]) > FunctionExpression, FunctionDeclaration[id.name=/^(process|render)(?!Offline)/])`;
+const HOT_PATH_MESSAGE =
+  'En la ruta caliente del audio no se reserva memoria ni se lanza nada (CLAUDE.md, «Hilo de audio»): prepáralo en el constructor o en el manejador del comando.';
+const HOT_PATH_SYNTAX = [
+  'NewExpression',
+  'ArrayExpression',
+  'ObjectExpression',
+  'ArrowFunctionExpression',
+  'FunctionExpression',
+  'TemplateLiteral',
+  'SpreadElement',
+  'ThrowStatement',
+  'AwaitExpression',
+  'CallExpression[callee.property.name=/^(slice|subarray|map|filter|concat|reduce|forEach|flatMap|splice|bind|join|split|toFixed|toString)$/]',
+  "CallExpression[callee.object.name='console']",
+].map((node) => ({ selector: `${HOT_PATH} ${node}`, message: HOT_PATH_MESSAGE }));
+
 // Variables globales de Node para los scripts .mjs (sin el paquete `globals`, fuera de la lista).
 const NODE_GLOBALS = Object.fromEntries(
   [
@@ -341,12 +368,31 @@ export default defineConfig([
     },
   },
   {
+    // Los bancos de rendimiento imprimen su cifra para el informe.
+    files: ['src/**/*.bench.spec.ts'],
+    rules: { 'no-console': ['error', { allow: ['error', 'warn', 'info'] }] },
+  },
+  {
     files: ['src/**/*.ts'],
     ignores: ['src/app/audio/engine/**'],
     rules: {
       'no-restricted-globals': ['error', ...WEB_AUDIO_GLOBALS],
       'no-restricted-properties': ['error', MEDIA_DEVICES],
       'no-restricted-syntax': ['error', NEW_WORKER, WEB_AUDIO_VIA_GLOBAL, MICROPHONE],
+    },
+  },
+  {
+    files: ['src/app/audio/core/**/*.ts', 'src/app/audio/worklet/**/*.ts'],
+    // beep.ts es la sonda temporal de la fase 0 (se borra en la fase 2).
+    ignores: ['**/*.spec.ts', 'src/app/audio/core/test-harness.ts', 'src/app/audio/core/beep.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        NEW_WORKER,
+        WEB_AUDIO_VIA_GLOBAL,
+        MICROPHONE,
+        ...HOT_PATH_SYNTAX,
+      ],
     },
   },
   {
