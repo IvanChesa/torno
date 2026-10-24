@@ -11,6 +11,7 @@
     "start": "node scripts/build-worklet.mjs --watch -- ng serve",
     "build": "ng build",
     "prebuild": "node scripts/build-worklet.mjs",
+    "postbuild": "node scripts/publish-licenses.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "npm run test:node && npm run test:ng",
     "pretest": "node scripts/build-worklet.mjs",

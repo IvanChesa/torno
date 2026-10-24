@@ -71,4 +71,15 @@ test.describe('build estático', () => {
     expect(fonts).toHaveLength(2);
     expect(await page.context().cookies()).toEqual([]);
   });
+
+  test('los textos de las licencias de terceros se publican con la web', async ({ request }) => {
+    const thirdParty = await request.get('/licencias/terceros.txt');
+    expect(thirdParty.status()).toBe(200);
+    expect(await thirdParty.text()).toContain('@angular/core');
+    for (const font of ['fraunces', 'geist-mono']) {
+      const license = await request.get(`/licencias/${font}-OFL.txt`);
+      expect(license.status()).toBe(200);
+      expect(await license.text()).toContain('SIL Open Font License, Version 1.1');
+    }
+  });
 });
