@@ -1,0 +1,37 @@
+/** Textos del muestrario del diseño (temporal, fase 0). Pendientes de revisión de Iván. */
+export const DESIGN_SAMPLE_CONTENT = {
+  reviewed: false,
+  webColors: 'Colores de la web',
+  instrumentColors: 'Colores del instrumento',
+  type: 'Tipografía',
+  controls: 'Controles',
+  colors: {
+    bg: 'Fondo de olivar',
+    surface: 'Superficie',
+    surface2: 'Superficie elevada',
+    ink: 'Tinta de hueso',
+    inkMuted: 'Tinta suave',
+    accent: 'Terracota',
+    accentText: 'Terracota para texto',
+    warning: 'Aviso',
+    error: 'Error',
+    body: 'Cuerpo de terracota',
+    brass: 'Latón envejecido',
+    key: 'Teclas de crema',
+    glaze: 'Esmalte del disco',
+    screen: 'Pantalla de fósforo',
+    ledRec: 'Piloto de grabación',
+  },
+  samples: {
+    display: 'Barro y bucles',
+    heading: 'Arrastra el tiempo con el disco',
+    lead: 'Cuatro capas que se repiten: un ritmo, un bajo, unos acordes y lo que grabes.',
+    text: 'Mantén pulsado el disco para congelar la capa seleccionada y arrástralo hacia delante o hacia atrás. Al soltarlo, vuelve a su sitio en la línea de tiempo común.',
+    small: 'Texto secundario: nota, pie de foto o aclaración.',
+    // Espacio duro (U+00A0) entre cifra y unidad: no se separan al cortar la línea.
+    mono: 'CAPA 2 · BAJO · 90\u00a0BPM · −12,0\u00a0dBFS',
+  },
+  buttons: { primary: 'Tocar el instrumento', secondary: 'Cómo se toca' },
+  link: 'Enlace en el texto',
+  shortcut: { prefix: 'Con el teclado,', key: 'Espacio', action: 'reproduce o pausa' },
+} as const;

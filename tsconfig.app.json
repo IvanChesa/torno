@@ -1,0 +1,12 @@
+/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
+/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": ["src/**/*.ts"],
+  // El worklet y los workers tienen su propio entorno global (tsconfig.worklet.json y
+  // tsconfig.worker.json): no son parte del programa de la aplicación.
+  "exclude": ["src/**/*.spec.ts", "src/**/*.worker.ts", "src/app/audio/worklet/**"]
+}

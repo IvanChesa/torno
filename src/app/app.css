@@ -1,0 +1,94 @@
+:host {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-block-size: 100dvh;
+}
+
+/* --- Cabecera: marca, dos enlaces y nada más --- */
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  inline-size: min(var(--max-width), 100% - 2 * var(--page-margin));
+  margin-inline: auto;
+  padding-block: var(--space-5);
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+  font-size: var(--text-l);
+  font-weight: var(--weight-brand);
+  font-variation-settings: 'SOFT' var(--soft-display);
+  letter-spacing: var(--tracking-heading);
+  text-decoration: none;
+}
+
+.site-header ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.site-header nav a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+  text-decoration-color: transparent;
+}
+
+.site-header nav a:hover,
+.site-header nav a.is-active {
+  text-decoration-color: var(--color-accent);
+}
+
+main:focus {
+  outline: none;
+}
+
+/* --- Pie: el nombre vuelve a lo ancho y cierra la página --- */
+.site-footer {
+  display: grid;
+  gap: var(--space-6);
+  inline-size: min(var(--max-width), 100% - 2 * var(--page-margin));
+  margin-inline: auto;
+  margin-block-start: var(--section-gap);
+  padding-block: var(--space-7) var(--space-8);
+  color: var(--color-ink-muted);
+  font-size: var(--text-s);
+}
+
+.site-footer__name {
+  color: var(--color-ink-faint);
+  font-size: var(--text-colossal);
+  font-weight: var(--weight-brand);
+  font-variation-settings: 'SOFT' var(--soft-display);
+  line-height: var(--leading-colossal);
+  letter-spacing: var(--tracking-colossal);
+  user-select: none;
+}
+
+.site-footer__body {
+  display: grid;
+  gap: var(--space-2);
+  max-inline-size: var(--measure);
+}
+
+.site-footer__legal ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.site-footer__legal a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+}

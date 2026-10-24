@@ -1,0 +1,19 @@
+dist/
+.angular/
+coverage/
+node_modules/
+package-lock.json
+test-results/
+playwright-report/
+blob-report/
+out/
+# Generado por scripts/build-worklet.mjs
+public/audio/
+src/app/audio/engine/worklet-url.generated.ts
+# La documentación (tablas largas) se mantiene a mano.
+*.md
+
+# Skills de terceros copiadas en local (no son código del proyecto)
+.claude/skills/
+# Configuración local de Claude Code (no se versiona)
+.claude/settings.local.json

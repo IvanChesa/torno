@@ -1,0 +1,11 @@
+// Los Web Workers (DedicatedWorkerGlobalScope): sin DOM. El builder de Angular los empaqueta
+// sin comprobar tipos, así que los comprueba `npm run typecheck`.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "WebWorker"],
+    "types": [],
+    "noEmit": true
+  },
+  "include": ["src/**/*.worker.ts"]
+}

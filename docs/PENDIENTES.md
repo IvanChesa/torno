@@ -18,8 +18,10 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 - [ ] **Autoguardado local** (D16): por defecto, activado, visible y borrable. Si prefieres que sea opcional, díselo a la sesión de revisión antes del bloque A.
 - [ ] **Licencia del código propio** cuando el repo pase a público (MIT u otra).
 - [ ] `@lhci/cli` en el CI (fase 8).
+- [ ] **Indexación en el lanzamiento (fase 9).** Hasta entonces todas las páginas llevan `noindex` (`indexable: false` en `src/app/core/site.config.ts`); al lanzar se pone a `true` y solo la 404 sigue con `noindex`. Confirmar que quieres que se indexe.
 
 ## Revisiones y pruebas de Iván
+- [ ] Ver `docs/DISENO.md` y las capturas de la fase 0 (`docs/informes/img/fase-0/`): paleta «Barro», Fraunces con el eje SOFT y Geist Mono (revisión del bloque 0).
 - [ ] Escuchar los 12 sonidos y 3 combinaciones (`npm run demo:sounds`, final del bloque B).
 - [ ] Pruebas en Android e iPhone por el staging (fase 4; necesarias antes del bloque C).
 - [ ] Aprobar el diseño del instrumento (parada de la fase 5.a).

@@ -1,0 +1,23 @@
+// Código que corre en Node: tests de las capas de TS puro, scripts, e2e y configuración.
+// Lleva DOM porque Playwright evalúa funciones en la página; las capas de TS puro siguen sin DOM
+// (tsconfig.pure.json) y sus tests corren en el entorno `node` de Vitest. Los tests importan
+// scripts .mjs (allowJs): sus tipos salen de la JSDoc; los .mjs no se comprueban.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "allowJs": true,
+    "noEmit": true
+  },
+  "include": [
+    "src/app/audio/core/**/*.spec.ts",
+    "src/app/audio/synth/**/*.spec.ts",
+    "src/app/audio/files/**/*.spec.ts",
+    "src/app/instrument/**/*.spec.ts",
+    "scripts/**/*.ts",
+    "e2e/**/*.ts",
+    "*.ts",
+    "*.mts"
+  ]
+}

@@ -1,0 +1,4 @@
+/* Estilos globales: tokens, tipografías y base (docs/DISENO.md). */
+@import './styles/tokens.css';
+@import './styles/fonts.css';
+@import './styles/base.css';
