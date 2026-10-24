@@ -47,12 +47,19 @@ import {
 } from './protocol';
 import { Recorder, type TakeKind } from './recorder';
 import { EMPTY_LAYER, validateSessionState, type LayerState, type SessionState } from './session';
-import { barAtOrAfter, nextBarAfter, Transport } from './transport';
+import { barAtOrAfter, nextBarAfter, Transport, type Clock } from './transport';
 
 /** Tramo máximo de proceso (el bloque del AudioWorklet). */
 export const MAX_SEGMENT = 128;
 /** Cada 128 muestras del transporte, las voces recalculan su posición exacta: deriva 0. */
 export const ANCHOR_FRAMES = 128;
+
+/** Una sesión validada con sus contenidos ya creados: aplicarla no reserva memoria. */
+interface PreparedSession {
+  readonly bpm: number;
+  readonly layers: readonly LayerState[];
+  readonly contents: readonly (LayerContent | null)[];
+}
 
 export interface LoopCoreOptions {
   readonly sampleRate: number;
@@ -99,7 +106,7 @@ export class LoopCore {
   /** Cambia cada vez que el transporte vuelve al principio (las tomas lo comprueban). */
   private generation = 0;
   private takeGeneration = 0;
-  private pendingLoad: SessionState | null = null;
+  private pendingLoad: PreparedSession | null = null;
 
   private metronomeEnabled = false;
   private nextClickBeat = Number.NaN;
@@ -117,6 +124,15 @@ export class LoopCore {
   private plannedFrames = 0;
   private discLayer = -1;
   private anchorDirty = true;
+  /** Pulso y velocidad del transporte al principio del tramo: las voces los leen de aquí. */
+  private readonly clock: Clock = { beat: 0, beatsPerFrame: 0 };
+  /**
+   * Los instantes programados (cola, inicio de la toma, clics) se guardan en muestras enteras del
+   * transporte; si el tempo o la línea de tiempo cambian, se recalculan.
+   */
+  private scheduleDirty = false;
+  private takeStartFrame = 0;
+  private nextClickFrame = 0;
 
   private readonly statusInterval: number;
   private statusCountdown: number;
@@ -416,6 +432,7 @@ export class LoopCore {
       channel.pendingActive = true;
       channel.pendingContent = content;
       channel.pendingBeat = nextBarAfter(this.transport.beat);
+      channel.pendingFrame = this.transport.frameAtBeat(channel.pendingBeat);
       this.memoryDirty = true;
       return;
     }
@@ -511,6 +528,21 @@ export class LoopCore {
   private timelineMoved(): void {
     this.anchorDirty = true;
     this.nextClickBeat = Number.NaN;
+    this.scheduleDirty = true;
+  }
+
+  /** Recalcula en muestras los instantes programados (tras un cambio de tempo o de línea de tiempo). */
+  private reschedule(): void {
+    const transport = this.transport;
+    for (let i = 0; i < LAYER_COUNT; i++) {
+      const channel = this.channels[i]!;
+      if (channel.pendingActive) channel.pendingFrame = transport.frameAtBeat(channel.pendingBeat);
+    }
+    const recorder = this.recorder;
+    if (recorder.state === 'count-in' && recorder.startBeat === recorder.startBeat) {
+      this.takeStartFrame = transport.frameAtBeat(recorder.startBeat);
+    }
+    this.scheduleDirty = false;
   }
 
   // --- Cola y contenido -----------------------------------------------------------------------
@@ -658,6 +690,7 @@ export class LoopCore {
     if (withCountIn) recorder.startBeat = barAtOrAfter(beat + COUNT_IN_BEATS);
     else if (recorder.kind === 'fixed') recorder.startBeat = barAtOrAfter(beat);
     else recorder.startBeat = beat;
+    this.takeStartFrame = this.transport.frameAtBeat(recorder.startBeat);
     if (beat >= recorder.startBeat) this.beginTake();
   }
 
@@ -702,7 +735,7 @@ export class LoopCore {
       direction,
       speed,
     );
-    this.notify('take-started', recorder.layer, 0, '');
+    this.notify('take-started', recorder.layer, transport.frame, '');
   }
 
   /** La toma está completa (también su final cruzado con la junta): entra en la capa. */
@@ -773,31 +806,40 @@ export class LoopCore {
       checkSamples: false,
     });
     if (typeof checked === 'string') return this.reject('load-session', checked);
+    // Los contenidos se crean aquí (en el manejador del comando): si hay que esperar al fundido,
+    // aplicar la sesión dentro de `process()` ya no reserva nada.
+    const prepared: PreparedSession = {
+      bpm: checked.bpm,
+      layers: checked.layers,
+      contents: checked.layers.map((state) =>
+        state.pcm
+          ? {
+              data: state.pcm,
+              frames: state.pcm.length,
+              lengthBeats: state.lengthBeats,
+              offsetBeats: state.offsetBeats,
+              source: state.source ?? RECORDING_SOURCE,
+            }
+          : null,
+      ),
+    };
     if (this.transportStateValue !== 'stopped') {
-      this.pendingLoad = checked;
+      this.pendingLoad = prepared;
       this.pause(true);
       return;
     }
-    this.applyLoad(checked);
+    this.applyLoad(prepared);
   }
 
-  private applyLoad(session: SessionState): void {
+  private applyLoad(session: PreparedSession): void {
     this.releaseDisc();
     this.rewind();
     this.transport.setTempo(session.bpm);
     const perFrame = this.transport.beatsPerFrame;
     for (let i = 0; i < LAYER_COUNT; i++) {
       const state = session.layers[i] ?? EMPTY_LAYER;
+      const content = session.contents[i] ?? null;
       const channel = this.channels[i]!;
-      const content: LayerContent | null = state.pcm
-        ? {
-            data: state.pcm,
-            frames: state.pcm.length,
-            lengthBeats: state.lengthBeats,
-            offsetBeats: state.offsetBeats,
-            source: state.source ?? RECORDING_SOURCE,
-          }
-        : null;
       channel.silence();
       channel.pendingActive = false;
       channel.pendingContent = null;
@@ -831,8 +873,10 @@ export class LoopCore {
     const status = this.status;
     const transport = this.transport;
     const recorder = this.recorder;
+    const clock = this.clock;
+    transport.writeClock(clock);
     status.frame = transport.frame;
-    status.beat = transport.beat;
+    status.beat = clock.beat;
     status.bpm = transport.bpm;
     status.transport = this.transportStateValue;
     status.recording = recorder.state;
@@ -849,31 +893,13 @@ export class LoopCore {
     } else if (recorder.state === 'count-in') {
       status.countInBeats = this.timerRunning
         ? recorder.timerFrames / recorder.timerBeatFrames
-        : Math.max(0, recorder.startBeat - transport.beat);
+        : Math.max(0, recorder.startBeat - clock.beat);
     }
-    for (let i = 0; i < LAYER_COUNT; i++) {
-      const channel = this.channels[i]!;
-      const layer = status.layers[i]!;
-      const content = channel.content;
-      layer.hasContent = content !== null;
-      layer.sourceKind = content ? content.source.kind : 'empty';
-      layer.sourceId = content && content.source.kind === 'library' ? content.source.id : '';
-      layer.lengthBeats = content ? content.lengthBeats : 0;
-      layer.positionBeats = channel.positionBeats(transport.beat);
-      layer.level = channel.level;
-      layer.muted = channel.muted;
-      layer.pan = channel.pan;
-      layer.reversed = channel.reversed;
-      layer.filter = channel.amountTarget;
-      layer.rms = channel.takeMeter();
-      layer.pending = channel.pendingActive;
-      layer.undo = channel.history.undoCount;
-      layer.redo = channel.history.redoCount;
-      layer.discHeld = channel.discHeld;
-    }
+    for (let i = 0; i < LAYER_COUNT; i++) this.channels[i]!.writeStatus(status.layers[i]!, clock);
     this.updateMemory();
     status.memoryBytes = this.memoryBytes;
-    status.limiterGain = this.limiter.takeMinGain();
+    status.limiterGain = this.limiter.minGain;
+    this.limiter.resetMinGain();
     for (let i = 0; i < this.queuedCount; i++) {
       const from = this.queued[i]!;
       const to = status.notices[i]!;
@@ -935,6 +961,7 @@ export class LoopCore {
   private processEvents(): void {
     const transport = this.transport;
     const recorder = this.recorder;
+    if (this.scheduleDirty) this.reschedule();
     if (this.transportStateValue === 'pausing' && !this.transportGain.ramping) this.finishPause();
     if (recorder.state === 'count-in' && this.timerRunning && recorder.timerFrames <= 0) {
       this.timerRunning = false;
@@ -942,12 +969,18 @@ export class LoopCore {
       this.scheduleTakeStart(false);
     }
     if (this.transportStateValue === 'playing') {
-      const beat = transport.beat;
+      const frame = transport.frame;
       for (let i = 0; i < LAYER_COUNT; i++) {
         const channel = this.channels[i]!;
-        if (channel.pendingActive && beat >= channel.pendingBeat) this.applyPending(i);
+        if (channel.pendingActive && frame >= channel.pendingFrame) this.applyPending(i);
       }
-      if (recorder.state === 'count-in' && beat >= recorder.startBeat) this.beginTake();
+      if (
+        recorder.state === 'count-in' &&
+        recorder.startBeat === recorder.startBeat &&
+        frame >= this.takeStartFrame
+      ) {
+        this.beginTake();
+      }
       if (
         recorder.state === 'recording' &&
         recorder.closedFrames < 0 &&
@@ -977,11 +1010,11 @@ export class LoopCore {
       for (let i = 0; i < LAYER_COUNT; i++) {
         const channel = this.channels[i]!;
         if (!channel.pendingActive) continue;
-        const d = transport.frameAtBeat(channel.pendingBeat) - frame;
+        const d = channel.pendingFrame - frame;
         if (d > 0 && d < n) n = d;
       }
       if (recorder.state === 'count-in' && recorder.startBeat === recorder.startBeat) {
-        const d = transport.frameAtBeat(recorder.startBeat) - frame;
+        const d = this.takeStartFrame - frame;
         if (d > 0 && d < n) n = d;
       }
       if (recorder.state === 'recording' && recorder.closedFrames < 0) {
@@ -1009,10 +1042,9 @@ export class LoopCore {
   ): void {
     const transport = this.transport;
     const advancing = this.transportStateValue !== 'stopped';
+    transport.writeClock(this.clock);
     if (advancing && (this.anchorDirty || transport.frame % ANCHOR_FRAMES === 0)) {
-      const beat = transport.beat;
-      const perFrame = transport.beatsPerFrame;
-      for (let i = 0; i < LAYER_COUNT; i++) this.channels[i]!.syncTimeline(beat, perFrame);
+      for (let i = 0; i < LAYER_COUNT; i++) this.channels[i]!.syncTimeline(this.clock);
       this.anchorDirty = false;
     }
     let gain: Float32Array | null = null;
@@ -1047,11 +1079,15 @@ export class LoopCore {
     const countIn = recorder.state === 'count-in';
     const counting = countIn && !this.timerRunning;
     if (this.transportStateValue === 'playing' && (this.metronomeEnabled || counting)) {
-      if (this.nextClickBeat !== this.nextClickBeat) this.nextClickBeat = Math.ceil(transport.beat);
-      const delay = transport.frameAtBeat(this.nextClickBeat) - transport.frame;
+      if (this.nextClickBeat !== this.nextClickBeat) {
+        this.nextClickBeat = Math.ceil(this.clock.beat);
+        this.nextClickFrame = transport.frameAtBeat(this.nextClickBeat);
+      }
+      const delay = this.nextClickFrame - transport.frame;
       if (delay < n) {
         this.metronome.trigger(wrap(this.nextClickBeat, BEATS_PER_BAR) === 0, delay);
         this.nextClickBeat++;
+        this.nextClickFrame = transport.frameAtBeat(this.nextClickBeat);
       }
     } else {
       this.nextClickBeat = Number.NaN;

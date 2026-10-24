@@ -13,7 +13,9 @@ import {
 import type { LayerContent } from './content';
 import { fadeTable, framesOf, onePoleCoefficient, Ramp } from './dsp';
 import { LayerHistory } from './history';
+import type { LayerStatus } from './protocol';
 import { cutoffForAmount, LowpassSvf } from './svf';
+import type { Clock } from './transport';
 import { Voice } from './voice';
 
 /** Voces por capa: la que suena más las que se están apagando. */
@@ -38,6 +40,8 @@ export class LayerChannel {
   pendingActive = false;
   pendingContent: LayerContent | null = null;
   pendingBeat = 0;
+  /** Muestra del transporte en la que entra (se recalcula si cambia el tempo). */
+  pendingFrame = 0;
 
   // Disco.
   discHeld = false;
@@ -84,8 +88,10 @@ export class LayerChannel {
   ) {
     this.changeFade = fadeTable(framesOf(CHANGE_FADE_SECONDS, sampleRate));
     this.releaseFade = fadeTable(framesOf(DISC_RELEASE_FADE_SECONDS, sampleRate));
-    for (let i = 0; i < VOICES_PER_LAYER; i++) this.voices.push(new Voice(this.changeFade));
     this.discFollow = onePoleCoefficient(DISC_FOLLOW_SECONDS, sampleRate);
+    for (let i = 0; i < VOICES_PER_LAYER; i++) {
+      this.voices.push(new Voice(this.changeFade, this.discFollow));
+    }
     this.smoothing = onePoleCoefficient(SMOOTHING_SECONDS, sampleRate);
     this.amountStep = 1 - Math.exp(-FILTER_BLOCK / (SMOOTHING_SECONDS * sampleRate));
     this.svf = new LowpassSvf(sampleRate);
@@ -101,20 +107,39 @@ export class LayerChannel {
     return this.history.current;
   }
 
-  /** ¿Suena algo o se está apagando? */
-  get audible(): boolean {
-    for (let i = 0; i < VOICES_PER_LAYER; i++) if (this.voices[i]!.active) return true;
-    return false;
-  }
-
-  /** Pulso de la cabeza que suena (disco o línea de tiempo), para la pantalla. */
-  positionBeats(timelineBeat: number): number {
+  /** Escribe el estado de la capa (sin reservar: lo llama `process()` ≤ 30 veces por segundo). */
+  writeStatus(layer: LayerStatus, clock: Clock): void {
     const content = this.content;
-    if (!content) return 0;
-    const voice = this.current >= 0 ? this.voices[this.current] : undefined;
-    const beat = voice?.disc ? voice.headBeat : timelineBeat;
-    const rel = (beat - content.offsetBeats) % content.lengthBeats;
-    return rel < 0 ? rel + content.lengthBeats : rel;
+    layer.hasContent = content !== null;
+    layer.sourceKind = content ? content.source.kind : 'empty';
+    layer.sourceId = content && content.source.kind === 'library' ? content.source.id : '';
+    layer.lengthBeats = content ? content.lengthBeats : 0;
+    layer.positionBeats = 0;
+    if (content) {
+      // La cabeza que suena: la del disco si se mantiene, si no la de la línea de tiempo.
+      const voice = this.current >= 0 ? this.voices[this.current] : undefined;
+      const beat = voice?.disc ? voice.headBeat : clock.beat;
+      const rel = (beat - content.offsetBeats) % content.lengthBeats;
+      layer.positionBeats = rel < 0 ? rel + content.lengthBeats : rel;
+    }
+    layer.level = this.level;
+    layer.muted = this.muted;
+    layer.pan = this.pan;
+    layer.reversed = this.reversed;
+    layer.filter = this.amountTarget;
+    // RMS desde el último estado, después del nivel y el silencio.
+    const frames = this.meterFrames;
+    layer.rms =
+      frames === 0
+        ? 0
+        : Math.sqrt(this.meterSum / frames) *
+          Math.sqrt(this.gainL * this.gainL + this.gainR * this.gainR);
+    this.meterSum = 0;
+    this.meterFrames = 0;
+    layer.pending = this.pendingActive;
+    layer.undo = this.history.undoCount;
+    layer.redo = this.history.redoCount;
+    layer.discHeld = this.discHeld;
   }
 
   // --- Lo que suena -----------------------------------------------------------------------------
@@ -146,10 +171,10 @@ export class LayerChannel {
   }
 
   /** Recalcula la posición exacta de las voces de la línea de tiempo. */
-  syncTimeline(beat: number, beatsPerFrame: number): void {
+  syncTimeline(clock: Clock): void {
     for (let i = 0; i < VOICES_PER_LAYER; i++) {
       const voice = this.voices[i]!;
-      if (voice.active && !voice.disc) voice.sync(beat, beatsPerFrame);
+      if (voice.active && !voice.disc) voice.sync(clock);
     }
   }
 
@@ -236,16 +261,6 @@ export class LayerChannel {
     }
   }
 
-  /** RMS desde la última lectura, después del nivel y el silencio. */
-  takeMeter(): number {
-    const frames = this.meterFrames;
-    const sum = this.meterSum;
-    this.meterSum = 0;
-    this.meterFrames = 0;
-    if (frames === 0) return 0;
-    return Math.sqrt(sum / frames) * Math.sqrt(this.gainL * this.gainL + this.gainR * this.gainR);
-  }
-
   // --- Render -------------------------------------------------------------------------------------
 
   /**
@@ -266,7 +281,8 @@ export class LayerChannel {
       const voice = this.voices[i]!;
       if (!voice.active) continue;
       if (voice.disc) {
-        voice.renderDiscAdd(buffer, frames, this.gains, this.discTarget, this.discFollow);
+        voice.discTarget = this.discTarget;
+        voice.renderDiscAdd(buffer, frames, this.gains);
         sounding = true;
       } else if (advancing) {
         voice.renderTimelineAdd(buffer, frames, this.gains, transport);

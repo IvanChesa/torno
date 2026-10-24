@@ -39,8 +39,8 @@ export class Limiter {
   private boxPos = 0;
   private boxSum: number;
   private boxBelow = 0;
-  /** Reducción de ganancia más profunda desde la última lectura (para los medidores). */
-  private minGain = 1;
+  /** Reducción de ganancia más profunda desde `resetMinGain()` (para los medidores). */
+  minGain = 1;
 
   constructor(sampleRate: number, ceiling = LIMITER_CEILING) {
     this.ceiling = ceiling;
@@ -56,11 +56,8 @@ export class Limiter {
     this.boxSum = this.window;
   }
 
-  /** Lee y reinicia la reducción de ganancia más profunda (1 = sin limitar). */
-  takeMinGain(): number {
-    const value = this.minGain;
+  resetMinGain(): void {
     this.minGain = 1;
-    return value;
   }
 
   reset(): void {

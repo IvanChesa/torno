@@ -8,6 +8,7 @@
  */
 import type { LayerContent } from './content';
 import { Ramp, wrap } from './dsp';
+import type { Clock } from './transport';
 
 export class Voice {
   content: LayerContent | null = null;
@@ -18,12 +19,18 @@ export class Voice {
   position = 0;
   /** Pulso en el que está la cabeza del disco. */
   headBeat = 0;
+  /** Pulso al que va la cabeza del disco (lo pone el canal antes de cada tramo). */
+  discTarget = 0;
   readonly gain: Ramp;
   private speed = 0;
   private framesPerBeat = 1;
   private frames = 1;
 
-  constructor(fade: Float32Array) {
+  constructor(
+    fade: Float32Array,
+    /** Coeficiente del suavizado con el que la cabeza sigue al disco. */
+    private readonly discFollow = 1,
+  ) {
     this.gain = new Ramp(0, fade);
   }
 
@@ -46,19 +53,23 @@ export class Voice {
     this.reversed = reversed;
     this.disc = disc;
     this.headBeat = beat;
-    this.sync(beat, beatsPerFrame);
-    this.gain.set(0);
-    this.gain.start(1, fade);
-  }
-
-  /** Recalcula la posición exacta para el pulso `beat` (sin errores acumulados) y la velocidad. */
-  sync(beat: number, beatsPerFrame: number): void {
-    const content = this.content;
-    if (!content) return;
+    this.discTarget = beat;
     let position = wrap(beat - content.offsetBeats, content.lengthBeats) * this.framesPerBeat;
     if (position >= this.frames) position -= this.frames;
     this.position = position;
     this.speed = beatsPerFrame * this.framesPerBeat;
+    this.gain.set(0);
+    this.gain.start(1, fade);
+  }
+
+  /** Recalcula la posición exacta para el pulso del reloj (sin errores acumulados) y la velocidad. */
+  sync(clock: Clock): void {
+    const content = this.content;
+    if (!content) return;
+    let position = wrap(clock.beat - content.offsetBeats, content.lengthBeats) * this.framesPerBeat;
+    if (position >= this.frames) position -= this.frames;
+    this.position = position;
+    this.speed = clock.beatsPerFrame * this.framesPerBeat;
   }
 
   fadeOut(fade: Float32Array): void {
@@ -72,7 +83,7 @@ export class Voice {
 
   /** Ganancia actual (fundido incluido). */
   get level(): number {
-    return this.gain.value;
+    return this.gain.current;
   }
 
   /** Avanza el fundido sin leer (con el transporte parado, una voz de la línea de tiempo calla). */
@@ -94,7 +105,7 @@ export class Voice {
     const content = this.content;
     if (!content) return;
     const ramping = this.gain.ramping || transport !== null;
-    const constant = this.gain.value;
+    const constant = this.gain.current;
     if (ramping) {
       this.gain.renderInto(gains, frames);
       if (transport) for (let i = 0; i < frames; i++) gains[i] = gains[i]! * transport[i]!;
@@ -129,21 +140,16 @@ export class Voice {
   }
 
   /**
-   * Suma a `out` las `frames` muestras siguientes de la cabeza del disco, que sigue a `targetBeat`
-   * con un suavizado de un polo de coeficiente `follow` (sin escalones aunque el ángulo llegue a
-   * saltos).
+   * Suma a `out` las `frames` muestras siguientes de la cabeza del disco, que sigue a `discTarget`
+   * con un suavizado de un polo (sin escalones aunque el ángulo llegue a saltos).
    */
-  renderDiscAdd(
-    out: Float32Array,
-    frames: number,
-    gains: Float32Array,
-    targetBeat: number,
-    follow: number,
-  ): void {
+  renderDiscAdd(out: Float32Array, frames: number, gains: Float32Array): void {
     const content = this.content;
     if (!content) return;
     const ramping = this.gain.ramping;
-    const constant = this.gain.value;
+    const constant = this.gain.current;
+    const targetBeat = this.discTarget;
+    const follow = this.discFollow;
     if (ramping) this.gain.renderInto(gains, frames);
     const data = content.data;
     const n = this.frames;

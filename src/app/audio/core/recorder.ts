@@ -89,11 +89,6 @@ export class Recorder {
     return this.state !== 'idle';
   }
 
-  /** Muestras grabadas de la toma (desde su inicio en la línea de tiempo). */
-  get recordedFrames(): number {
-    return Math.max(0, this.k);
-  }
-
   /** Prepara una toma: el búfer ya está reservado (y, si es sobregrabación, copiado). */
   arm(
     layer: number,
@@ -145,6 +140,10 @@ export class Recorder {
       this.alias2.reset();
       this.alias1.setCutoff(cutoff);
       this.alias2.setCutoff(cutoff);
+      // Los dos Butterworth retrasan los graves √2/ωc cada uno: la toma se escribe ese tanto antes
+      // para que siga alineada.
+      const delay = (2 * Math.SQRT2 * this.sampleRate) / (2 * Math.PI * cutoff);
+      this.writeStart -= direction * speed * delay;
     }
   }
 

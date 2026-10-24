@@ -60,6 +60,11 @@ export const INSTANT_FADE = new Float32Array(0);
  * reutiliza el mismo objeto en cada fundido.
  */
 export class Ramp {
+  /**
+   * Valor de la próxima muestra. Es un campo y no un getter: la ruta caliente lo lee sin llamadas
+   * (en V8, un número que vuelve de una llamada no integrada se empaqueta en el heap).
+   */
+  current = 0;
   private from = 0;
   private to = 0;
   private table: Float32Array;
@@ -72,13 +77,13 @@ export class Ramp {
   ) {
     this.from = initial;
     this.to = initial;
+    this.current = initial;
     this.table = defaultTable;
   }
 
   /** Valor actual (el de la próxima muestra). */
   get value(): number {
-    if (this.position >= this.length) return this.to;
-    return this.from + (this.to - this.from) * this.table[this.position]!;
+    return this.current;
   }
 
   get target(): number {
@@ -101,12 +106,14 @@ export class Ramp {
     this.table = table;
     this.length = table.length;
     this.position = this.from === to ? this.length : 0;
+    this.update();
   }
 
   /** Salta a `value` sin fundido. */
   set(value: number): void {
     this.from = value;
     this.to = value;
+    this.current = value;
     this.position = this.length;
   }
 
@@ -126,10 +133,19 @@ export class Ramp {
       }
     }
     this.position = position;
+    this.update();
   }
 
   /** Avanza la rampa `frames` muestras sin escribir nada. */
   skip(frames: number): void {
     this.position = Math.min(this.length, this.position + frames);
+    this.update();
+  }
+
+  private update(): void {
+    this.current =
+      this.position < this.length
+        ? this.from + (this.to - this.from) * this.table[this.position]!
+        : this.to;
   }
 }

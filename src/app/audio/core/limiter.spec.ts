@@ -38,7 +38,7 @@ describe('Limiter', () => {
       expect(outL[n]).toBe(inL[n - 48]);
       expect(outR[n]).toBe(inR[n - 48]);
     }
-    expect(limiter.takeMinGain()).toBe(1);
+    expect(limiter.minGain).toBe(1);
   });
 
   it('nunca supera −0,3 dBFS con 4 capas a tope en fase (suma de 2,8 veces el máximo)', () => {
@@ -60,7 +60,7 @@ describe('Limiter', () => {
     expect(peak).toBeLessThanOrEqual(ceiling32);
     // Limita de verdad (no silencia): la salida llega cerca del techo.
     expect(peak).toBeGreaterThan(0.9 * LIMITER_CEILING);
-    expect(limiter.takeMinGain()).toBeLessThan(0.4);
+    expect(limiter.minGain).toBeLessThan(0.4);
   });
 
   it('con ruido a +12 dB tampoco lo supera, y al acabar vuelve a ganancia 1 exacta', () => {
@@ -109,6 +109,6 @@ describe('Limiter', () => {
     }
     expect(outL[1023]).toBeCloseTo(0.1, 6);
     limiter.reset();
-    expect(limiter.takeMinGain()).toBe(1);
+    expect(limiter.minGain).toBe(1);
   });
 });

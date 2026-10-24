@@ -9,6 +9,15 @@
  */
 import { BEATS_PER_BAR, DEFAULT_BPM, MAX_BPM, MIN_BPM } from './constants';
 
+/**
+ * Posición del transporte al principio de un tramo. Las voces la leen de aquí: en V8, pasar
+ * números con decimales a una función no integrada los empaqueta en el heap (reserva memoria).
+ */
+export interface Clock {
+  beat: number;
+  beatsPerFrame: number;
+}
+
 export class Transport {
   /** Muestra actual del transporte (entera). */
   frame = 0;
@@ -43,6 +52,12 @@ export class Transport {
   /** Pulso en la muestra actual. */
   get beat(): number {
     return this.beatAt(this.frame);
+  }
+
+  /** Escribe en `clock` el pulso de la muestra actual y los pulsos por muestra. */
+  writeClock(clock: Clock): void {
+    clock.beat = this.segmentBeat + (this.frame - this.segmentFrame) * this.perFrame;
+    clock.beatsPerFrame = this.perFrame;
   }
 
   /** Pulso en una muestra del tramo actual. */

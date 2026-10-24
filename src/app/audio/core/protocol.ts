@@ -80,7 +80,7 @@ export type TransportState = 'stopped' | 'playing' | 'pausing';
 export type RecordingState = 'idle' | 'count-in' | 'recording';
 
 export type NoticeCode =
-  /** Empieza a grabar (acaba la cuenta previa). */
+  /** Empieza a grabar (acaba la cuenta previa; `value` = muestra del transporte). */
   | 'take-started'
   /** La toma está en la capa (`value` = muestras). */
   | 'take-committed'

@@ -33,31 +33,3 @@ export interface MutableLayerContent {
   offsetBeats: number;
   source: LayerSource;
 }
-
-/** Muestras del bucle por pulso. */
-export function framesPerBeatOf(content: LayerContent): number {
-  return content.frames / content.lengthBeats;
-}
-
-/** Tempo al que el bucle suena a velocidad 1 (su tempo nativo). */
-export function nativeBpmOf(content: LayerContent, sampleRate: number): number {
-  return (60 * sampleRate * content.lengthBeats) / content.frames;
-}
-
-/** Bytes que ocupa el PCM de un contenido (su capacidad, no solo las muestras en uso). */
-export function contentBytes(content: LayerContent | null): number {
-  return content ? content.data.byteLength : 0;
-}
-
-/** Comprueba un contenido que llega de fuera (la biblioteca o un archivo). */
-export function isValidContent(content: LayerContent, maxFrames: number): boolean {
-  return (
-    Number.isInteger(content.frames) &&
-    content.frames >= 1 &&
-    content.frames <= maxFrames &&
-    content.frames <= content.data.length &&
-    Number.isFinite(content.lengthBeats) &&
-    content.lengthBeats > 0 &&
-    Number.isFinite(content.offsetBeats)
-  );
-}
