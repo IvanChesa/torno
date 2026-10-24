@@ -19,6 +19,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 - [ ] **Autoguardado local** (D16): por defecto, activado, visible y borrable. Si prefieres que sea opcional, díselo a la sesión de revisión antes del bloque A.
 - [ ] **Licencia del código propio** cuando el repo pase a público (MIT u otra).
 - [ ] `@lhci/cli` en el CI (fase 8).
+- [ ] **Autoguardado con el panel de recuperar sin contestar** (revisión de la fase 2, #21): mientras no se elige «Recuperar» o «Empezar de cero», no se autoguarda nada, para no pisar la sesión anterior. Si se toca un rato sin contestar y se cierra la pestaña, eso se pierde. Opciones: (a) dejarlo así; (b) un segundo hueco en IndexedDB para la sesión nueva, y el panel ofrece las dos; (c) que la primera edición pregunte y cierre el panel. Propuesta: (b).
 - [ ] **Micrófono entre tomas** (si las pruebas de la fase 4 lo piden): mantenerlo abierto durante una «sesión de grabación» o recalibrar cada toma con la cuenta previa (informe de la fase 2, §10, propuesta 1).
 - [ ] **Indexación en el lanzamiento (fase 9).** Hasta entonces todas las páginas llevan `noindex` (`indexable: false` en `src/app/core/site.config.ts`); al lanzar se pone a `true` y solo la 404 sigue con `noindex`. Confirmar que quieres que se indexe.
 
