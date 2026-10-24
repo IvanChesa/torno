@@ -239,7 +239,7 @@ function checkHeader(value: unknown): Header | TornoError {
       frames,
       lengthBeats,
       offsetBeats,
-      source: frames === 0 ? null : (source as LayerSource),
+      source: frames === 0 ? null : cleanSource(source as LayerSource),
       level,
       muted,
       pan,
@@ -247,7 +247,15 @@ function checkHeader(value: unknown): Header | TornoError {
       filter,
     });
   }
-  return { app: 'torno', sampleRate, bpm, settings, layers: checked };
+  // Objetos nuevos solo con las claves validadas: lo que sobre en el archivo no llega a nadie.
+  const { takeBars, countIn, metronome, fitTempo, inputGain } = settings;
+  return {
+    app: 'torno',
+    sampleRate,
+    bpm,
+    settings: { takeBars, countIn, metronome, fitTempo, inputGain },
+    layers: checked,
+  };
 }
 
 function isSettings(value: unknown): value is TornoSettings {
@@ -260,6 +268,10 @@ function isSettings(value: unknown): value is TornoSettings {
     typeof fitTempo === 'boolean' &&
     isNumber(inputGain, 0, MAX_INPUT_GAIN)
   );
+}
+
+function cleanSource(source: LayerSource): LayerSource {
+  return source.kind === 'library' ? { kind: 'library', id: source.id } : { kind: 'recording' };
 }
 
 function isSource(value: unknown): value is LayerSource {

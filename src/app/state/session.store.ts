@@ -430,9 +430,11 @@ export class SessionStore {
   /** Tras cargar un archivo o el autoguardado: sus ajustes, y los controles vuelven a escuchar. */
   #loaded(settings: TornoSettings, message: MessageText): void {
     this.#lastLocalChange = -Infinity;
+    // Solo las cinco claves de un `.torno`, una a una (nada más del archivo entra en el modelo).
+    const { takeBars, countIn, metronome, fitTempo, inputGain } = settings;
     this.#state.update((state) => ({
       ...state,
-      settings: { ...state.settings, ...settings },
+      settings: { ...state.settings, takeBars, countIn, metronome, fitTempo, inputGain },
     }));
     this.#engine?.send({ type: 'set-metronome', enabled: settings.metronome });
     this.#engine?.send({ type: 'set-input-gain', gain: settings.inputGain });

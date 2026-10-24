@@ -269,6 +269,24 @@ const MUTATIONS: Record<string, Mutation> = {
   },
 };
 
+describe('lo que sobra en un archivo no llega a nadie', () => {
+  it('las claves de más de los ajustes y del origen se descartan', () => {
+    const extra = withHeader((h) => {
+      h['settings'] = { ...(h['settings'] as object), latency: null, repeats: 999 };
+      layerOf(h, 2)['source'] = { kind: 'library', id: 'prueba-bajo', volumen: 11 };
+      h['comentario'] = 'hola';
+      return h;
+    });
+    const read = readTorno(extra);
+    if (isTornoError(read)) throw new Error(read);
+    expect(read.settings).toEqual(SETTINGS);
+    expect(Object.keys(read.settings).sort()).toEqual(
+      ['countIn', 'fitTempo', 'inputGain', 'metronome', 'takeBars'].sort(),
+    );
+    expect(read.session.layers[2]!.source).toEqual({ kind: 'library', id: 'prueba-bajo' });
+  });
+});
+
 describe('1000 archivos malformados', () => {
   it('se rechazan todos con un código de error y sin excepciones', () => {
     const random = seededRandom(2026);
