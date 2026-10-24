@@ -11,6 +11,7 @@ import {
   seededRandom,
   sineSound,
   type CommandBody,
+  exportState,
 } from './test-harness';
 
 const RATE = 48_000;
@@ -81,7 +82,7 @@ describe('sesiones', () => {
     a.send({ type: 'set-reverse', layer: 0, reversed: true });
     a.send({ type: 'set-filter', layer: 0, amount: 0.3 });
     a.send({ type: 'set-tempo', bpm: 123 });
-    const state = a.core.exportState();
+    const state = exportState(a.core);
     expect(state.layers[0]!.pcm).not.toBe(a.core.layerContent(0)!.data);
 
     const b = new Harness({ sampleRate: RATE });
@@ -95,7 +96,7 @@ describe('sesiones', () => {
     expect(b.core.transportState).toBe('stopped');
     expect(b.core.beat).toBe(0);
     expect(b.core.layerContent(1)).toBeNull();
-    const reloaded = b.core.exportState();
+    const reloaded = exportState(b.core);
     expect(reloaded.bpm).toBe(123);
     for (let i = 0; i < 4; i++) {
       const { pcm, ...rest } = state.layers[i]!;

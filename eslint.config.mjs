@@ -266,10 +266,11 @@ const NEW_WORKER = {
 // array, ni cierres, ni plantillas, ni `...`, ni métodos que copian. Tampoco `throw`, `await` ni
 // `console`. Todos pueden acabar llamados desde `process()`. Las únicas excepciones son los
 // constructores y los métodos del manejador de comandos que preparan memoria antes de usarla
-// (`handle`, la copia de la sesión, los búferes de una toma, una carga y un sonido nuevo). Entre las
-// funciones sueltas, las `process*` y `render*` (salvo `renderOffline`). El test de memoria de
-// LoopCore lo comprueba además en ejecución, con el perfil de muestreo del heap de V8.
-const ALLOCATING_METHODS = /^(handle|exportState|planTake|load|setSound|emptySession)$/;
+// (`handle`, la instantánea y la copia de la sesión, el calentamiento de la copia al crear el
+// worklet, los búferes de una toma, una carga y un sonido nuevo). Entre las funciones sueltas, las
+// `process*` y `render*` (salvo `renderOffline`). El test de memoria de LoopCore lo comprueba además
+// en ejecución, con el perfil de muestreo del heap de V8.
+const ALLOCATING_METHODS = /^(handle|snapshot|warmUp|planTake|load|setSound|emptySession)$/;
 const HOT_PATH = `:matches(MethodDefinition[kind!="constructor"]:not([key.name=${ALLOCATING_METHODS}]) > FunctionExpression, FunctionDeclaration[id.name=/^(process|render)(?!Offline)/])`;
 const HOT_PATH_MESSAGE =
   'En la ruta caliente del audio no se reserva memoria ni se lanza nada (CLAUDE.md, «Hilo de audio»): prepáralo en el constructor o en el manejador del comando.';

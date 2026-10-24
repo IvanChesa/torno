@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { renderOffline } from './offline';
 import { EMPTY_LAYER, type SessionState } from './session';
-import { constantSound, Harness, loopFrames, maxJump, rampSound, sineSound } from './test-harness';
+import {
+  constantSound,
+  Harness,
+  loopFrames,
+  maxJump,
+  rampSound,
+  sineSound,
+  exportState,
+} from './test-harness';
 
 const RATE = 48_000;
 const CENTER = Math.SQRT1_2;
@@ -36,7 +44,7 @@ describe('renderOffline', () => {
     setup.send({ type: 'set-pan', layer: 1, pan: 0.7 });
     setup.send({ type: 'set-level', layer: 1, level: 0.6 });
     setup.send({ type: 'set-tempo', bpm: 113 });
-    const state = setup.core.exportState();
+    const state = exportState(setup.core);
     const offline = renderOffline(state, 3 * RATE);
     /** El núcleo en directo con la misma sesión, arrancado sin fundido, sin la latencia. */
     const live = (metronome: boolean) => {

@@ -4,6 +4,7 @@
  */
 import { DEFAULT_BPM } from './constants';
 import { LoopCore, type LoopCoreOptions } from './loop-core';
+import type { SessionState } from './session';
 import {
   PROTOCOL_VERSION,
   type CoreCommand,
@@ -102,6 +103,29 @@ export class Harness {
 }
 
 /** Muestras de un bucle de `beats` pulsos a `bpm` (redondeado). */
+/**
+ * Copia de golpe de la sesión que suena (lo que hacía el manejador del worklet antes de copiar por
+ * tramos con `SessionCopy`): la referencia de los tests.
+ */
+export function exportState(core: LoopCore): SessionState {
+  const { sampleRate, bpm, layers } = core.snapshot();
+  return {
+    sampleRate,
+    bpm,
+    layers: layers.map(({ content, level, muted, pan, reversed, filter }) => ({
+      pcm: content ? content.data.slice(0, content.frames) : null,
+      lengthBeats: content?.lengthBeats ?? 0,
+      offsetBeats: content?.offsetBeats ?? 0,
+      source: content?.source ?? null,
+      level,
+      muted,
+      pan,
+      reversed,
+      filter,
+    })),
+  };
+}
+
 export function loopFrames(beats: number, sampleRate: number, bpm = DEFAULT_BPM): number {
   return Math.round((beats * 60 * sampleRate) / bpm);
 }

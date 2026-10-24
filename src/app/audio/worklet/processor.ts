@@ -5,22 +5,21 @@
  * - Entrada 0: el micrófono (mono), solo mientras se graba o se calibra. Salida 0: estéreo.
  * - Los mensajes que llegan se validan: los del núcleo, campo a campo en `LoopCore.handle`.
  * - Al hilo principal salen el estado (≤ 30/s, el mismo objeto), la copia de la sesión cuando se
- *   pide y la grabación de la calibración, con el PCM transferido.
+ *   pide (hecha por tramos en `process()`) y la grabación de la calibración, con el PCM
+ *   transferido.
  *
  * Reglas del hilo de audio: `process()` no reserva memoria, no usa `async` ni `console` y no crea
  * cierres. La única excepción es el `postMessage` de los eventos (CLAUDE.md).
  */
 import { LoopCore } from '../core/loop-core';
-import {
-  PROCESSOR_NAME,
-  PROTOCOL_VERSION,
-  isCurrentMessage,
-  type SessionCopyEvent,
-  type WorkletMessage,
-} from '../core/protocol';
+import { COPY_SAMPLES_PER_FRAME, SessionCopy } from '../core/session-copy';
+import { PROCESSOR_NAME, isCurrentMessage, type WorkletMessage } from '../core/protocol';
 
 class TornoProcessor extends AudioWorkletProcessor {
   readonly #core = new LoopCore({ sampleRate });
+  /** Copias de la sesión pedidas: se hacen por tramos, de una en una, desde `#copyHead`. */
+  readonly #copies: SessionCopy[] = [];
+  #copyHead = 0;
   /** Lista de transferencia reutilizada para la calibración (sin reservar en `process()`). */
   readonly #transfer: ArrayBuffer[] = [new ArrayBuffer(0)];
   #alive = true;
@@ -28,6 +27,7 @@ class TornoProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this.port.onmessage = (event) => this.handle(event.data);
+    SessionCopy.warmUp();
   }
 
   /** Un mensaje del hilo principal (aquí sí se puede reservar: va entre dos bloques). */
@@ -35,21 +35,16 @@ class TornoProcessor extends AudioWorkletProcessor {
     if (!isCurrentMessage(data)) return;
     const message = data as WorkletMessage;
     switch (message.type) {
-      case 'copy-session': {
+      case 'copy-session':
+        // Se reserva aquí y se copia por tramos en `process()` (de golpe, serían milisegundos sin
+        // audio). Lo que suena se toma ahora: el contenido de una capa no cambia nunca.
         if (typeof message.id !== 'number') return;
-        const session = this.#core.exportState();
-        const event: SessionCopyEvent = {
-          v: PROTOCOL_VERSION,
-          type: 'session',
-          id: message.id,
-          session,
-        };
-        const transfer: ArrayBuffer[] = [];
-        for (const layer of session.layers)
-          if (layer.pcm) transfer.push(layer.pcm.buffer as ArrayBuffer);
-        this.port.postMessage(event, transfer);
+        if (this.#copyHead === this.#copies.length) {
+          this.#copies.length = 0;
+          this.#copyHead = 0;
+        }
+        this.#copies.push(new SessionCopy(message.id, this.#core.snapshot()));
         return;
-      }
       case 'dispose':
         this.#alive = false;
         this.port.close();
@@ -70,6 +65,14 @@ class TornoProcessor extends AudioWorkletProcessor {
     if (core.statusReady) {
       core.statusReady = false;
       this.port.postMessage(core.status);
+    }
+    if (this.#copyHead < this.#copies.length) {
+      const copy = this.#copies[this.#copyHead]!;
+      copy.pump((left?.length ?? 128) * COPY_SAMPLES_PER_FRAME);
+      if (copy.done) {
+        this.#copyHead++;
+        this.port.postMessage(copy.event, copy.transfer);
+      }
     }
     const calibration = core.calibrationResult;
     if (calibration) {

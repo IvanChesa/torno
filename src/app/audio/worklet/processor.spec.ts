@@ -96,14 +96,20 @@ describe('worklet', () => {
     expect(events(processor).filter((event) => event.type === 'session')).toHaveLength(0);
   });
 
-  it('copia la sesión y transfiere su PCM', () => {
+  it('copia la sesión por tramos en process() y la envía con su PCM transferido', () => {
     const processor = new Registered();
     const pcm = new Float32Array(256_000).fill(0.25);
     processor.port.receive(
       command({ type: 'set-sound', layer: 2, sound: { id: 'y', pcm, lengthBeats: 8 } }),
     );
     processor.port.receive(command({ type: 'copy-session', id: 7 }));
-    const sent = processor.port.sent.find((s) => (s.message as WorkletEvent).type === 'session')!;
+    // En el manejador no se copia nada: sale tras unos bloques.
+    const sessions = () =>
+      processor.port.sent.filter((s) => (s.message as WorkletEvent).type === 'session');
+    expect(sessions()).toHaveLength(0);
+    run(processor, 40);
+    expect(sessions()).toHaveLength(1);
+    const sent = sessions()[0]!;
     const event = sent.message as Extract<WorkletEvent, { type: 'session' }>;
     expect(event.id).toBe(7);
     expect(event.session.layers[2]!.pcm).not.toBe(pcm);

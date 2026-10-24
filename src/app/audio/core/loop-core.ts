@@ -52,6 +52,7 @@ import {
   type TransportState,
 } from './protocol';
 import { Recorder, type TakeKind } from './recorder';
+import type { CopySnapshot } from './session-copy';
 import { EMPTY_LAYER, validateSessionState, type LayerState, type SessionState } from './session';
 import { barAtOrAfter, nextBarAfter, Transport, type Clock } from './transport';
 
@@ -228,6 +229,25 @@ export class LoopCore {
     }
   }
 
+  /**
+   * Lo que suena ahora, sin copiar el PCM: el contenido de cada capa (que no cambia nunca) y su
+   * mezcla. Con esto, el worklet copia la sesión por tramos (`SessionCopy`) sin parar el audio.
+   */
+  snapshot(): CopySnapshot {
+    return {
+      sampleRate: this.sampleRate,
+      bpm: this.#transport.bpm,
+      layers: this.#channels.map((channel) => ({
+        content: channel.content,
+        level: channel.level,
+        muted: channel.muted,
+        pan: channel.pan,
+        reversed: channel.reversed,
+        filter: channel.amountTarget,
+      })),
+    };
+  }
+
   /** Arranca sin fundido de entrada: la exportación empieza en el pulso 0 a volumen pleno. */
   playImmediately(): void {
     this.#transportStateValue = 'playing';
@@ -246,25 +266,6 @@ export class LoopCore {
   get memoryInUse(): number {
     this.#updateMemory();
     return this.#memoryBytes;
-  }
-
-  /** Copia del estado de la sesión para guardar, autoguardar o exportar (reserva memoria). */
-  exportState(): SessionState {
-    const layers: LayerState[] = this.#channels.map((channel) => {
-      const content = channel.content;
-      return {
-        pcm: content ? content.data.slice(0, content.frames) : null,
-        lengthBeats: content ? content.lengthBeats : 0,
-        offsetBeats: content ? content.offsetBeats : 0,
-        source: content ? content.source : null,
-        level: channel.level,
-        muted: channel.muted,
-        pan: channel.pan,
-        reversed: channel.reversed,
-        filter: channel.amountTarget,
-      };
-    });
-    return { sampleRate: this.sampleRate, bpm: this.#transport.bpm, layers };
   }
 
   // --- Comandos -----------------------------------------------------------------------------
