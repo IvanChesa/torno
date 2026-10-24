@@ -200,6 +200,12 @@ test.describe('instrumento HTML', () => {
     await expect(page.getByRole('heading', { name: 'Atajos de teclado' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('heading', { name: 'Atajos de teclado' })).toBeHidden();
+    // Espacio sobre un botón de los avisos lo pulsa (no es el atajo de reproducir).
+    await page.keyboard.press('?');
+    await page.getByRole('button', { name: 'Cerrar' }).focus();
+    await page.keyboard.press('Space');
+    await expect(page.getByRole('heading', { name: 'Atajos de teclado' })).toBeHidden();
+    await expect(driver.control('play')).toHaveAttribute('aria-pressed', 'false');
     // El tempo con el dial principal (menú cerrado).
     const main = driver.control('main');
     await main.focus();

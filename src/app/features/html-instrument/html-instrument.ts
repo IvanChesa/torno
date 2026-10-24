@@ -102,10 +102,15 @@ export class HtmlInstrument {
     if (file) void this.store.openFile(file);
   }
 
-  /** Atajos con el foco dentro del instrumento (las teclas que no ha usado el control). */
+  /**
+   * Atajos con el foco dentro del grupo de controles (las teclas que no ha usado el control). Los
+   * botones de los avisos quedan fuera: ahí Espacio e Intro los pulsan, como a cualquier botón.
+   */
   protected onKeydown(event: KeyboardEvent): void {
-    const id = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-control]')
-      ?.dataset['control'] as ControlId | undefined;
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('.instrument')) return;
+    const id = target.closest<HTMLElement>('[data-control]')?.dataset['control'] as
+      ControlId | undefined;
     const focused: ControlSpec | null = id ? control(id) : null;
     const shortcut = shortcutFor(event, focused);
     if (!shortcut) return;

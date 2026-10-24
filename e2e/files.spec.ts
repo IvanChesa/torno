@@ -210,7 +210,9 @@ test.describe('archivos', () => {
     await driver.open();
     const recover = page.getByRole('button', { name: 'Recuperar la sesión anterior' });
     await expect(recover).toBeVisible();
-    await recover.click();
+    // Con el teclado: Espacio pulsa el botón (no es el atajo de reproducir).
+    await recover.focus();
+    await page.keyboard.press('Space');
     await driver.expectScreen('SESIÓN RECUPERADA');
     await driver.expectScreen('CAPA 1 · BATERÍA · PRUEBA');
     const after = await saveSession(driver);
