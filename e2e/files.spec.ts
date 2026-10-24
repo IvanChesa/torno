@@ -224,6 +224,40 @@ test.describe('archivos', () => {
     await expect(page.getByRole('button', { name: 'Recuperar la sesión anterior' })).toBeHidden();
   });
 
+  test('recuperar con el audio aún cargando o en reposo espera y recupera la misma sesión', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await instrumentAudio(page, { moduleDelayMs: 2500 });
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    await twoLayers(driver);
+    const before = await saveSession(driver);
+    await page.waitForTimeout(2500);
+    const recover = page.getByRole('button', { name: 'Recuperar la sesión anterior' });
+
+    // Con el módulo aún cargando (2,5 s): un dial arranca el motor y se pulsa «Recuperar» ya.
+    await driver.open();
+    await driver.key('layer-0', 'ArrowDown');
+    await recover.click();
+    await expect(driver.screen).toContainText('SESIÓN RECUPERADA', { timeout: 10_000 });
+    await driver.expectScreen('CAPA 1 · BATERÍA · PRUEBA');
+    const loading = await saveSession(driver);
+    expect(Buffer.from(loading.bytes).equals(Buffer.from(before.bytes))).toBe(true);
+    await page.waitForTimeout(2500);
+
+    // En reposo: «Recuperar» sale del reposo y recupera.
+    await driver.open();
+    await driver.control('layer-1').click();
+    await expect(page.getByText('Preparando el audio…')).toBeHidden({ timeout: 10_000 });
+    await driver.control('standby').click();
+    await driver.expectScreen('REPOSO');
+    await recover.click();
+    await expect(driver.screen).toContainText('SESIÓN RECUPERADA', { timeout: 10_000 });
+    const standby = await saveSession(driver);
+    expect(Buffer.from(standby.bytes).equals(Buffer.from(before.bytes))).toBe(true);
+  });
+
   test('privacidad: grabar, guardar y exportar no hacen ninguna petición de red', async ({
     page,
   }) => {

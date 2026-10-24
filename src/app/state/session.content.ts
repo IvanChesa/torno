@@ -29,6 +29,10 @@ export const SESSION_CONTENT = {
     saved: message('GUARDADO', 'Sesión guardada en un archivo .torno.'),
     loaded: message('SESIÓN CARGADA', 'Sesión cargada.'),
     recovered: message('SESIÓN RECUPERADA', 'Se ha recuperado la sesión anterior.'),
+    recoverLater: message(
+      'AÚN NO SE PUEDE RECUPERAR',
+      'El audio aún no está listo: la sesión anterior sigue guardada. Prueba otra vez en un momento.',
+    ),
     exported: message('EXPORTADO', 'Exportación lista.'),
     autosaveCleared: message('AUTOGUARDADO BORRADO', 'Autoguardado borrado de este navegador.'),
     calibrated: (ms: string) =>

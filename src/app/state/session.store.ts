@@ -51,6 +51,26 @@ const MESSAGE_MS = 3000;
 const LOCAL_GRACE_MS = 400;
 /** Antirrebote de lo que se lee en voz (región `aria-live`): sin ruido al girar un dial. */
 const ANNOUNCE_MS = 700;
+/** Lo que se espera a que el audio esté listo para recuperar la sesión anterior. */
+const RECOVER_WAIT_MS = 10_000;
+
+/** Espera a que el motor esté listo (o falla: error, o `ms` sin conseguirlo). */
+function whenReady(engine: AudioEngine, ms: number): Promise<boolean> {
+  if (engine.state === 'ready') return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const done = (ready: boolean) => {
+      clearTimeout(timer);
+      unsubscribe();
+      resolve(ready);
+    };
+    const timer = setTimeout(() => done(false), ms);
+    const unsubscribe = engine.subscribe((event) => {
+      if (event.type !== 'state') return;
+      if (event.state === 'ready') done(true);
+      else if (event.state === 'error') done(false);
+    });
+  });
+}
 
 export type StoreEngineState = EngineState | 'off';
 
@@ -248,15 +268,27 @@ export class SessionStore {
     this.#recovery.set(await this.#api.autosavedAt());
   }
 
-  /** «Recuperar la sesión anterior» (desde un gesto). */
+  /**
+   * «Recuperar la sesión anterior» (desde un gesto). Espera a que el audio esté listo (sale del
+   * reposo si hace falta, dentro del gesto) y no suelta la sesión guardada hasta haberla cargado:
+   * mientras tanto, el autoguardado no la pisa. Si el audio no arranca, el panel sigue y se avisa.
+   */
   async recover(): Promise<void> {
-    this.#recovery.set(null);
-    const engine = await this.start();
-    if (!engine || engine.state !== 'ready') return;
+    if (this.#busy() === 'recovering') return;
+    if (this.#engine?.state === 'standby') this.#engine.wake();
     this.#busy.set('recovering');
     try {
+      const engine = await this.start();
+      if (!engine || !(await whenReady(engine, RECOVER_WAIT_MS))) {
+        this.#show(text.messages.recoverLater, 'error');
+        return;
+      }
       const settings = await engine.recoverAutosave();
-      if (settings) this.#loaded(settings, text.messages.recovered);
+      this.#recovery.set(null);
+      if (settings) {
+        this.#loaded(settings, text.messages.recovered);
+        this.#autosave();
+      }
     } finally {
       this.#busy.set('idle');
     }
