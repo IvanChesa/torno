@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-2-motor-navegador`
 - **Fecha:** 2026-10-24
-- **Estado:** en curso
+- **Estado:** listo para revisión
 
 ## 0. Plan de la fase
 
@@ -97,3 +97,179 @@ Objetivo: tocar el instrumento completo en el navegador con controles HTML acces
 - El tamaño de la fase: si se alarga, se entrega por partes con el informe al día.
 
 **Skills consultadas:** `webapp-testing` (Playwright), `web-design-guidelines` y `accessible-animation` para el instrumento HTML.
+
+---
+
+## 1. Resumen
+
+Torno ya se toca en el navegador. El núcleo de la fase 1 corre en el AudioWorklet (36,5 kB) y el `AudioEngine` lo rodea:
+- arranque en el gesto real con una escucha nativa (también antes de la hidratación);
+- micrófono solo al grabar y suelto siempre;
+- latencia automática, calibrada por clic o manual;
+- `.torno` validado entero, WAV de 24 bits y pistas en ZIP con el mismo núcleo;
+- autoguardado en IndexedDB.
+
+El modelo del instrumento (`instrument/`, TS puro) traduce gestos y teclas en intenciones que `SessionStore` lleva al motor. El instrumento HTML, accesible y con teclado completo, sustituye a la prueba técnica en la portada, diferido con `@defer`.
+
+Se demuestra con 393 tests en Node, 36 en Angular y 62 e2e con audio real: sonido, gesto, hidratación, micrófono, alineación, archivos, autoguardado, privacidad, errores, teclado, axe y WebKit.
+
+## 2. Criterios de aceptación
+
+| Criterio | ✅/❌ | Evidencia |
+|---|---|---|
+| e2e: reproducir → salida no silenciosa | ✅ | `instrument.spec.ts`: tras elegir un sonido con el teclado y pulsar reproducir, el `AnalyserNode` de la salida marca **−9,4 dBFS** (el bucle de prueba tiene su pico a −6 dBFS; centrado, −9). Antes de reproducir, 0; tras pausar, 0. |
+| e2e: grabar con el micrófono sintético → la capa contiene la toma **alineada** (ataques ±2 ms tras compensar) | ✅ | `microphone.spec.ts`. **Contenido:** con el micrófono sintético de Chromium (`scripts/make-fake-mic.mjs`), la capa guardada tiene las ráfagas del archivo a **24.000 muestras exactas** entre ataques (500 ms). **Alineación:** con la latencia calibrada, los cuatro clics del metrónomo grabados caen en sus pulsos a **−2 muestras (0,04 ms)**. Para saber cuándo suena cada ataque, el micrófono de esta prueba es la salida retrasada 20 ms con un `DelayNode` (desviación 1, §4). |
+| e2e: la pista del micrófono queda `ended` tras terminar, cancelar, reposo y pestaña oculta | ✅ | `microphone.spec.ts`: las 4 situaciones, con las pistas instrumentadas (`readyState === 'ended'`). Con la pestaña oculta, además, la toma se cancela y el transporte se pausa. |
+| e2e: con la carga del worklet retrasada 1,5 s, el contexto se crea y se reanuda dentro del gesto (con control negativo) y suena al cargar | ✅ | `instrument.spec.ts`: el contexto está en `running` antes de 1 s tras el primer toque; las llamadas son `new:pointerup` y `resume:pointerup`. El sonido elegido y «reproducir», pulsados mientras carga, esperan en la cola y suenan al llegar el módulo (≥ 1,5 s). Control negativo: un contexto creado tras un `await` real se anota `new:ninguno`. |
+| e2e: un toque antes de la hidratación termina con el audio desbloqueado o con el aviso «Toca para activar el sonido» | ✅ | `hydration.spec.ts`, contra el build. (a) Con el chunk de la portada retenido y el JS principal ya cargado, el toque desbloquea el audio en el gesto real (`new:pointerup`) y, tras hidratar, no hay aviso. (b) Con el JS principal retenido, el toque no puede desbloquear; Angular lo repite tras hidratar, el instrumento enseña «Toca el instrumento para activar el sonido.» y el siguiente toque lo desbloquea en su gesto. |
+| `.torno`: ida y vuelta idéntica byte a byte (misma frecuencia) y correcta con remuestreo; 1000 archivos malformados rechazados sin cambiar el estado | ✅ | `torno-format.spec.ts` (Node): ida y vuelta byte a byte, también en blanco y con ids no ASCII, y **1000 archivos malformados** (20 tipos de defecto) rechazados con su código y sin excepciones. `files.spec.ts` (e2e): guardar, cargar en otra página y volver a guardar da los mismos bytes; una sesión de 44,1 kHz se remuestrea a 48 kHz (256.000 muestras exactas, los 4704 cruces por cero de los 441 Hz ±2 y el pico de 0,5); un archivo roto o que no es un `.torno` muestra el aviso y la sesión guardada después es idéntica byte a byte. |
+| WAV válidos (los lee el test y `decodeAudioData`); la mezcla exportada coincide con el render del núcleo | ✅ | `export.spec.ts` (Node) y `files.spec.ts` (e2e): la mezcla de 2 vueltas sin fundido coincide con `renderOffline` en Node con **≤ 1 LSB de 24 bits**, y `decodeAudioData` la lee (2 canales, la duración esperada). Las pistas: un ZIP con un WAV mono por capa, cada uno igual a la capa sola (≤ 1 LSB). |
+| Autoguardado: recargar y recuperar devuelve la misma sesión | ✅ | `files.spec.ts`: tras recargar, «Recuperar la sesión anterior» devuelve una sesión que, guardada, es idéntica byte a byte a la de antes. «Empezar de cero» borra el autoguardado y ya no se ofrece. |
+| Instrumento HTML: todo con teclado, axe sin violaciones graves y capturas | ✅ | `instrument.spec.ts`: los 12 controles en orden de tabulación, con nombre, descripción, rol y valor en voz; diales con flechas, Mayús ×10, Inicio y Fin; Intro y Mayús+Intro; disco con Espacio y flechas; atajos 1–4, Espacio, R, Z y `?`; menú con Esc. axe: **0 violaciones** (ninguna grave, crítica, moderada ni leve), también con el menú abierto. Puntero: arrastrar un dial, mantener una tecla y tocar. Capturas en `docs/informes/img/fase-2/` (§7). |
+| e2e de privacidad: 0 peticiones de red al grabar, guardar y exportar | ✅ | `files.spec.ts`: grabar con el micrófono, guardar, exportar la mezcla y exportar las pistas no hacen **ninguna** petición `http(s)`; 0 cookies. |
+
+Además:
+- **Primer sonido tras pulsar** (§5: ≤ 100 ms con el motor cargado): **10–15 ms** en 20 medidas (de `pointerdown` a la primera muestra en el analizador de la salida; Chromium sin interfaz, sin la latencia del dispositivo).
+- **Errores visibles** (`errors.spec.ts`): si el módulo no carga en 5 s, el aviso y «Reintentar» lo arreglan; con el micrófono denegado, se explica y no se graba nada.
+- **WebKit de escritorio** (`webkit.spec.ts`): el menú funciona y, como el WebKit de Playwright para Windows no tiene Web Audio, el instrumento lo dice con un aviso visible. Reproducir y pausar con audio corren donde WebKit trae Web Audio (desviación 2).
+
+## 3. Tareas del plan
+
+| Tarea | Estado | Notas |
+|---|---|---|
+| 2.1 Desbloqueo nativo y `AudioEngine` | hecha | `unlock.ts` (1,7 kB en el inicial), `engine.ts` (19,9 kB): adopta el contexto, 5 s y «Reintentar», estados y códigos, `audioSession`, interrupciones, pestaña oculta, reposo, precarga y cola de comandos. La sonda de la fase 0 ha desaparecido. |
+| 2.2 Micrófono | hecha | `microphone.ts`: sin procesar (con respaldo), solo al grabar o calibrar, cancelación con la petición pendiente, liberación garantizada. |
+| 2.3 Latencia | hecha | Automática, calibración por clic (núcleo + `measureLatency` en TS puro, 11 tests) y manual; en `localStorage`. |
+| 2.4 Archivos | hecha | `torno-format.ts`, `wav.ts`, `zip.ts`, `export.ts` (TS puro) y `export.worker.ts`; guardar, cargar con remuestreo, mezcla y pistas. |
+| 2.5 Autoguardado | hecha | `autosave.ts` (IndexedDB, fecha en su propia clave), recuperar o empezar de cero, borrar desde la web y desde el menú, cuota avisada. |
+| 2.6 `instrument/` | hecha | Catálogo, gestos, teclado y atajos, menú, pantalla, valor en voz e intenciones; 58 tests en Node. SONIDO con un sonido de prueba por categoría. |
+| 2.7 `SessionStore` | hecha | Signals ≤ 10/s, intenciones → motor, avisos → textos, controles con gracia de 400 ms, resumen en voz con antirrebote; 7 tests con un motor de mentira. |
+| 2.8 Instrumento HTML | hecha | `features/html-instrument` (directiva de control, pantalla, lateral, avisos), en la portada con `@defer` y esqueleto prerenderizado del mismo tamaño. |
+| 2.9 `make-fake-mic.mjs` | hecha | Ráfagas de 660 Hz cada 500 ms, en `e2e/.generated/` (fuera de git), antes de los e2e. |
+| 2.10 Playwright | hecha | Chromium con micrófono sintético (dev y estático) y WebKit de escritorio; 62 e2e. |
+
+## 4. Desviaciones del plan y motivo
+
+1. **La prueba de ±2 ms usa un retorno determinista** (la salida retrasada 20 ms con un `DelayNode`, inyectada en lugar del nodo del micrófono), no el micrófono sintético de Chromium: con un archivo no se sabe cuándo suena cada ataque. Antes se probó un retorno por `MediaStream`, y su latencia **cambia en cada apertura de la pista**: 20,7, 20,7, 21,3 y 12,0 ms en cuatro calibraciones seguidas. Así no sirve de referencia, y además es un riesgo para el producto (§10, propuesta 1). El micrófono sintético se usa para comprobar el contenido de la toma.
+2. **WebKit en Windows sin Web Audio.** El WebKit de Playwright para Windows no trae `AudioContext`. Allí la prueba comprueba el menú y el aviso «Este navegador no tiene Web Audio»; reproducir y pausar con audio quedan para el WebKit de Linux del CI, que lo instala desde esta fase (`ci.yml`). Aún no se ha visto en el CI: la rama no tiene PR.
+3. **El worker de exportación se crea al arrancar el motor** (38,8 kB) y se reutiliza, en lugar de crearlo al exportar: así exportar no hace ninguna petición de red (criterio de privacidad). Si nunca se exporta, se descarga igual.
+4. **Un sonido de prueba por categoría** (4 bucles de 2 compases en Re menor, `audio/synth/test-loop.ts`), en lugar de uno solo, para que el menú SONIDO tenga su forma definitiva.
+5. **`@defer` cuesta unos 10 kB en el `main`** (el código de Angular para los bloques diferidos): el JS de la primera visita a `/` pasa de 293,5 a 301,3 kB (aviso a 330). A cambio, los 58 kB del instrumento no entran en la primera visita.
+6. **Token nuevo `--instrument-plate`** (`#864230`): el cuerpo del instrumento HTML es un barro más oscuro que el del 3D, porque sobre el terracota claro ni la tinta (4,5:1) ni el latón (3:1) llegaban al contraste AA. Documentado en `DISENO.md` §7.1 y comprobado en `contrast.spec.ts`.
+7. **El dial principal en el menú:** al recorrer una lista, la flecha abajo va al elemento siguiente (como en cualquier lista), aunque el dial sea un `role="slider"`; al ajustar un valor, arriba sube.
+
+## 5. Decisiones técnicas nuevas
+
+| Decisión | Alternativas consideradas |
+|---|---|
+| **Intenciones**: el modelo del instrumento no conoce el protocolo del audio; produce «reproducir», «nivel de la capa 2 al 70 %», «guardar»… y `SessionStore` las traduce. El modelo lo usarán igual el 3D y la guía. | Que el modelo emitiera comandos del núcleo (acopla `instrument/` a `audio/core`, que esa capa no puede importar). |
+| Los **valores en directo** (niveles, panoramas, filtros, tempo) son del modelo; el estado del audio los confirma cuando nadie los ha movido en 400 ms (al cargar una sesión, al ajustar el tempo a la primera toma). | Leerlos siempre del estado (30/s como mucho, y a 10/s en signals): con dos flechas seguidas se perdería un paso. |
+| El **motor nunca crea un contexto**: solo el desbloqueo, siempre en un gesto. Si no hay, `needs-gesture`. | Crearlo al arrancar el motor (fuera del gesto: en iOS quedaría suspendido y el e2e lo vería como `new:ninguno`). |
+| **Toques sin desbloquear**: la portada escucha los `click` (Angular repite los de antes de hidratar) y, si el audio no se pudo desbloquear, lo apunta en el desbloqueo; el instrumento, al cargarse, pide otro toque. | Un `(click)` en el escenario (el lint de accesibilidad lo rechaza en un elemento no enfocable, y no es un control). |
+| **Reposo**: suspende el contexto y deja de reanudarlo con cualquier toque; solo «salir del reposo» lo reanuda, dentro de su gesto. | Que cualquier toque sobre el instrumento lo reanudara. |
+| **Micrófono por toma**: se pide al pulsar grabar y se suelta al confirmarse o cancelarse la toma (o si el núcleo rechaza grabar). | Mantenerlo abierto mientras se graba varias veces (la regla de CLAUDE.md pide soltarlo al acabar cada toma; ver §10). |
+| **Calibración**: clics después del volumen (suenan con la rueda a cero), 8 cada 0,5 s, mediana de los que coinciden ±1 ms (6 de 8). El ataque se fecha al 30 % del pico, igual que el clic de referencia. | Correlación cruzada (más cara y frágil con ecos); un umbral absoluto (depende del nivel del micrófono). |
+| **Cabecera del `.torno` en ASCII** (lo demás, escapado `\uXXXX`) y relleno con ceros hasta el PCM. | UTF-8 (TS puro sin `TextEncoder` en su `lib`); relleno con espacios (`JSON.parse` aceptaría una longitud de cabecera cambiada). |
+| **Pistas**: cada capa sola, a la izquierda del todo y sin silenciar: el canal izquierdo es la capa por su nivel, con el mismo núcleo. En un ZIP sin compresión. | Un modo de render nuevo en el núcleo; varias descargas sueltas (el navegador pide permiso). |
+| **Autoguardado** con antirrebote de 1,5 s en el motor; no se autoguarda mientras haya una sesión anterior sin recuperar ni descartar (para no pisarla). | Autoguardar siempre (se perdería la sesión anterior al tocar antes de decidir). |
+| **Resumen en voz** con antirrebote de 700 ms en el store (sin `effect()`), en frases a partir de las líneas de la pantalla. | Hacer viva la pantalla (ruido al girar un dial); un `effect` que copiara el resumen. |
+| **Medidores y disco fuera de los signals**: `requestAnimationFrame` solo con el transporte en marcha o el disco agarrado; con movimiento reducido, medidores cada 250 ms y el disco quieto. | Signals por fotograma (más de 10/s). |
+| **Botones**: pulsar es su `click` (vale para Intro, Espacio y el clic virtual de un lector de pantalla); mantener sale del puntero (500 ms) o de Mayús+Intro, y el `click` que sigue a un gesto ya atendido se ignora durante 600 ms. | Gestos solo por puntero (los lectores de pantalla mandan clics sin `pointerdown`). |
+| **Selector de archivos** abierto dentro del gesto: el instrumento registra en el store una función que hace `click()` en un `input type="file"` oculto. | Abrirlo tras un `await` (los navegadores lo bloquean sin activación). |
+
+## 6. Salida de los checks
+
+```
+$ npm run check
+> lint       typecheck (4 tsconfig) ✔ · All files pass linting · Prettier ✔
+> test:node  Test Files 27 passed · Tests 393 passed
+             Cobertura del TS puro: 98,18 % sentencias · 94,49 % ramas · 100 % funciones · 99,35 % líneas
+> test:bench LoopCore: 240× tiempo real
+> test:ng    Test Files 8 passed · Tests 36 passed
+> build      Initial total 297,12 kB · Prerendered 3 static routes · sin avisos de presupuesto
+> check-bundles
+  ✔ JS inicial de /                     301.3 kB  (aviso > 330.0 kB · error > 400.0 kB)
+  ✔ JS inicial de /404                  291.2 kB
+  ✔ JS inicial de /sobre-el-proyecto    292.8 kB
+  ✔ Desbloqueo de audio en el inicial     1.7 kB  (error > 2.0 kB)
+  ✔ Motor de audio (engine.ts)           19.9 kB  (error > 60.0 kB)
+  ✔ Motor de audio (autosave.ts)          0.1 kB
+  ✔ Worker synth.worker.ts                2.5 kB  (error > 40.0 kB)
+  ✔ Worker export.worker.ts              38.8 kB  (error > 40.0 kB)
+  ✔ Worklet                              36.5 kB  (error > 40.0 kB)
+  ✔ Fuentes                             144.1 kB  (error > 150.0 kB)
+  ✔ Bundle inicial sin motor de audio, síntesis, worklet ni 3D.
+
+$ npm run e2e
+  62 passed (≈ 45 s): dev 25 · estático 36 · WebKit 1
+```
+
+Tests nuevos de la fase:
+- **Node:** calibración 11, sonidos de prueba 6, worklet 5, `.torno` 5 (con los 1000 malformados), WAV, ZIP y exportación 10, modelo del instrumento 58 (gestos y teclado, reductor, menú, pantalla, valor en voz y bordes) y sincronía de límites 2.
+- **Angular:** `SessionStore`, 7.
+- **e2e:** instrumento 9, micrófono 3, archivos 6, hidratación 2, errores 2 y WebKit 1. El antiguo `audio.spec.ts` de la sonda ya no está.
+
+Métricas de la fase (audio):
+
+| Medida | Valor |
+|---|---|
+| Primer sonido tras pulsar (motor cargado) | 10–15 ms (Chromium, sin la latencia del dispositivo) |
+| Alineación de una toma con latencia calibrada | −2 muestras (0,04 ms) en los cuatro pulsos |
+| Latencia de un retorno por `MediaStream` en cuatro aperturas | 20,7 · 20,7 · 21,3 · 12,0 ms (riesgo, §10) |
+| Pico de un sonido de prueba centrado | −9,4 dBFS medido (−9 esperado) |
+| Mezcla exportada frente al render del núcleo | ≤ 1 LSB de 24 bits |
+| Peticiones de red al grabar, guardar y exportar | 0 |
+
+## 7. Capturas
+
+`docs/informes/img/fase-2/` (con `?captura=1`, movimiento reducido):
+- la portada, `/sobre-el-proyecto` y `/404`: `inicio-*.png`, `sobre-el-proyecto-*.png` y `404-*.png`;
+- el instrumento de cerca, en reposo y con el menú BUCLE abierto: `instrumento-reposo-*.png` y `instrumento-menu-*.png`;
+- todo en escritorio (1440 × 900) y en móvil (Pixel 7).
+
+## 8. Dependencias añadidas
+
+Ninguna. El navegador WebKit de Playwright (parte de `@playwright/test`, ya en la lista) se instala en local y en el CI.
+
+## 9. Pendientes y `TODO(ivan)`
+
+En `docs/PENDIENTES.md`:
+- **Fase 4, en móviles reales:** comprobar la alineación de las tomas tras calibrar, sabiendo que en Chromium la latencia del camino del micrófono cambia en cada apertura (§10, propuesta 1).
+
+Para las fases siguientes:
+- **Fase 3:**
+  - los 12 bucles sustituyen a los sonidos de prueba (mismos ids por categoría en `instrument/sounds.ts` y `audio/synth`);
+  - tempo por pulsaciones en BUCLE;
+  - primera reproducción con la batería en la capa 1 y la capa 2 elegida;
+  - el alias del *varispeed* (revisión de la fase 1, #14).
+  - **Ojo al peso:** el worker de exportación lleva el núcleo entero y está a 38,8 kB de 40.
+- **Fase 4:**
+  - la CSP y el `.htaccess` tienen que permitir el worklet, los dos workers y `blob:` para las descargas;
+  - el CI corre ya los e2e de WebKit (Linux): comprobar allí reproducir y pausar con audio.
+
+## 10. Propuestas de cambio al plan
+
+1. **Latencia por apertura del micrófono.** Si en los móviles de la fase 4 las tomas se desplazan entre sí (como en el retorno por `MediaStream` de Chromium: hasta 9 ms), hay dos salidas:
+   - **(a)** mantener abierto el micrófono durante una «sesión de grabación» y soltarlo tras unos segundos sin grabar, en reposo y con la pestaña oculta. Cambia la regla de CLAUDE.md, que pide soltarlo al terminar cada toma.
+   - **(b)** recalibrar sola cada toma con los clics de la cuenta previa, cuando el micrófono los oiga (con altavoces; con auriculares se usaría la calibración guardada).
+   Propongo decidirlo con las medidas de Iván.
+2. **Fase 2, criterio de alineación:** escribir «ataques ±2 ms tras compensar, con un micrófono de retorno determinista en el e2e; en dispositivos reales, ±5 ms (§5)».
+3. **§5, JS de la primera visita:** anotar que `@defer` añade ~10 kB fijos al `main` (el instrumento y el 3D irán siempre diferidos).
+
+## 11. Cómo probarlo
+
+```
+npm start                      # http://localhost:4200
+```
+
+En la portada, en «Tócalo»:
+1. Gira el dial «Tempo y menú» (arrastra o usa las flechas) o púlsalo (Intro) para abrir el menú.
+2. En SONIDO → una categoría → PRUEBA (Intro), y luego Reproducir (o Espacio con el foco en un dial).
+3. Grabar (R) pide el micrófono; con auriculares, calibra antes en ENTRADA → LATENCIA → CALIBRAR.
+4. SESIÓN guarda, carga y exporta (mezcla y pistas).
+5. Recarga la página: el instrumento ofrece recuperar la sesión.
+
+```
+npm run e2e                    # 62 e2e: dev, estático y WebKit
+npm run capturas -- --fase=2   # tras npm run build
+```

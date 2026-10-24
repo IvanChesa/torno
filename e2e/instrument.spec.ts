@@ -67,6 +67,7 @@ test.describe('instrumento HTML', () => {
     await expect(driver.control('play')).toHaveAttribute('aria-pressed', 'true');
     // El bucle de prueba tiene su pico a −6 dBFS; centrado, sale a −9 dBFS.
     const peak = await outputPeak(page, 1500);
+    console.info(`Pico de la salida: ${(20 * Math.log10(peak)).toFixed(1)} dBFS`);
     expect(20 * Math.log10(peak)).toBeGreaterThan(-12);
     expect(20 * Math.log10(peak)).toBeLessThan(-0.3);
     // El contexto se creó y se reanudó dentro del gesto (el primer toque del instrumento).
@@ -82,6 +83,49 @@ test.describe('instrumento HTML', () => {
     await driver.expectScreen('PAUSA');
     await page.waitForTimeout(200);
     expect(await outputPeak(page, 300)).toBe(0);
+  });
+
+  test('con el motor cargado, el primer sonido llega antes de 100 ms tras pulsar (PLAN §5)', async ({
+    page,
+  }) => {
+    await instrumentAudio(page);
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    await driver.chooseSound(MENU.categories.drums);
+    await driver.expectScreen('CAPA 1 · BATERÍA · PRUEBA');
+    // En la página: se mide desde el `pointerdown` de la tecla hasta la primera muestra que suena
+    // en el analizador de la salida (5 ms de resolución). Cinco veces, parando entre medias.
+    const times: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const elapsed = page.evaluate(
+        () =>
+          new Promise<number>((resolve) => {
+            const analyser = window.__torno!.analysers[0]!;
+            const data = new Float32Array(analyser.fftSize);
+            const play = document.querySelector('[data-control="play"]')!;
+            play.addEventListener(
+              'pointerdown',
+              (event) => {
+                const start = event.timeStamp;
+                const poll = () => {
+                  analyser.getFloatTimeDomainData(data);
+                  if (data.some((x) => Math.abs(x) > 0.001)) resolve(performance.now() - start);
+                  else setTimeout(poll, 5);
+                };
+                poll();
+              },
+              { once: true },
+            );
+          }),
+      );
+      await driver.control('play').click();
+      times.push(await elapsed);
+      await driver.control('play').click({ delay: 700 });
+      await driver.expectScreen('PAUSA');
+      await page.waitForTimeout(150);
+    }
+    console.info(`Primer sonido tras pulsar: ${times.map((t) => t.toFixed(0)).join(', ')} ms`);
+    expect(Math.max(...times)).toBeLessThanOrEqual(100);
   });
 
   test('con el módulo retrasado 1,5 s, el contexto ya está en marcha desde el gesto y suena al cargar', async ({

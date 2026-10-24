@@ -89,3 +89,40 @@ El núcleo cuenta los bytes de los búferes de PCM vivos sin contar dos veces el
 | Filtro | −3 dB exactamente en el corte (error < 0,01 % entre 150 Hz y 15 kHz; el criterio es ±10 %) | Bisección de la respuesta en régimen permanente, a 44,1 y 48 kHz |
 | Limitador | Pico de −0,34 dBFS con 4 capas a tope en fase (techo −0,3) | `limiter.spec.ts` y `loop-core.playback.spec.ts` |
 | Tamaño | `LoopCore` minificado: 32,7 kB (presupuesto del worklet: 40 kB) | esbuild con `--minify`, como el worklet |
+
+## 7. En el navegador (fase 2)
+
+El núcleo corre en el AudioWorklet; alrededor, el motor del hilo principal (`audio/engine/`), que es el único que toca el `AudioContext`, el micrófono y los archivos.
+
+### Arranque
+- **Desbloqueo** (`unlock.ts`, en el bundle inicial: 1,7 kB). Una escucha nativa en fase de captura sobre el documento, registrada en `main.ts` antes de arrancar Angular. Con el primer `click`, `pointerup`, `touchend` o `keydown` sobre `[data-audio-unlock]` (el instrumento y «Tocar»), y antes de cualquier `await`: `navigator.audioSession.type`, crear o reanudar el contexto y un búfer silencioso de una muestra. Sigue escuchando para reanudar tras una interrupción, salvo en reposo.
+- **Motor** (`engine.ts`, 19,9 kB, con `import()`). Nunca crea el contexto: adopta el del desbloqueo. Carga el módulo con 5 s de espera («Reintentar» si no llega) y conecta el nodo: entrada mono (el micrófono, solo mientras graba o calibra) y salida estéreo. Los comandos de antes de que exista el nodo esperan en una cola.
+- **Estados:** `idle`, `loading`, `ready`, `needs-gesture` («Toca el instrumento para activar el sonido»), `interrupted` («Toca para reanudar»), `standby` y `error` (con su código; los textos los pone la interfaz).
+- **Un toque antes de la hidratación.** Si el JS principal ya estaba, el desbloqueo actúa en el gesto real. Si el toque llegó antes que el JS, Angular lo repite tras hidratar, ya fuera del gesto: el motor no crea un contexto sin gesto y la interfaz pide otro toque.
+
+### Worklet
+`processor.ts` (36,5 kB con el núcleo; presupuesto, 40 kB) valida cada mensaje, pasa la entrada y la salida a `LoopCore` y envía el estado como mucho 30 veces por segundo (el mismo objeto). La copia de la sesión y la grabación de la calibración salen con su PCM transferido.
+
+### Micrófono y latencia
+- **Micrófono:** `getUserMedia` mono y sin procesar (sin cancelación de eco, supresión de ruido ni control de ganancia automáticos; si el navegador no acepta las restricciones, se pide sin ellas), solo al grabar o calibrar, con `play-and-record` en la sesión de audio. Se suelta al terminar o cancelar la toma, en reposo y con la pestaña oculta (que además cancela la toma y pausa). Si se cancela con la petición pendiente, la pista se para en cuanto llega.
+- **Latencia automática:** `baseLatency + outputLatency` del contexto y la latencia de entrada de la pista.
+- **Calibración:** con el transporte parado, el núcleo hace sonar 8 clics cada 0,5 s (después del volumen: suenan aunque la rueda esté a cero) y graba la entrada sin tocar. El hilo principal fecha cada ataque donde llega al 30 % del pico de su ventana, igual que el clic de referencia, y da la mediana si al menos 6 de los 8 coinciden (±1 ms). En los tests en Node la mide sin error con 0, 1, 480, 7000 y 23.000 muestras, con ruido (±1 muestra) y con dos clics perdidos. La latencia máxima medible es el intervalo entre clics (0,5 s).
+- **Ajuste manual** de 0 a 500 ms. El modo y el valor se guardan en `localStorage`.
+- **Medido en Chromium:** con un micrófono de retorno determinista (la salida retrasada 20 ms con un `DelayNode`), la toma queda alineada con los pulsos a 2 muestras (0,04 ms). **Riesgo:** con un retorno por `MediaStream` (como un micrófono de verdad), la latencia cambia en cada apertura de la pista: 20,7, 20,7, 21,3 y 12,0 ms en cuatro calibraciones seguidas. Como el micrófono se suelta tras cada toma, una toma puede quedar desplazada unos 9 ms respecto a la calibración. Se medirá en móviles reales (fase 4; §5 pide ±5 ms) y hay dos salidas propuestas en el informe de la fase 2.
+
+### Archivos
+- **`.torno`** (`audio/files/torno-format.ts`): firma `\x89TORNO\r\n`, versión (1), cabecera JSON en ASCII y PCM float32 LE. Se valida entero antes de devolver nada, también cada muestra (finitas y en ±16). Ida y vuelta idéntica byte a byte; 1000 archivos malformados rechazados con su código.
+- **Remuestreo** al cargar una sesión de otra frecuencia: `OfflineAudioContext` sobre tres vueltas seguidas, quedándose con la del medio (sin junta).
+- **WAV** de 24 bits (mezcla estéreo y pistas mono), escrito por tramos directamente en el archivo. La mezcla sale del mismo núcleo (`OfflineRenderer`) con 1–8 vueltas y fundido final opcional de 2 s; las pistas, cada capa sola, sin panorama y sin silenciar, en un ZIP sin compresión.
+- **Worker de exportación** (38,8 kB): se crea al arrancar el motor y se reutiliza, así exportar no hace ninguna petición de red.
+- **Autoguardado** (IndexedDB): un `.torno` 1,5 s después de la última edición, nunca durante una toma; una sesión vacía lo borra. Al volver: «Recuperar la sesión anterior» o «Empezar de cero». La cuota llena se avisa.
+
+### Cifras (fase 2)
+| Medida | Valor | Cómo |
+|---|---|---|
+| Desbloqueo en el bundle inicial | 1,7 kB (límite 2 kB) | `scripts/check-bundles.mjs` |
+| Worklet · motor · worker de exportación · worker de síntesis | 36,5 · 19,9 · 38,8 · 2,5 kB | ídem |
+| Alineación de una toma con latencia calibrada | 2 muestras (0,04 ms) en los cuatro pulsos | e2e `microphone.spec.ts`, retorno de 20 ms |
+| Latencia del retorno por `MediaStream` en cuatro aperturas | 20,7 · 20,7 · 21,3 · 12,0 ms | calibración repetida en Chromium (fase 2) |
+| Peticiones de red al grabar, guardar y exportar | 0 | e2e `files.spec.ts` |
+| La mezcla exportada frente al render del núcleo | ≤ 1 LSB de 24 bits | e2e `files.spec.ts` |
