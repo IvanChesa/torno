@@ -256,8 +256,11 @@ export class SessionStore {
     if (!engine) return;
     this.#busy.set('opening');
     try {
+      // «Cargada» solo si el motor la ha cargado; si no, ya ha avisado él.
       const settings = await engine.openFile(file);
       if (settings) this.#loaded(settings, text.messages.loaded);
+    } catch {
+      this.#show(text.problems['load-failed'], 'error');
     } finally {
       this.#busy.set('idle');
     }

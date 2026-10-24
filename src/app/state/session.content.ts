@@ -69,6 +69,10 @@ export const SESSION_CONTENT = {
     ),
     'file-too-large': message('ARCHIVO DEMASIADO GRANDE', 'Ese archivo es demasiado grande.'),
     'file-read': message('NO SE PUEDE LEER', 'No se ha podido leer el archivo.'),
+    'load-failed': message(
+      'NO SE HA PODIDO CARGAR',
+      'No se ha podido cargar la sesión. No se ha cambiado nada.',
+    ),
     'save-failed': message('NO SE HA PODIDO GUARDAR', 'No se ha podido guardar la sesión.'),
     'export-failed': message('NO SE HA PODIDO EXPORTAR', 'No se ha podido exportar.'),
     'export-empty': message('NADA QUE EXPORTAR', 'No hay ninguna capa con sonido.'),

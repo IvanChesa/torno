@@ -196,6 +196,33 @@ test.describe('archivos', () => {
     }
   });
 
+  test('sin Web Audio, cargar una sesión avisa de que no se ha podido (no dice «cargada»)', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => Reflect.deleteProperty(window, 'AudioContext'));
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    const session: SessionState = {
+      sampleRate: 48_000,
+      bpm: 90,
+      layers: [
+        {
+          ...EMPTY_LAYER,
+          pcm: new Float32Array(256_000),
+          lengthBeats: 8,
+          source: { kind: 'recording' },
+        },
+        EMPTY_LAYER,
+        EMPTY_LAYER,
+        EMPTY_LAYER,
+      ],
+    };
+    await openFile(driver, 'sesion.torno', writeTorno(session, DEFAULT_SETTINGS));
+    await expect(page.getByRole('alert')).toContainText('No se ha podido cargar la sesión');
+    await expect(driver.screen).not.toContainText('SESIÓN CARGADA');
+    await driver.expectScreen('CAPA 1 · VACÍA');
+  });
+
   test('autoguardado: al recargar se puede recuperar la misma sesión, o empezar de cero', async ({
     page,
   }) => {

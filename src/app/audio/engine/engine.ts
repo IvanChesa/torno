@@ -85,6 +85,8 @@ export type EngineErrorCode =
   | 'file-version'
   | 'file-too-large'
   | 'file-read'
+  /** No se ha podido cargar la sesión (sin audio, o al remuestrearla): no se ha cambiado nada. */
+  | 'load-failed'
   | 'save-failed'
   | 'export-failed'
   /** No hay nada que exportar. */
@@ -345,15 +347,23 @@ export class AudioEngine {
       this.send({ type: 'record', ...options });
       return;
     }
-    if (this.#mic.isPending) {
+    // Pulsar otra vez mientras se espera (al audio o al permiso del micrófono) lo cancela.
+    if (this.#requestingMic()) {
       this.#closeMic();
       return;
     }
-    const context = this.#context;
-    const node = this.#node;
-    if (!context || !node || this.#state !== 'ready') return;
     setAudioSessionType('play-and-record');
     this.#setMic('requesting');
+    // Con el audio aún cargando (recién tocado), grabar espera, como reproducir espera en la cola.
+    if (this.#starting) await this.#starting;
+    // Cancelada mientras tanto: `#closeMic` ya lo ha dejado en «off».
+    if (!this.#requestingMic()) return;
+    const context = this.#context;
+    const node = this.#node;
+    if (!context || !node || this.#state !== 'ready') {
+      this.#closeMic();
+      return;
+    }
     let opened: boolean;
     try {
       opened = await this.#mic.connect(context, node);
@@ -380,6 +390,11 @@ export class AudioEngine {
     this.#micLayer = -1;
     setAudioSessionType('playback');
     this.#setMic('off');
+  }
+
+  /** ¿Se espera para grabar o calibrar (al audio o al permiso del micrófono)? */
+  #requestingMic(): boolean {
+    return this.#micState === 'requesting';
   }
 
   #setMic(mic: MicState): void {
@@ -561,12 +576,20 @@ export class AudioEngine {
 
   /**
    * Carga una sesión ya validada. Si su frecuencia no es la del contexto, se remuestrea antes (con
-   * `OfflineAudioContext`). El núcleo la vuelve a comprobar y, si no vale, no cambia nada.
+   * `OfflineAudioContext`). El núcleo la vuelve a comprobar y, si no vale, no cambia nada. Sin
+   * audio, o si no se puede remuestrear, lanza `load-failed` y tampoco cambia nada.
    */
   async loadSession(state: SessionState): Promise<void> {
     const rate = this.#context?.sampleRate;
-    if (!rate) return;
-    const session = state.sampleRate === rate ? state : await resampleSession(state, rate);
+    if (!rate) throw new EngineError('load-failed');
+    let session = state;
+    if (state.sampleRate !== rate) {
+      try {
+        session = await resampleSession(state, rate);
+      } catch {
+        throw new EngineError('load-failed');
+      }
+    }
     const transfer: Transferable[] = [];
     for (const layer of session.layers)
       if (layer.pcm) transfer.push(layer.pcm.buffer as ArrayBuffer);
@@ -611,7 +634,12 @@ export class AudioEngine {
       this.#emit({ type: 'problem', code: result === 'version' ? 'file-version' : 'file-invalid' });
       return null;
     }
-    await this.loadSession(result.session);
+    try {
+      await this.loadSession(result.session);
+    } catch {
+      this.#emit({ type: 'problem', code: 'load-failed' });
+      return null;
+    }
     return result.settings;
   }
 

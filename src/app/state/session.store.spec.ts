@@ -6,6 +6,7 @@ import type {
   EngineState,
   LayerStatus,
   Notice,
+  TornoSettings,
 } from '../audio/engine';
 import { AUDIO_ENGINE_API, SessionStore, STATUS_INTERVAL_MS } from './session.store';
 
@@ -70,6 +71,13 @@ class FakeEngine {
   }
   scheduleAutosave(settings: unknown): void {
     this.#log('scheduleAutosave', settings);
+  }
+  /** Lo que devuelve `openFile`: los ajustes, `null` (el motor ya ha avisado) o un fallo. */
+  opened: TornoSettings | null | 'throw' = null;
+  async openFile(file: Blob): Promise<TornoSettings | null> {
+    this.#log('openFile', file.size);
+    if (this.opened === 'throw') throw new Error('inesperado');
+    return this.opened;
   }
   sent(): unknown[] {
     return this.calls.filter((call) => call[0] === 'send').map((call) => call[1]);
@@ -238,6 +246,22 @@ describe('SessionStore', () => {
     }
     expect(engine.calls).toContainEqual(['calibrate']);
     await vi.waitFor(() => expect(store.message()?.screen).toBe('LATENCIA 23,5 MS'));
+  });
+
+  it('abrir un archivo dice «cargada» solo si el motor la ha cargado, y avisa si algo falla', async () => {
+    const { store, engine } = await setup();
+    const file = new File([new Uint8Array(8)], 'sesion.torno');
+    engine.opened = null;
+    await store.openFile(file);
+    expect(store.message()).toBeNull();
+    engine.opened = 'throw';
+    await store.openFile(file);
+    expect(store.message()).toMatchObject({ screen: 'NO SE HA PODIDO CARGAR', tone: 'error' });
+    expect(store.busy()).toBe('idle');
+    engine.opened = { takeBars: 4, countIn: true, metronome: false, fitTempo: true, inputGain: 1 };
+    await store.openFile(file);
+    expect(store.message()?.screen).toBe('SESIÓN CARGADA');
+    expect(store.state().settings.takeBars).toBe(4);
   });
 
   it('autoguardado: ofrece recuperar y, al empezar de cero, lo borra', async () => {

@@ -42,6 +42,21 @@ test.describe('micrófono', () => {
     }
   });
 
+  test('reproducir y grabar con el audio aún cargando: la toma espera al audio y no se pierde', async ({
+    page,
+  }) => {
+    await instrumentAudio(page, { moduleDelayMs: 2000 });
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    await driver.control('play').click();
+    await driver.control('record').click();
+    await expect(driver.screen).toContainText('GRABANDO', { timeout: 10_000 });
+    await page.waitForTimeout(1000);
+    await driver.control('record').click();
+    await driver.expectScreen('CAPA 1 · GRABACIÓN');
+    expect(await streamCount(page)).toBe(1);
+  });
+
   test('calibrada la latencia, la toma queda alineada con los pulsos (±2 ms)', async ({ page }) => {
     test.setTimeout(60_000);
     // El micrófono es la propia salida retrasada 20 ms (bucle de retorno): se sabe cuándo suena
