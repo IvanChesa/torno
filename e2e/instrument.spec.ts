@@ -7,8 +7,10 @@ import {
   instrumentAudio,
   loadedModules,
   outputPeak,
+  workletCommands,
 } from './support/audio';
 import { InstrumentDriver, MENU } from './support/instrument';
+import { hideTab } from './support/torno';
 
 // El instrumento HTML con el motor de audio de verdad (PLAN fase 2): nada se crea antes del gesto,
 // el contexto se crea y se reanuda dentro de él, suena lo que se toca y todo funciona con teclado.
@@ -255,6 +257,35 @@ test.describe('instrumento HTML', () => {
     await expect(disc).toHaveAttribute('aria-valuetext', /^Congelado en el pulso 1,5 de 8$/);
     await page.keyboard.up('Space');
     await expect(disc).toHaveAttribute('aria-valuetext', 'Capa 1, 8 pulsos');
+    // Agarrado con el teclado, se suelta si el foco se va (Tab) o si la ventana lo pierde.
+    await page.keyboard.down('Space');
+    await driver.expectScreen('DISCO');
+    await page.keyboard.press('Tab');
+    await expect(disc).toHaveAttribute('aria-valuetext', 'Capa 1, 8 pulsos');
+    await expect(driver.screen).not.toContainText('DISCO');
+    await page.keyboard.up('Space');
+    await disc.focus();
+    await page.keyboard.down('Space');
+    await expect(disc).toHaveAttribute('aria-valuetext', /^Congelado/);
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await expect(disc).toHaveAttribute('aria-valuetext', 'Capa 1, 8 pulsos');
+    await page.keyboard.up('Space');
+  });
+
+  test('al ocultar la pestaña, el núcleo suelta el disco', async ({ page }) => {
+    await instrumentAudio(page);
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    await driver.chooseSound(MENU.categories.drums);
+    await driver.control('disc').focus();
+    await page.keyboard.down('Space');
+    await driver.expectScreen('DISCO');
+    await expect.poll(() => workletCommands(page)).toContain('disc-hold');
+    await hideTab(page);
+    await expect.poll(() => workletCommands(page)).toContain('disc-release');
+    const commands = await workletCommands(page);
+    expect(commands.lastIndexOf('disc-release')).toBeGreaterThan(commands.lastIndexOf('disc-hold'));
+    await page.keyboard.up('Space');
   });
 
   test('con el foco en el disco y el transporte en marcha, su valor en voz no cambia solo', async ({

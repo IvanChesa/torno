@@ -47,6 +47,8 @@ const CLICK_AFTER_POINTER_MS = 600;
     '(click)': 'onClick($event)',
     '(keydown)': 'onKeyDown($event)',
     '(keyup)': 'onKeyUp($event)',
+    '(focusout)': 'release()',
+    '(window:blur)': 'release()',
   },
 })
 export class ControlDirective implements OnDestroy {
@@ -136,6 +138,16 @@ export class ControlDirective implements OnDestroy {
     if (this.gestureState.phase === 'idle') return;
     clearTimeout(this.holdTimer);
     this.feed({ type: 'cancel' });
+  }
+
+  /**
+   * El disco no se queda agarrado si el foco se va del control o de la ventana (Tab, Alt+Tab, otra
+   * pestaña): el `keyup` de Espacio, o el `pointerup`, llegaría a otro sitio.
+   */
+  protected release(): void {
+    if (this.spec().kind !== 'disc') return;
+    this.onPointerCancel();
+    this.store.input({ type: 'drop' });
   }
 
   protected onClick(event: MouseEvent): void {

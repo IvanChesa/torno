@@ -28,6 +28,8 @@ export interface AudioLog {
   streams: MediaStream[];
   analysers: AnalyserNode[];
   unlockReady: boolean;
+  /** El tipo de cada mensaje enviado por un `MessagePort` (los comandos al worklet). */
+  commands: string[];
 }
 
 declare global {
@@ -68,6 +70,7 @@ export async function instrumentAudio(page: Page, options: InstrumentOptions = {
         streams: [],
         analysers: [],
         unlockReady: false,
+        commands: [],
       };
       window.__torno = log;
       const currentEvent = () => window.event?.type ?? 'ninguno';
@@ -118,6 +121,13 @@ export async function instrumentAudio(page: Page, options: InstrumentOptions = {
         return result;
       } as typeof AudioNode.prototype.connect;
 
+      const post = MessagePort.prototype.postMessage;
+      MessagePort.prototype.postMessage = function (this: MessagePort, ...args: unknown[]) {
+        const message = args[0] as { type?: unknown } | null;
+        if (message && typeof message.type === 'string') log.commands.push(message.type);
+        return (post as (...a: unknown[]) => void).apply(this, args);
+      } as typeof MessagePort.prototype.postMessage;
+
       const addModule = AudioWorklet.prototype.addModule;
       AudioWorklet.prototype.addModule = async function (url, moduleOptions) {
         log.modules.push(String(url));
@@ -158,6 +168,7 @@ export const contextStates = (page: Page) =>
   page.evaluate(() => (window.__torno?.contexts ?? []).map((context) => context.state));
 export const audioCalls = (page: Page) => page.evaluate(() => window.__torno?.calls ?? []);
 export const loadedModules = (page: Page) => page.evaluate(() => window.__torno?.modules ?? []);
+export const workletCommands = (page: Page) => page.evaluate(() => window.__torno?.commands ?? []);
 export const streamCount = (page: Page) => page.evaluate(() => window.__torno?.streams.length ?? 0);
 /** ¿Todas las pistas de micrófono que se han abierto están paradas? */
 export const tracksEnded = (page: Page) =>

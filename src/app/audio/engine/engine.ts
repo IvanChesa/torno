@@ -478,10 +478,11 @@ export class AudioEngine {
   }
 
   #onHidden(): void {
-    // Pestaña oculta: la toma (o la cuenta previa, o la calibración) se cancela, se pausa y se
-    // suelta el micrófono.
+    // Pestaña oculta: la toma (o la cuenta previa, o la calibración) se cancela, el disco se
+    // suelta, se pausa y se suelta el micrófono.
     if (!this.#node) return;
     this.send({ type: 'cancel-recording' });
+    this.send({ type: 'disc-release' });
     this.send({ type: 'pause' });
     this.#calibration?.reject(new EngineError('calibration-failed'));
     this.#calibration = null;
