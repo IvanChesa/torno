@@ -214,6 +214,7 @@ export class ControlDirective implements OnDestroy {
     const step = gesture(this.gestureState, input, {
       grab: spec.kind === 'disc',
       hold: spec.gestures.includes('hold'),
+      turn: spec.gestures.includes('turn'),
     });
     this.gestureState = step.state;
     for (const output of step.outputs) this.handle(output);

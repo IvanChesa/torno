@@ -4,7 +4,9 @@
  *
  * - **Pulsar:** soltar antes de 500 ms sin moverse.
  * - **Mantener:** 500 ms sin moverse (al soltar, `release`).
- * - **Girar/arrastrar:** moverse más allá del umbral; cancela la pulsación y el mantener.
+ * - **Girar/arrastrar:** moverse más allá del umbral; cancela la pulsación y el mantener. En los
+ *   controles que no giran (las teclas), moverse no cancela nada: con el dedo, unos píxeles de
+ *   temblor no deben perder la pulsación.
  * - **Agarrar** (el disco): se agarra al tocarlo, sin esperar; moverlo lo arrastra y soltarlo lo
  *   suelta.
  */
@@ -15,6 +17,8 @@ export interface GestureConfig {
   readonly grab?: boolean;
   /** El control entiende «mantener». */
   readonly hold?: boolean;
+  /** El control gira (diales, brazo, rueda); si no, moverse no cancela la pulsación. */
+  readonly turn?: boolean;
   readonly holdMs?: number;
   readonly threshold?: number;
 }
@@ -64,6 +68,7 @@ export function gesture(
   const holdMs = config.holdMs ?? HOLD_MS;
   const threshold = config.threshold ?? TURN_THRESHOLD_PX;
   const canHold = config.hold ?? true;
+  const canTurn = config.turn ?? true;
 
   if (input.type === 'cancel') {
     if (state.phase === 'grabbed') return step(IDLE, { type: 'drop' });
@@ -81,7 +86,7 @@ export function gesture(
       if (input.type === 'move') {
         const dx = input.x - state.x;
         const dy = input.y - state.y;
-        if (Math.hypot(dx, dy) <= threshold) return step(state);
+        if (!canTurn || Math.hypot(dx, dy) <= threshold) return step(state);
         return step({ phase: 'turning', x: input.x, y: input.y }, { type: 'turn', dx, dy });
       }
       const late = input.type !== 'down' && canHold && input.time - state.start >= holdMs;

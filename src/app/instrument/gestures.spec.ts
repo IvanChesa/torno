@@ -50,6 +50,16 @@ describe('gestos', () => {
     ]);
   });
 
+  it('en las teclas (sin girar), moverse no cancela la pulsación ni el mantener', () => {
+    expect(run([down(0, 10, 10), move(10, 30, 25), up(100)], { turn: false })).toEqual([
+      { type: 'press' },
+    ]);
+    expect(run([down(0), move(100, 40, 40), tick(500), up(900)], { turn: false })).toEqual([
+      { type: 'hold' },
+      { type: 'release' },
+    ]);
+  });
+
   it('el disco se agarra al tocarlo, se arrastra y se suelta', () => {
     expect(run([down(0, 5, 5), move(10, 8, 9), up(20)], { grab: true })).toEqual([
       { type: 'grab' },

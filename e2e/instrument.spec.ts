@@ -236,6 +236,19 @@ test.describe('instrumento HTML', () => {
     await page.mouse.move(center.x, center.y + 40, { steps: 8 });
     await page.mouse.up();
     await expect(layer).toHaveAttribute('aria-valuenow', '90');
+    // Una tecla se pulsa aunque el puntero se mueva unos píxeles (con el dedo, pasa).
+    const play = driver.control('play');
+    await play.scrollIntoViewIfNeeded();
+    const playBox = (await play.boundingBox())!;
+    await page.mouse.move(playBox.x + playBox.width / 2, playBox.y + playBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(playBox.x + playBox.width / 2 + 10, playBox.y + playBox.height / 2 + 6, {
+      steps: 4,
+    });
+    await page.mouse.up();
+    await driver.expectScreen('EN MARCHA');
+    await play.click();
+    await driver.expectScreen('PAUSA');
     // Tocar sin mover es pulsar (elige la capa); mantener medio segundo, silenciar.
     await driver.control('layer-2').click();
     await driver.expectScreen('CAPA 3');
