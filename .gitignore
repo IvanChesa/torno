@@ -33,7 +33,8 @@ yarn-error.log
 /public/audio/
 /src/app/audio/engine/worklet-url.generated.ts
 
-# Playwright
+# Playwright (y el micrófono sintético que genera scripts/make-fake-mic.mjs)
+/e2e/.generated/
 /test-results/
 /playwright-report/
 /blob-report/

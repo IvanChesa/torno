@@ -1,0 +1,187 @@
+import AxeBuilder from '@axe-core/playwright';
+import { readFile } from 'node:fs/promises';
+import { expect, test } from '@playwright/test';
+import {
+  audioCalls,
+  contextStates,
+  instrumentAudio,
+  loadedModules,
+  outputPeak,
+} from './support/audio';
+import { InstrumentDriver, MENU } from './support/instrument';
+
+// El instrumento HTML con el motor de audio de verdad (PLAN fase 2): nada se crea antes del gesto,
+// el contexto se crea y se reanuda dentro de él, suena lo que se toca y todo funciona con teclado.
+
+const WORKLET = /\/audio\/processor\.[A-Z0-9]+\.js$/;
+/** Lo que se oye en el gesto (Playwright hace un clic con puntero: `pointerup` o `click`). */
+const GESTURE = /^(new|resume):(pointerup|click|keydown)$/;
+
+test.describe('instrumento HTML', () => {
+  test('nada se crea ni se carga antes del gesto', async ({ page }) => {
+    const workers: string[] = [];
+    page.on('worker', (worker) => workers.push(worker.url()));
+    await instrumentAudio(page);
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    await page.waitForTimeout(500);
+    expect(await contextStates(page)).toEqual([]);
+    expect(await audioCalls(page)).toEqual([]);
+    expect(await loadedModules(page)).toEqual([]);
+    expect(workers).toEqual([]);
+  });
+
+  test('la instrumentación distingue un contexto creado fuera del gesto', async ({ page }) => {
+    await instrumentAudio(page);
+    await new InstrumentDriver(page).open();
+    // Control negativo: tras un await de verdad (una tarea nueva), ya no hay evento en curso.
+    await page.evaluate(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new AudioContext().close();
+    });
+    expect(await audioCalls(page)).toEqual(['new:ninguno']);
+  });
+
+  test('el módulo del worklet se sirve con hash y como JavaScript', async ({ request }) => {
+    const generated = await readFile('src/app/audio/engine/worklet-url.generated.ts', 'utf8');
+    const workletPath = /WORKLET_PATH = '([^']+)'/.exec(generated)?.[1] ?? '';
+    expect(`/${workletPath}`).toMatch(WORKLET);
+    const response = await request.get(`/${workletPath}`);
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toMatch(/javascript/);
+    expect(await response.text()).toContain('registerProcessor');
+  });
+
+  test('elegir un sonido y reproducir: la salida no es silencio; pausar la apaga', async ({
+    page,
+  }) => {
+    await instrumentAudio(page);
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    await driver.chooseSound(MENU.categories.chords);
+    await driver.expectScreen('CAPA 1 · ACORDES · PRUEBA');
+    // Antes de reproducir, nada suena.
+    expect(await outputPeak(page, 300)).toBe(0);
+    await driver.control('play').click();
+    await driver.expectScreen('EN MARCHA');
+    await expect(driver.control('play')).toHaveAttribute('aria-pressed', 'true');
+    // El bucle de prueba tiene su pico a −6 dBFS; centrado, sale a −9 dBFS.
+    const peak = await outputPeak(page, 1500);
+    expect(20 * Math.log10(peak)).toBeGreaterThan(-12);
+    expect(20 * Math.log10(peak)).toBeLessThan(-0.3);
+    // El contexto se creó y se reanudó dentro del gesto (el primer toque del instrumento).
+    const calls = await audioCalls(page);
+    expect(calls.length).toBeGreaterThanOrEqual(2);
+    for (const call of calls) expect(call).toMatch(GESTURE);
+    expect(await contextStates(page)).toEqual(['running']);
+    expect((await loadedModules(page)).map((url) => new URL(url).pathname)).toEqual([
+      expect.stringMatching(WORKLET),
+    ]);
+    // Pausar: 10 ms de fundido y silencio.
+    await page.keyboard.press('Space');
+    await driver.expectScreen('PAUSA');
+    await page.waitForTimeout(200);
+    expect(await outputPeak(page, 300)).toBe(0);
+  });
+
+  test('con el módulo retrasado 1,5 s, el contexto ya está en marcha desde el gesto y suena al cargar', async ({
+    page,
+  }) => {
+    await instrumentAudio(page, { moduleDelayMs: 1500 });
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    const clickedAt = Date.now();
+    // El primer gesto: pulsar el dial principal (abre el menú).
+    await driver.control('main').click();
+    await expect.poll(() => contextStates(page), { timeout: 1000 }).toEqual(['running']);
+    expect(Date.now() - clickedAt).toBeLessThan(1500);
+    const calls = await audioCalls(page);
+    expect(calls[0]).toMatch(/^new:(pointerup|click)$/);
+    for (const call of calls) expect(call).toMatch(GESTURE);
+    // Mientras carga el módulo, se elige el sonido y se pulsa reproducir: esperan en la cola.
+    await driver.closeMenu();
+    await driver.chooseSound(MENU.categories.bass);
+    await driver.control('play').click();
+    await expect.poll(() => outputPeak(page, 200), { timeout: 10_000 }).toBeGreaterThan(0.05);
+    expect(Date.now() - clickedAt).toBeGreaterThanOrEqual(1500);
+  });
+
+  test('todo con teclado: cada control es enfocable, con nombre, valor y atajos', async ({
+    page,
+  }) => {
+    await instrumentAudio(page);
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    // Los 12 controles, en el orden del tabulador.
+    const order: string[] = [];
+    await driver.control('main').focus();
+    for (let i = 0; i < 12; i++) {
+      order.push(
+        (await page.evaluate(() => document.activeElement?.getAttribute('data-control'))) ?? '',
+      );
+      await page.keyboard.press('Tab');
+    }
+    expect(order).toEqual([
+      'main',
+      'layer-0',
+      'layer-1',
+      'layer-2',
+      'layer-3',
+      'play',
+      'record',
+      'undo',
+      'disc',
+      'arm',
+      'volume',
+      'standby',
+    ]);
+    // Un dial: flechas, Mayús ×10, Inicio y Fin; su valor en voz.
+    const layer = driver.control('layer-1');
+    await layer.focus();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Shift+ArrowDown');
+    await expect(layer).toHaveAttribute('aria-valuenow', '89');
+    await expect(layer).toHaveAttribute('aria-valuetext', '89 %');
+    await page.keyboard.press('Home');
+    await expect(layer).toHaveAttribute('aria-valuenow', '0');
+    // Mantener (Mayús+Intro) silencia; pulsar (Intro) elige la capa.
+    await page.keyboard.press('Shift+Enter');
+    await expect(layer).toHaveAttribute('aria-valuetext', '0 %, en silencio');
+    await page.keyboard.press('Enter');
+    await driver.expectScreen('CAPA 2');
+    // Atajos con el foco dentro: 3 elige la capa 3; ? abre la chuleta; Esc la cierra.
+    await page.keyboard.press('3');
+    await driver.expectScreen('CAPA 3');
+    await page.keyboard.press('?');
+    await expect(page.getByRole('heading', { name: 'Atajos de teclado' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('heading', { name: 'Atajos de teclado' })).toBeHidden();
+    // El tempo con el dial principal (menú cerrado).
+    const main = driver.control('main');
+    await main.focus();
+    await page.keyboard.press('Shift+ArrowUp');
+    await expect(main).toHaveAttribute('aria-valuetext', '100 pulsos por minuto');
+    await driver.expectScreen('100 BPM');
+    // Los botones tienen nombre y descripción; los diales, rol de slider.
+    await expect(driver.control('record')).toHaveAccessibleName('Grabar');
+    await expect(driver.control('record')).toHaveAccessibleDescription(/mantén para cancelar/);
+    await expect(page.getByRole('slider', { name: 'Disco' })).toBeVisible();
+  });
+
+  test('pasa axe sin violaciones, también con el menú abierto', async ({ page }) => {
+    await instrumentAudio(page);
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    const check = async () => {
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])
+        .analyze();
+      return results.violations.map(
+        (v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`,
+      );
+    };
+    expect(await check()).toEqual([]);
+    await driver.menu(MENU.loop);
+    expect(await check()).toEqual([]);
+  });
+});
