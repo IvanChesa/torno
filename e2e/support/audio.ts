@@ -45,11 +45,22 @@ export interface InstrumentOptions {
   readonly micDenied?: boolean;
   /** El micrófono es la salida del propio contexto, retrasada 20 ms (bucle de retorno). */
   readonly loopback?: boolean;
+  /**
+   * Como en un sistema que no toma `pointerup` como gesto (iOS, por ejemplo): el contexto nace
+   * suspendido y un `resume()` pedido en `pointerup` se queda pendiente para siempre.
+   */
+  readonly pointerupIsNotAGesture?: boolean;
 }
 
 export async function instrumentAudio(page: Page, options: InstrumentOptions = {}): Promise<void> {
   await page.addInitScript(
-    ({ moduleDelayMs = 0, moduleDelayOnce = false, loopback = false, micDenied = false }) => {
+    ({
+      moduleDelayMs = 0,
+      moduleDelayOnce = false,
+      loopback = false,
+      micDenied = false,
+      pointerupIsNotAGesture = false,
+    }) => {
       const log: AudioLog = {
         contexts: [],
         modules: [],
@@ -77,7 +88,9 @@ export async function instrumentAudio(page: Page, options: InstrumentOptions = {
       const Native = window.AudioContext;
       const resume = Native.prototype.resume;
       Native.prototype.resume = function (this: AudioContext) {
-        log.calls.push(`resume:${currentEvent()}`);
+        const event = currentEvent();
+        log.calls.push(`resume:${event}`);
+        if (pointerupIsNotAGesture && event === 'pointerup') return new Promise<void>(() => {});
         return resume.call(this);
       };
       window.AudioContext = class extends Native {
@@ -88,6 +101,7 @@ export async function instrumentAudio(page: Page, options: InstrumentOptions = {
           const analyser = new AnalyserNode(this, { fftSize: 2048 });
           log.analysers.push(analyser);
           taps.set(this, { analyser, back: new GainNode(this) });
+          if (pointerupIsNotAGesture) void Native.prototype.suspend.call(this);
         }
       };
 

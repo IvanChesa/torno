@@ -32,6 +32,22 @@ async function hold(page: Page, pattern: RegExp): Promise<() => void> {
   return release;
 }
 
+test.describe('desbloqueo robusto', () => {
+  test('si el sistema no toma `pointerup` como gesto, el `click` del mismo toque desbloquea el audio', async ({
+    page,
+  }) => {
+    await instrumentAudio(page, { pointerupIsNotAGesture: true });
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    await driver.control('layer-0').click();
+    await expect.poll(() => contextStates(page)).toEqual(['running']);
+    const calls = await audioCalls(page);
+    expect(calls.slice(0, 2)).toEqual(['new:pointerup', 'resume:pointerup']);
+    expect(calls).toContain('resume:click');
+    await expect(page.getByText(NEEDS_GESTURE)).toBeHidden();
+  });
+});
+
 test.describe('toques antes de la hidratación', () => {
   test('con el JS principal ya cargado, el audio se desbloquea en el gesto real', async ({
     page,

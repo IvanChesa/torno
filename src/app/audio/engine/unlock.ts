@@ -4,9 +4,10 @@
  * Es una escucha **nativa** en fase de captura sobre el documento, registrada en `main.ts` antes de
  * arrancar Angular: así actúa en el gesto real aunque la página aún no esté hidratada (con la
  * repetición de eventos, un toque anterior a la hidratación llega a Angular después, fuera del
- * gesto). Reacciona al primer `click`, `pointerup`, `touchend` o `keydown` sobre un elemento marcado
- * con `data-audio-unlock` (el instrumento y los botones «Tocar») y, en ese gesto y antes de
- * cualquier `await`:
+ * gesto). Reacciona a cada `click`, `pointerup`, `touchend` o `keydown` sobre un elemento marcado
+ * con `data-audio-unlock` (el instrumento y los botones «Tocar») mientras el contexto no suena (no
+ * todos los navegadores toman todos esos eventos como gesto) y, en ese gesto y antes de cualquier
+ * `await`:
  * 1. pone `navigator.audioSession.type` (`playback`; en iOS, suena con el interruptor de silencio);
  * 2. crea y reanuda el `AudioContext` (o reanuda el que hay, tras una interrupción);
  * 3. reproduce un búfer silencioso de una muestra, que es lo que Safari en iOS necesita.
@@ -29,8 +30,6 @@ let context: AudioContext | undefined;
 /** En reposo, los gestos no reanudan el contexto: solo lo hace «salir del reposo». */
 let held = false;
 let sessionType: AudioSessionType = 'playback';
-/** Un mismo toque da `pointerup` y `click`: con una reanudación en marcha, no se pide otra. */
-let resuming: Promise<void> | undefined;
 const listeners = new Set<() => void>();
 /** Un toque sobre el instrumento llegó cuando aún no se podía desbloquear (antes del JS). */
 let missed = false;
@@ -54,21 +53,27 @@ function onGesture(event: Event): void {
 export function unlockAudio(): void {
   const session = (navigator as AudioSessionNavigator).audioSession;
   if (session) session.type = sessionType;
-  if (context?.state === 'running' || resuming) return;
+  if (context?.state === 'running') return;
   if (!context || context.state === 'closed') {
     if (typeof AudioContext === 'undefined') return;
     // Sin `sampleRate`: la del dispositivo (PLAN D22); si no, el navegador remuestrea.
     context = new AudioContext({ latencyHint: 'interactive' });
+    context.addEventListener('statechange', notifyIfRunning);
   }
-  // Sin `await`: la promesa se resuelve después, pero la petición sale dentro del gesto.
-  resuming = context
-    .resume()
-    .catch(() => undefined)
-    .finally(() => (resuming = undefined));
+  // Sin `await`, y en cada gesto mientras no suene: si el sistema no tomó un evento como gesto
+  // (iOS con `pointerup`, por ejemplo), aquel `resume()` se queda pendiente y este, en el `click`
+  // o el `touchend` del mismo toque, lo vuelve a pedir. Repetirlo no tiene ningún coste.
+  context.resume().then(notifyIfRunning, () => undefined);
   const source = context.createBufferSource();
   source.buffer = context.createBuffer(1, 1, context.sampleRate);
   source.connect(context.destination);
   source.start();
+  notifyIfRunning();
+}
+
+/** Avisa a los oyentes cuando el contexto suena de verdad (no basta con haberlo pedido). */
+function notifyIfRunning(): void {
+  if (context?.state !== 'running') return;
   missed = false;
   for (const listener of listeners) listener();
 }
@@ -96,7 +101,7 @@ export function unlockedContext(): AudioContext | undefined {
   return context;
 }
 
-/** Avisa cada vez que un gesto desbloquea o reanuda el audio. Devuelve la baja. */
+/** Avisa cada vez que el audio pasa a sonar tras un gesto (desbloqueo o reanudación). */
 export function onAudioUnlock(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
