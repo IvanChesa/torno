@@ -107,8 +107,13 @@ export async function runSynthProbe(): Promise<SynthProbeResult> {
   const source = new AudioBufferSourceNode(context, { buffer });
   const analyser = new AnalyserNode(context, { fftSize: 2048 });
   source.connect(analyser).connect(context.destination);
-  const ended = new Promise<void>((resolve) =>
-    source.addEventListener('ended', () => resolve(), { once: true }),
+  // Con el contexto suspendido o interrumpido, `ended` no llega nunca: mejor un error que esperar.
+  const ended = withTimeout(
+    new Promise<void>((resolve) =>
+      source.addEventListener('ended', () => resolve(), { once: true }),
+    ),
+    (TONE_SECONDS + 3) * 1000,
+    'El tono no ha terminado de sonar: ¿está el audio en pausa?',
   );
   source.start();
   try {
