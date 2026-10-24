@@ -26,7 +26,22 @@ export type {
   TransportState,
 } from '../core/protocol';
 
+export type { TornoSettings } from '../files/torno-format';
+
 let loading: Promise<AudioEngine> | undefined;
+
+/**
+ * Cuándo se autoguardó la sesión que se puede recuperar (o `null`). Solo lee IndexedDB: no carga el
+ * motor ni toca el audio.
+ */
+export async function autosavedAt(): Promise<number | null> {
+  return (await import('./autosave')).autosaveDate();
+}
+
+/** Borra el autoguardado de este navegador. */
+export async function deleteAutosave(): Promise<boolean> {
+  return (await import('./autosave')).clearAutosave();
+}
 
 /** Carga el motor (una vez) y devuelve la instancia única. */
 export function loadAudioEngine(): Promise<AudioEngine> {

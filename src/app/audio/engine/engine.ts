@@ -22,6 +22,9 @@ import {
   type CoreCommand,
   type CoreCommandBody,
   type CoreStatus,
+  type ExportedFile,
+  type ExportWorkerRequest,
+  type ExportWorkerResponse,
   type LibrarySound,
   type Notice,
   type RenderSoundResponse,
@@ -31,6 +34,18 @@ import {
   type WorkletRequest,
 } from '../core/protocol';
 import type { SessionState } from '../core/session';
+import {
+  isTornoError,
+  MAX_TORNO_BYTES,
+  readTorno,
+  TORNO_EXTENSION,
+  TORNO_MIME,
+  writeTorno,
+  type TornoSettings,
+} from '../files/torno-format';
+import { createZip } from '../files/zip';
+import { clearAutosave, loadAutosave, saveAutosave } from './autosave';
+import { download, fileStamp } from './download';
 import {
   autoLatencySeconds,
   latencyFrames,
@@ -64,6 +79,18 @@ export type EngineErrorCode =
   | 'worklet-failed'
   | 'calibration-failed'
   | 'sound-failed'
+  /** El archivo no es un `.torno` válido (no se ha cambiado nada). */
+  | 'file-invalid'
+  /** Un `.torno` de una versión más nueva. */
+  | 'file-version'
+  | 'file-too-large'
+  | 'file-read'
+  | 'save-failed'
+  | 'export-failed'
+  /** No hay nada que exportar. */
+  | 'export-empty'
+  /** El navegador no deja más espacio para el autoguardado. */
+  | 'autosave-quota'
   | MicrophoneErrorCode;
 
 export type MicState = 'off' | 'requesting' | 'on';
@@ -84,6 +111,8 @@ export interface RecordOptions {
 
 const MODULE_TIMEOUT_MS = 5000;
 const REQUEST_TIMEOUT_MS = 10_000;
+/** Antirrebote del autoguardado tras una edición. */
+const AUTOSAVE_DELAY_MS = 1500;
 /** Tras pedir el reposo, se espera a que la salida se apague antes de suspender el contexto. */
 const STANDBY_FADE_MS = 150;
 
@@ -114,6 +143,8 @@ export class AudioEngine {
   #latency: LatencySetting = loadLatency();
 
   #synth: Worker | null = null;
+  #autosaveTimer: ReturnType<typeof setTimeout> | undefined;
+  #autosaveSettings: TornoSettings | null = null;
   readonly #sounds = new Map<string, { pcm: Float32Array; lengthBeats: number }>();
 
   constructor() {
@@ -533,6 +564,167 @@ export class AudioEngine {
     for (const layer of session.layers)
       if (layer.pcm) transfer.push(layer.pcm.buffer as ArrayBuffer);
     this.send({ type: 'load-session', session }, transfer);
+  }
+
+  // --- Archivos ----------------------------------------------------------------------------------
+
+  /** Guarda la sesión en un `.torno` (con sus ajustes) y lo descarga. */
+  async saveFile(settings: TornoSettings): Promise<void> {
+    try {
+      const session = await this.copySession();
+      const bytes = writeTorno(session, settings);
+      download(new Blob([bytes], { type: TORNO_MIME }), `torno-${fileStamp()}${TORNO_EXTENSION}`);
+    } catch {
+      this.#emit({ type: 'problem', code: 'save-failed' });
+    }
+  }
+
+  /**
+   * Abre un `.torno`: lo lee y lo valida entero antes de tocar nada. Si no vale, avisa y el núcleo
+   * sigue como estaba. Devuelve los ajustes del archivo (o `null`).
+   */
+  async openFile(file: Blob): Promise<TornoSettings | null> {
+    if (file.size > MAX_TORNO_BYTES) {
+      this.#emit({ type: 'problem', code: 'file-too-large' });
+      return null;
+    }
+    let bytes: ArrayBuffer;
+    try {
+      bytes = await file.arrayBuffer();
+    } catch {
+      this.#emit({ type: 'problem', code: 'file-read' });
+      return null;
+    }
+    return this.#loadTorno(bytes);
+  }
+
+  async #loadTorno(bytes: ArrayBuffer): Promise<TornoSettings | null> {
+    const result = readTorno(bytes);
+    if (isTornoError(result)) {
+      this.#emit({ type: 'problem', code: result === 'version' ? 'file-version' : 'file-invalid' });
+      return null;
+    }
+    await this.loadSession(result.session);
+    return result.settings;
+  }
+
+  /** Exporta la mezcla en un WAV estéreo de 24 bits con `repeats` vueltas (1–8). */
+  async exportMix(repeats: number, fadeOut: boolean): Promise<void> {
+    const files = await this.#export((id, session) => ({
+      v: PROTOCOL_VERSION,
+      type: 'export-mix',
+      id,
+      session,
+      repeats,
+      fadeOut,
+    }));
+    const mix = files?.[0];
+    if (mix) {
+      download(new Blob([mix.bytes], { type: 'audio/wav' }), `torno-mezcla-${fileStamp()}.wav`);
+    }
+  }
+
+  /** Exporta una pista mono de 24 bits por capa con sonido, juntas en un ZIP. */
+  async exportStems(): Promise<void> {
+    const files = await this.#export((id, session) => ({
+      v: PROTOCOL_VERSION,
+      type: 'export-stems',
+      id,
+      session,
+    }));
+    if (!files) return;
+    const now = new Date();
+    const zip = createZip(
+      files.map((file) => ({
+        name: `torno-capa-${file.layer + 1}.wav`,
+        bytes: new Uint8Array(file.bytes),
+      })),
+      now,
+    );
+    download(new Blob([zip], { type: 'application/zip' }), `torno-pistas-${fileStamp(now)}.zip`);
+  }
+
+  async #export(
+    request: (id: number, session: SessionState) => ExportWorkerRequest,
+  ): Promise<readonly ExportedFile[] | null> {
+    let session: SessionState;
+    try {
+      session = await this.copySession();
+    } catch {
+      this.#emit({ type: 'problem', code: 'export-failed' });
+      return null;
+    }
+    if (session.layers.every((layer) => !layer.pcm)) {
+      this.#emit({ type: 'problem', code: 'export-empty' });
+      return null;
+    }
+    const worker = new Worker(new URL('../workers/export.worker', import.meta.url), {
+      type: 'module',
+      name: 'torno-exportacion',
+    });
+    const message = request(this.#nextId++, session);
+    try {
+      const response = await new Promise<ExportWorkerResponse>((resolve, reject) => {
+        worker.onmessage = (event: MessageEvent<unknown>) => {
+          if (isCurrentMessage(event.data)) resolve(event.data as ExportWorkerResponse);
+        };
+        worker.onerror = (event) => {
+          event.preventDefault();
+          reject(new Error(event.message));
+        };
+        const transfer: Transferable[] = [];
+        for (const layer of session.layers) {
+          if (layer.pcm) transfer.push(layer.pcm.buffer as ArrayBuffer);
+        }
+        worker.postMessage(message, transfer);
+      });
+      if (response.type === 'exported' && response.id === message.id) return response.files;
+      throw new Error('export');
+    } catch {
+      this.#emit({ type: 'problem', code: 'export-failed' });
+      return null;
+    } finally {
+      worker.terminate();
+    }
+  }
+
+  // --- Autoguardado ------------------------------------------------------------------------------
+
+  /**
+   * Pide un autoguardado (con antirrebote) tras una edición confirmada. Durante una toma se espera a
+   * que termine; una sesión vacía borra el autoguardado.
+   */
+  scheduleAutosave(settings: TornoSettings): void {
+    this.#autosaveSettings = settings;
+    clearTimeout(this.#autosaveTimer);
+    this.#autosaveTimer = setTimeout(() => void this.#autosave(), AUTOSAVE_DELAY_MS);
+  }
+
+  async #autosave(): Promise<void> {
+    const settings = this.#autosaveSettings;
+    if (!settings || !this.#node) return;
+    if (this.#status && this.#status.recording !== 'idle') {
+      this.scheduleAutosave(settings);
+      return;
+    }
+    try {
+      const session = await this.copySession();
+      if (session.layers.every((layer) => !layer.pcm)) {
+        await clearAutosave();
+        return;
+      }
+      const result = await saveAutosave(writeTorno(session, settings).buffer);
+      if (result === 'quota') this.#emit({ type: 'problem', code: 'autosave-quota' });
+    } catch {
+      // Sin respuesta del núcleo (reposo, pestaña cerrándose): se intentará en la próxima edición.
+    }
+  }
+
+  /** Carga la sesión autoguardada. Devuelve sus ajustes, o `null` si no hay o no vale. */
+  async recoverAutosave(): Promise<TornoSettings | null> {
+    const saved = await loadAutosave();
+    if (!saved) return null;
+    return this.#loadTorno(saved.bytes);
   }
 
   // --- Eventos ---------------------------------------------------------------------------------
