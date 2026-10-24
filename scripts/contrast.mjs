@@ -31,6 +31,17 @@ export const PAIRS = [
   ['--color-warning', '--color-bg', 4.5, 'Avisos'],
   ['--color-warning', '--color-surface', 4.5, 'Avisos en paneles'],
   ['--color-phosphor', '--color-screen', 7, 'Pantalla del aparato'],
+  ['--color-ink', '--instrument-plate', 4.5, 'Rótulos del instrumento HTML'],
+  [
+    '--instrument-brass',
+    '--instrument-plate',
+    3,
+    'Diales y anillo del disco sobre el cuerpo (WCAG 1.4.11)',
+  ],
+  ['--instrument-key', '--instrument-plate', 3, 'Teclas sobre el cuerpo (WCAG 1.4.11)'],
+  ['--color-bg', '--instrument-key', 7, 'Iconos y rótulos de las teclas'],
+  ['--color-bg', '--instrument-brass', 3, 'Aguja de los diales'],
+  ['--color-focus', '--instrument-plate', 3, 'Anillo de foco sobre el instrumento'],
 ];
 
 /**

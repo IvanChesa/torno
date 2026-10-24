@@ -35,6 +35,11 @@
   --instrument-key: #e7ddc8;
   --instrument-glaze: #626838;
   --instrument-led-rec: #f6623d;
+  /*
+   * El cuerpo del instrumento HTML (fase 2): un barro más oscuro que el del 3D, para que los rótulos
+   * de tinta tengan 4,5:1 y el latón de los diales 3:1 sobre él.
+   */
+  --instrument-plate: #864230;
 
   /* --- Tipografía --- */
   --font-text: 'Fraunces Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
