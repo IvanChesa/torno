@@ -17,3 +17,7 @@ src/app/audio/engine/worklet-url.generated.ts
 .claude/skills/
 # Configuración local de Claude Code (no se versiona)
 .claude/settings.local.json
+# Configuración de otros asistentes (Codex): no se usa en este proyecto
+AGENTS.md
+.agents/
+.codex/

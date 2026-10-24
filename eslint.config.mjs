@@ -293,6 +293,9 @@ export default defineConfig([
       'playwright-report/',
       'out/',
       '.claude/',
+      // Configuración de Codex, que no se usa en este proyecto (revisión del bloque 0).
+      '.agents/',
+      '.codex/',
     ],
   },
   {

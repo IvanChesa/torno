@@ -59,3 +59,8 @@ Thumbs.db
 # Skills de terceros copiadas en local (no van al repo) y configuración local de Claude Code
 .claude/skills/
 .claude/settings.local.json
+
+# Configuración de otros asistentes (Codex): no se usa en este proyecto (revisión del bloque 0)
+AGENTS.md
+.agents/
+.codex/
