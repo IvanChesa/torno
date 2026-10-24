@@ -1,9 +1,11 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { HomePage } from './home-page';
 import { HOME_CONTENT } from './home.content';
 
 describe('HomePage', () => {
   it('tiene un solo h1 con el nombre y una sección con título para cada bloque', async () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
     const fixture = TestBed.createComponent(HomePage);
     await fixture.whenStable();
     const root = fixture.nativeElement as HTMLElement;

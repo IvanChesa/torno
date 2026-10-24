@@ -28,10 +28,10 @@ export const DESIGN_SAMPLE_CONTENT = {
     lead: 'Cuatro capas que se repiten: un ritmo, un bajo, unos acordes y lo que grabes.',
     text: 'Mantén pulsado el disco para congelar la capa seleccionada y arrástralo hacia delante o hacia atrás. Al soltarlo, vuelve a su sitio en la línea de tiempo común.',
     small: 'Texto secundario: nota, pie de foto o aclaración.',
-    mono: 'CAPA 2 · BAJO · 90 BPM · −12,0 dBFS',
+    // Espacio duro (U+00A0) entre cifra y unidad: no se separan al cortar la línea.
+    mono: 'CAPA 2 · BAJO · 90\u00a0BPM · −12,0\u00a0dBFS',
   },
   buttons: { primary: 'Tocar el instrumento', secondary: 'Cómo se toca' },
   link: 'Enlace en el texto',
-  shortcut: 'Atajo de teclado:',
-  shortcutAction: 'reproducir o pausar',
+  shortcut: { prefix: 'Con el teclado,', key: 'Espacio', action: 'reproduce o pausa' },
 } as const;

@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { ROUTES_CONTENT } from './app.routes.content';
 import type { SeoRouteData } from './core/seo.service';
 
 const loadNotFound = () => import('./pages/not-found/not-found-page').then((m) => m.NotFoundPage);
@@ -13,14 +14,22 @@ export const routes: Routes = [
   },
   {
     path: 'sobre-el-proyecto',
-    title: 'Sobre el proyecto',
-    data: {
-      description: 'Cómo está hecho Torno: arquitectura del audio, decisiones y mediciones.',
-    } satisfies SeoRouteData,
+    title: ROUTES_CONTENT.about.title,
+    data: { description: ROUTES_CONTENT.about.description } satisfies SeoRouteData,
     loadComponent: () => import('./pages/about/about-page').then((m) => m.AboutPage),
   },
   // /404 existe para prerenderizar la página de error (el ErrorDocument de Apache, fase 4);
   // ** muestra la misma página en el cliente para cualquier otra URL. Las dos, con noindex.
-  { path: '404', title: 'Página no encontrada', data: notFoundData, loadComponent: loadNotFound },
-  { path: '**', title: 'Página no encontrada', data: notFoundData, loadComponent: loadNotFound },
+  {
+    path: '404',
+    title: ROUTES_CONTENT.notFound.title,
+    data: notFoundData,
+    loadComponent: loadNotFound,
+  },
+  {
+    path: '**',
+    title: ROUTES_CONTENT.notFound.title,
+    data: notFoundData,
+    loadComponent: loadNotFound,
+  },
 ];

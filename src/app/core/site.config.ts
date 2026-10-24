@@ -1,3 +1,5 @@
+import { SITE_CONTENT } from './site.content';
+
 /**
  * Configuración del sitio. Es la ÚNICA fuente del nombre, la URL base, el idioma, el autor y los
  * enlaces externos: el resto del código (títulos, SEO, pie) la lee de aquí.
@@ -25,7 +27,7 @@ export interface SiteConfig {
 
 export const SITE_CONFIG: SiteConfig = {
   name: 'Torno',
-  description: 'Instrumento de bucles de cuatro capas, en 3D, que se toca en el navegador.',
+  description: SITE_CONTENT.description,
   // Provisional (docs/PENDIENTES.md: «Subdominio definitivo»). Si cambia, solo se edita aquí.
   baseUrl: 'https://torno.ivanchesa.es',
   lang: 'es',
@@ -37,9 +39,9 @@ export const SITE_CONFIG: SiteConfig = {
     contactUrl: 'https://ivanchesa.es/contacto/',
   },
   legal: [
-    { label: 'Aviso legal', url: 'https://ivanchesa.es/aviso-legal/' },
-    { label: 'Privacidad', url: 'https://ivanchesa.es/privacidad/' },
-    { label: 'Cookies', url: 'https://ivanchesa.es/cookies/' },
+    { label: SITE_CONTENT.legal.notice, url: 'https://ivanchesa.es/aviso-legal/' },
+    { label: SITE_CONTENT.legal.privacy, url: 'https://ivanchesa.es/privacidad/' },
+    { label: SITE_CONTENT.legal.cookies, url: 'https://ivanchesa.es/cookies/' },
   ],
   indexable: false,
 };

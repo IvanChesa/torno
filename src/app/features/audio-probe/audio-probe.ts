@@ -6,7 +6,7 @@ import {
   type SynthProbeResult,
   type WorkletProbeResult,
 } from '../../audio/engine';
-import { formatDbfs, formatNumber } from '../../core/format';
+import { formatDbfs, formatNumber, formatQuantity } from '../../core/format';
 import { AUDIO_PROBE_CONTENT } from './audio-probe.content';
 
 type ProbeState<T> =
@@ -95,19 +95,25 @@ export class AudioProbe {
 
   protected readonly workletText = computed(() =>
     describe(this.worklet(), (r) =>
-      [
-        `Ha sonado: ${formatNumber(r.frames)} de ${formatNumber(r.expectedFrames)} muestras a ${formatNumber(r.sampleRate)} Hz.`,
-        `Pico de ${formatDbfs(r.peakDbfs)}. Módulo cargado en ${formatNumber(r.moduleLoadMs)} ms.`,
-      ].join(' '),
+      text.worklet.done({
+        frames: formatNumber(r.frames),
+        expected: formatNumber(r.expectedFrames),
+        rate: formatQuantity(r.sampleRate, 'Hz'),
+        peak: formatDbfs(r.peakDbfs),
+        load: formatQuantity(r.moduleLoadMs, 'ms'),
+      }),
     ),
   );
 
   protected readonly synthText = computed(() =>
     describe(this.synth(), (r) =>
-      [
-        `Ha sonado: ${formatNumber(r.frames)} de ${formatNumber(r.expectedFrames)} muestras a ${formatNumber(r.sampleRate)} Hz,`,
-        `renderizadas en ${formatNumber(r.renderMs, 1)} ms. Pico de ${formatDbfs(r.peakDbfs)}.`,
-      ].join(' '),
+      text.synth.done({
+        frames: formatNumber(r.frames),
+        expected: formatNumber(r.expectedFrames),
+        rate: formatQuantity(r.sampleRate, 'Hz'),
+        render: formatQuantity(r.renderMs, 'ms', 1),
+        peak: formatDbfs(r.peakDbfs),
+      }),
     ),
   );
 

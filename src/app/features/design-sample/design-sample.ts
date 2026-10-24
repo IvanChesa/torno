@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { DESIGN_SAMPLE_CONTENT } from './design-sample.content';
 
 interface Swatch {
@@ -35,6 +36,7 @@ const INSTRUMENT: readonly Swatch[] = [
 /** Muestrario temporal de la fase 0: los tokens de docs/DISENO.md a la vista. */
 @Component({
   selector: 'trn-design-sample',
+  imports: [RouterLink],
   template: `
     <div class="group">
       <h3>{{ text.webColors }}</h3>
@@ -72,7 +74,7 @@ const INSTRUMENT: readonly Swatch[] = [
         <p class="type__heading">{{ text.samples.heading }}</p>
         <p class="type__lead">{{ text.samples.lead }}</p>
         <p class="type__text">
-          {{ text.samples.text }} <a href="#muestrario">{{ text.link }}</a
+          {{ text.samples.text }} <a routerLink="/sobre-el-proyecto">{{ text.link }}</a
           >.
         </p>
         <p class="type__small">{{ text.samples.small }}</p>
@@ -85,7 +87,9 @@ const INSTRUMENT: readonly Swatch[] = [
       <div class="controls">
         <button type="button" class="button">{{ text.buttons.primary }}</button>
         <button type="button" class="button button--secondary">{{ text.buttons.secondary }}</button>
-        <p>{{ text.shortcut }} <kbd>Espacio</kbd> {{ text.shortcutAction }}.</p>
+        <p>
+          {{ text.shortcut.prefix }} <kbd>{{ text.shortcut.key }}</kbd> {{ text.shortcut.action }}.
+        </p>
       </div>
     </div>
   `,
