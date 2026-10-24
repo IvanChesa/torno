@@ -376,6 +376,9 @@ describe('juntas, bloqueos y estados', () => {
     h.render(1000);
     expect(h.noticesOf('take-cancelled').at(-1)?.reason).toBe('standby');
     expect(h.core.transportState).toBe('stopped');
+    // El reposo conserva las capas.
+    expect(h.core.layerContent(0)).not.toBeNull();
+    expect(h.core.layerContent(1)).not.toBeNull();
   });
 
   it('pulsar grabar en la cuenta previa la cancela; cancelar descarta la toma', () => {

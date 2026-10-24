@@ -326,6 +326,25 @@ describe('mezcla y filtro', () => {
   });
 });
 
+describe('limitador en el núcleo', () => {
+  it('con 4 capas a tope y en fase, la salida nunca pasa de −0,3 dBFS', () => {
+    const h = new Harness({ sampleRate: RATE });
+    for (let layer = 0; layer < 4; layer++) {
+      h.send({ type: 'set-sound', layer, sound: sineSound(RATE, CYCLES, 1) });
+    }
+    h.send({ type: 'play' });
+    const { left, right } = h.render(4 * RATE);
+    const ceiling = Math.fround(10 ** (-0.3 / 20));
+    let peak = 0;
+    for (let n = 0; n < left.length; n++)
+      peak = Math.max(peak, Math.abs(left[n]!), Math.abs(right[n]!));
+    expect(peak).toBeLessThanOrEqual(ceiling);
+    expect(peak).toBeGreaterThan(0.9 * ceiling);
+    // La ganancia mínima del limitador en el último estado (sin forzar uno nuevo).
+    expect(h.core.status.limiterGain).toBeLessThan(0.5);
+  });
+});
+
 describe('deriva y determinismo', () => {
   it('deriva 0 en 10 minutos: el bucle sigue cayendo en su muestra exacta (±1)', () => {
     const rate = 44_100;
@@ -387,5 +406,32 @@ describe('deriva y determinismo', () => {
     expect(script(1)).toEqual(reference);
     expect(script(77)).toEqual(reference);
     expect(script(1 << 20)).toEqual(reference);
+  }, 30_000);
+
+  it('grabando, la misma entrada da los mismos bytes en la capa y en la salida', () => {
+    const take = (block: number) => {
+      const h = new Harness({ sampleRate: RATE });
+      const input = (f: number) => 0.3 * Math.sin(f / 7) + 0.1 * Math.sin(f / 131);
+      h.send({ type: 'set-sound', layer: 0, sound: sineSound(RATE, CYCLES, 0.3) });
+      h.send({ type: 'set-tempo', bpm: 117 });
+      h.send({ type: 'set-latency', frames: 333 });
+      h.send({ type: 'play' });
+      h.render(10_001, input, block);
+      // Sobregrabación a otro tempo (remuestreada) y una toma nueva en otra capa.
+      h.send({ type: 'record', layer: 0, bars: 1, countIn: false, fitTempo: false });
+      const out = h.render(200_000, input, block).left;
+      h.send({ type: 'record', layer: 1, bars: 0, countIn: false, fitTempo: false });
+      h.render(30_000, input, block);
+      h.send({ type: 'record', layer: 1, bars: 0, countIn: false, fitTempo: false });
+      h.render(10_000, input, block);
+      const layer0 = h.core.layerContent(0)!;
+      const layer1 = h.core.layerContent(1)!;
+      return [out, layer0.data.slice(0, layer0.frames), layer1.data.slice(0, layer1.frames)].map(
+        (a) => Buffer.from(a.buffer),
+      );
+    };
+    const reference = take(128);
+    expect(take(1)).toEqual(reference);
+    expect(take(1000)).toEqual(reference);
   }, 30_000);
 });
