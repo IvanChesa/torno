@@ -341,6 +341,11 @@ export default defineConfig([
     },
   },
   {
+    // Los bancos de rendimiento imprimen su cifra para el informe.
+    files: ['src/**/*.bench.spec.ts'],
+    rules: { 'no-console': ['error', { allow: ['error', 'warn', 'info'] }] },
+  },
+  {
     files: ['src/**/*.ts'],
     ignores: ['src/app/audio/engine/**'],
     rules: {
