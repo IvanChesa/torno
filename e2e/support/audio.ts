@@ -9,8 +9,10 @@ import { readFile } from 'node:fs/promises';
  *   retrasar ni ver esa descarga);
  * - conecta a un `AnalyserNode` todo lo que va a la salida, para medir lo que suena;
  * - guarda los `MediaStream` de `getUserMedia` (para comprobar que sus pistas acaban `ended`) y,
- *   si se pide, sustituye el micrófono por un **bucle de retorno**: la salida del propio contexto
- *   por un `MediaStreamAudioDestinationNode`, para saber cuándo suena cada ataque;
+ *   si se pide, sustituye el micrófono por un **bucle de retorno**: la salida del propio contexto,
+ *   retrasada 20 ms con un `DelayNode`, entra como si fuera el micrófono. Así se sabe cuándo suena
+ *   cada ataque y la latencia es siempre la misma. (Un retorno por `MediaStream` no vale de
+ *   referencia: en Chromium su latencia cambia en cada apertura, entre 12 y 21 ms medidos.)
  * - avisa de cuándo está registrada la escucha nativa del desbloqueo.
  *
  * Chromium deja sonar un contexto creado sin gesto, así que «está en running» no demuestra nada:
@@ -37,7 +39,7 @@ declare global {
 export interface InstrumentOptions {
   /** Retraso de `audioWorklet.addModule`, en ms. */
   readonly moduleDelayMs?: number;
-  /** El micrófono es la salida del propio contexto (bucle de retorno). */
+  /** El micrófono es la salida del propio contexto, retrasada 20 ms (bucle de retorno). */
   readonly loopback?: boolean;
 }
 
@@ -66,10 +68,7 @@ export async function instrumentAudio(page: Page, options: InstrumentOptions = {
       return addListener.call(this, type, listener, options);
     } as typeof Document.prototype.addEventListener;
 
-    const taps = new WeakMap<
-      BaseAudioContext,
-      { analyser: AnalyserNode; back: MediaStreamAudioDestinationNode | null }
-    >();
+    const taps = new WeakMap<BaseAudioContext, { analyser: AnalyserNode; back: GainNode }>();
     const Native = window.AudioContext;
     const resume = Native.prototype.resume;
     Native.prototype.resume = function (this: AudioContext) {
@@ -83,7 +82,7 @@ export async function instrumentAudio(page: Page, options: InstrumentOptions = {
         log.calls.push(`new:${currentEvent()}`);
         const analyser = new AnalyserNode(this, { fftSize: 2048 });
         log.analysers.push(analyser);
-        taps.set(this, { analyser, back: loopback ? this.createMediaStreamDestination() : null });
+        taps.set(this, { analyser, back: new GainNode(this) });
       }
     };
 
@@ -94,7 +93,7 @@ export async function instrumentAudio(page: Page, options: InstrumentOptions = {
         const tap = taps.get(this.context);
         if (tap) {
           (connect as (...a: unknown[]) => unknown).call(this, tap.analyser);
-          if (tap.back) (connect as (...a: unknown[]) => unknown).call(this, tap.back);
+          (connect as (...a: unknown[]) => unknown).call(this, tap.back);
         }
       }
       return result;
@@ -107,17 +106,24 @@ export async function instrumentAudio(page: Page, options: InstrumentOptions = {
       return addModule.call(this, url, moduleOptions);
     };
 
+    if (loopback) {
+      // El nodo del micrófono es un retraso de 20 ms de la salida (un ciclo con un DelayNode).
+      window.MediaStreamAudioSourceNode = function (context: AudioContext) {
+        const delay = new DelayNode(context, { delayTime: 0.02, maxDelayTime: 1 });
+        taps.get(context)?.back.connect(delay);
+        return delay;
+      } as unknown as typeof MediaStreamAudioSourceNode;
+    }
     const media = navigator.mediaDevices;
     if (media) {
       const getUserMedia = media.getUserMedia.bind(media);
       media.getUserMedia = async (constraints?: MediaStreamConstraints) => {
-        let stream: MediaStream;
-        const back = log.contexts[0] ? taps.get(log.contexts[0])?.back : null;
-        if (loopback && back) {
-          stream = new MediaStream(back.stream.getAudioTracks().map((track) => track.clone()));
-        } else {
-          stream = await getUserMedia(constraints);
-        }
+        const context = log.contexts[0];
+        // Con el bucle de retorno, la pista es de mentira (solo sirve para pararla).
+        const stream =
+          loopback && context
+            ? context.createMediaStreamDestination().stream
+            : await getUserMedia(constraints);
         log.streams.push(stream);
         return stream;
       };
