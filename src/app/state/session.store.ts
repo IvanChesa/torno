@@ -449,6 +449,8 @@ export class SessionStore {
     this.#show(text.messages.calibrating);
     try {
       const ms = await engine.calibrate();
+      // Cancelada a propósito (reposo o pestaña oculta): nada que avisar.
+      if (ms === null) return;
       this.#state.update((state) => ({
         ...state,
         settings: { ...state.settings, latency: engine.latency },

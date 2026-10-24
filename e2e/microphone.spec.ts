@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { ACCENT_CLICK, NORMAL_CLICK } from '../src/app/audio/core/metronome';
-import { instrumentAudio, streamCount, tracksEnded } from './support/audio';
+import { instrumentAudio, streamCount, tracksEnded, workletCommands } from './support/audio';
 import { InstrumentDriver, MENU } from './support/instrument';
 import { clickOnsetOffset, hideTab, onsets, saveSession } from './support/torno';
 
@@ -55,6 +55,28 @@ test.describe('micrófono', () => {
     await driver.control('record').click();
     await driver.expectScreen('CAPA 1 · GRABACIÓN');
     expect(await streamCount(page)).toBe(1);
+  });
+
+  test('el reposo durante la calibración la cancela sin aviso de error y suelta el micrófono', async ({
+    page,
+  }) => {
+    test.setTimeout(40_000);
+    await instrumentAudio(page, { loopback: true });
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    await driver.menu(MENU.input, MENU.inputItems.latency, MENU.latencyItems.calibrate);
+    // Con la calibración ya en el núcleo (sonando los clics), el reposo.
+    await expect.poll(() => workletCommands(page)).toContain('calibrate');
+    await driver.control('standby').click();
+    // Con el menú abierto, la pantalla sigue en el menú: el reposo se ve en su botón.
+    await expect(driver.control('standby')).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => tracksEnded(page)).toBe(true);
+    // Ningún aviso de error en los 11 s siguientes (antes llegaba a los 10 s, al vencer la espera).
+    const error = page.getByText('No se han oído bien los clics');
+    for (let waited = 0; waited < 11_000; waited += 250) {
+      expect(await error.count()).toBe(0);
+      await page.waitForTimeout(250);
+    }
   });
 
   test('calibrada la latencia, la toma queda alineada con los pulsos (±2 ms)', async ({ page }) => {

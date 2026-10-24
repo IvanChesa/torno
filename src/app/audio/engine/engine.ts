@@ -136,6 +136,8 @@ export class AudioEngine {
     resolve: (event: CalibrationEvent) => void;
     reject: (error: Error) => void;
   } | null = null;
+  /** La calibración en curso, para cancelarla a propósito (reposo, pestaña oculta). */
+  #calibrationRun: { cancelled: boolean } | null = null;
   #nextId = 1;
 
   readonly #mic = new Microphone();
@@ -417,28 +419,24 @@ export class AudioEngine {
 
   /**
    * Calibración por clic: para el transporte, abre el micrófono, hace sonar 8 clics y mide cuánto
-   * tardan en volver. Guarda el resultado (modo «calibrada») y lo devuelve en ms.
+   * tardan en volver. Guarda el resultado (modo «calibrada») y lo devuelve en ms. Si se cancela a
+   * propósito (reposo o pestaña oculta), devuelve `null`: no es un error que haya que avisar.
    */
-  async calibrate(): Promise<number> {
+  async calibrate(): Promise<number | null> {
     const context = this.#context;
     const node = this.#node;
     if (!context || !node || this.#state !== 'ready') throw new EngineError('calibration-failed');
-    this.send({ type: 'pause' });
+    const run = { cancelled: false };
+    this.#calibrationRun = run;
     try {
+      this.send({ type: 'pause' });
       await this.#until((status) => status.transport === 'stopped', 2000);
-    } catch {
-      throw new EngineError('calibration-failed');
-    }
-    setAudioSessionType('play-and-record');
-    this.#setMic('requesting');
-    try {
+      if (run.cancelled) return null;
+      setAudioSessionType('play-and-record');
+      this.#setMic('requesting');
       if (!(await this.#mic.connect(context, node))) throw new EngineError('calibration-failed');
-    } catch (error) {
-      this.#closeMic();
-      throw error instanceof MicrophoneError ? new EngineError(error.code) : error;
-    }
-    this.#setMic('on');
-    try {
+      if (run.cancelled) return null;
+      this.#setMic('on');
       const recording = await withTimeout(
         new Promise<CalibrationEvent>((resolve, reject) => {
           this.#calibration = { resolve, reject };
@@ -453,11 +451,21 @@ export class AudioEngine {
       return ms;
     } catch (error) {
       this.send({ type: 'cancel-recording' });
+      if (run.cancelled) return null;
+      if (error instanceof MicrophoneError) throw new EngineError(error.code);
       throw error instanceof EngineError ? error : new EngineError('calibration-failed');
     } finally {
       this.#calibration = null;
+      if (this.#calibrationRun === run) this.#calibrationRun = null;
       this.#closeMic();
     }
+  }
+
+  /** Cancela a propósito la calibración en curso (reposo, pestaña oculta), sin aviso de error. */
+  #cancelCalibration(): void {
+    if (this.#calibrationRun) this.#calibrationRun.cancelled = true;
+    this.#calibration?.reject(new EngineError('calibration-failed'));
+    this.#calibration = null;
   }
 
   // --- Reposo y pestaña oculta -----------------------------------------------------------------
@@ -467,6 +475,7 @@ export class AudioEngine {
     if (this.#state === 'standby') return;
     holdAudioUnlock(true);
     this.send({ type: 'standby' });
+    this.#cancelCalibration();
     this.#closeMic();
     this.#setState('standby');
     await new Promise((resolve) => setTimeout(resolve, STANDBY_FADE_MS));
@@ -499,8 +508,7 @@ export class AudioEngine {
     this.send({ type: 'cancel-recording' });
     this.send({ type: 'disc-release' });
     this.send({ type: 'pause' });
-    this.#calibration?.reject(new EngineError('calibration-failed'));
-    this.#calibration = null;
+    this.#cancelCalibration();
     this.#closeMic();
   }
 

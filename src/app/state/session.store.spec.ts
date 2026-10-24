@@ -50,9 +50,11 @@ class FakeEngine {
   setLatency(setting: unknown): void {
     this.#log('setLatency', setting);
   }
-  async calibrate(): Promise<number> {
+  /** Lo que devuelve `calibrate`: la latencia en ms, o `null` si se cancela a propósito. */
+  calibrated: number | null = 23.46;
+  async calibrate(): Promise<number | null> {
     this.#log('calibrate');
-    return 23.46;
+    return this.calibrated;
   }
   async standby(): Promise<void> {
     this.#log('standby');
@@ -246,6 +248,20 @@ describe('SessionStore', () => {
     }
     expect(engine.calls).toContainEqual(['calibrate']);
     await vi.waitFor(() => expect(store.message()?.screen).toBe('LATENCIA 23,5 MS'));
+  });
+
+  it('una calibración cancelada a propósito (reposo) no avisa de ningún error', async () => {
+    const { store, engine } = await setup();
+    engine.calibrated = null;
+    store.input({ type: 'press', control: 'main' });
+    for (const steps of [2, 0, 1, 0, 1, 0]) {
+      if (steps) store.input({ type: 'turn', control: 'main', steps });
+      else store.input({ type: 'press', control: 'main' });
+    }
+    expect(engine.calls).toContainEqual(['calibrate']);
+    await vi.waitFor(() => expect(store.busy()).toBe('idle'));
+    expect(store.message()?.screen).toBe('CALIBRANDO');
+    expect(store.state().settings.latency).toEqual({ mode: 'auto', ms: 0 });
   });
 
   it('abrir un archivo dice «cargada» solo si el motor la ha cargado, y avisa si algo falla', async () => {
