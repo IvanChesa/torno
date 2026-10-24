@@ -215,7 +215,7 @@ describe('robustez', () => {
         reversed: pick([true, false]),
         amount: pick(values),
         sound: type === 'set-sound' ? pick(sounds) : null,
-        turns: pick([0.1, -0.5, 2, Number.NaN]),
+        turns: pick([0.1, -0.5, 2, Number.NaN, 1e308, -2e6, Infinity]),
         bars: pick([0, 1, 2, 4, 3]),
         countIn: pick([true, false]),
         fitTempo: pick([true, false]),

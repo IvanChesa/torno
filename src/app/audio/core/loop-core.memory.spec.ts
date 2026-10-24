@@ -50,6 +50,33 @@ describe('contabilidad de memoria', () => {
     expect(h.core.layerContent(0)?.data[0]).toBeCloseTo(0.6, 6);
   });
 
+  it('cargar una sesión suelta ya el deshacer y cuenta la sesión que espera al fundido', () => {
+    const bytes = loopFrames(8, RATE) * 4;
+    const h = new Harness({ sampleRate: RATE });
+    const fixed = h.core.memoryInUse;
+    for (let layer = 0; layer < LAYER_COUNT; layer++) {
+      for (let i = 1; i <= 4; i++) {
+        h.send({ type: 'set-sound', layer, sound: constantSound(RATE, i / 10) });
+      }
+    }
+    // Historial lleno: 4 capas × (el actual + 3 para deshacer).
+    expect(h.core.memoryInUse - fixed).toBe(16 * bytes);
+    const other = new Harness({ sampleRate: RATE });
+    for (let layer = 0; layer < LAYER_COUNT; layer++) {
+      other.send({ type: 'set-sound', layer, sound: constantSound(RATE, 0.5) });
+    }
+    const session = other.core.exportState();
+    h.send({ type: 'play' });
+    h.render(1000);
+    h.send({ type: 'load-session', session });
+    // Mientras se apaga la salida conviven lo que suena (sin deshacer) y la sesión que llega.
+    expect(h.core.memoryInUse - fixed).toBe(8 * bytes);
+    expect(h.status().memoryBytes).toBe(h.core.memoryInUse);
+    h.render(RATE / 10);
+    expect(h.core.memoryInUse - fixed).toBe(4 * bytes);
+    expect(h.status().layers.every((layer) => layer.undo === 0 && layer.redo === 0)).toBe(true);
+  });
+
   it('si ni soltando el deshacer cabe, la toma se rechaza', () => {
     const h = new Harness({ sampleRate: RATE, memoryBudgetBytes: 2 * MB });
     h.send({ type: 'record', layer: 0, bars: 0, countIn: false, fitTempo: false });

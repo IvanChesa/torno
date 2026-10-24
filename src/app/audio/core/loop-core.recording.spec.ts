@@ -2,7 +2,15 @@
 // juntas y bloqueos, comprobados muestra a muestra con entradas sintéticas.
 import { describe, expect, it } from 'vitest';
 import { fadeTable } from './dsp';
-import { constantSound, Harness, loopFrames, maxJump, type InputSource } from './test-harness';
+import {
+  constantSound,
+  Harness,
+  loopFrames,
+  maxJump,
+  rampSound,
+  sound,
+  type InputSource,
+} from './test-harness';
 
 const RATE = 48_000;
 const BEAT = 32_000; // a 90 BPM
@@ -126,6 +134,73 @@ describe('tomas fijas', () => {
     const content = h.core.layerContent(0)!;
     for (let k = JUNCTION; k < BAR; k += 101) expect(content.data[k]).toBe(at(input, BAR + k + d));
   });
+
+  it('en pausa a mitad de compás, la cuenta previa acaba justo donde empieza la toma', () => {
+    const h = new Harness({ sampleRate: RATE });
+    h.send({ type: 'play' });
+    h.renderUntil(Math.round(5.3 * BEAT));
+    h.send({ type: 'pause' });
+    h.render(RATE / 10);
+    const paused = h.core.transportFrame;
+    h.send({ type: 'record', layer: 1, bars: 1, countIn: true, fitTempo: false });
+    // El transporte se coloca en el compás siguiente (pulso 8) antes de contar.
+    expect(h.core.beat).toBe(8);
+    const { left } = h.render(6 * BEAT);
+    // Cuatro clics a un pulso exacto entre sí y nada más: la toma empieza un pulso después del
+    // último, en el pulso 8, y las capas no vuelven a sonar a mitad de compás.
+    const d = h.core.outputLatency;
+    for (const beat of [0, 1, 2, 3]) {
+      expect(left[beat * BEAT + d]).toBe(0);
+      expect(left[beat * BEAT + d + 5]).not.toBe(0);
+    }
+    expect(left.subarray(3 * BEAT + d + 3000).every((x) => x === 0)).toBe(true);
+    expect(h.noticesOf('take-started')[0]?.value).toBe(paused);
+    expect(h.core.transportFrame - paused).toBe(2 * BEAT);
+    expect(h.core.beat).toBeCloseTo(10, 9);
+  });
+});
+
+describe('cola y grabación', () => {
+  it('un sonido en cola que entra antes de la toma espera a su compás y la toma se suma a él', () => {
+    const h = new Harness({ sampleRate: RATE });
+    h.send({ type: 'set-sound', layer: 1, sound: constantSound(RATE, 0.125) });
+    h.send({ type: 'play' });
+    h.renderUntil(50_000);
+    h.send({ type: 'set-sound', layer: 1, sound: constantSound(RATE, 0.25) });
+    h.renderUntil(51_280);
+    const input = tone(100);
+    h.send({ type: 'record', layer: 1, bars: 1, countIn: false, fitTempo: false });
+    expect(h.status().layers[1]!.pending).toBe(true);
+    h.renderUntil(2 * BAR + 2000, input);
+    // La cola entra exacta en el compás 1, y la toma empieza en esa misma muestra.
+    expect(h.noticesOf('sound-applied').at(-1)?.value).toBe(BAR);
+    expect(h.noticesOf('take-started')[0]?.value).toBe(BAR);
+    const content = h.core.layerContent(1)!;
+    expect(content.lengthBeats).toBe(8);
+    const d = h.core.outputLatency;
+    for (let k = JUNCTION; k < BAR; k += 113) {
+      expect(content.data[BAR + k]).toBe(Math.fround(0.25 + at(input, BAR + k + d)));
+    }
+    // Deshacer: primero el sonido de la cola, después el anterior.
+    h.send({ type: 'undo', layer: 1 });
+    expect(h.core.layerContent(1)?.source).toEqual({ kind: 'library', id: 'constante-0.25' });
+    h.send({ type: 'undo', layer: 1 });
+    expect(h.core.layerContent(1)?.source).toEqual({ kind: 'library', id: 'constante-0.125' });
+  });
+
+  it('si la toma empieza antes que la cola (toma libre), el sonido entra al empezar la toma', () => {
+    const h = new Harness({ sampleRate: RATE });
+    h.send({ type: 'set-sound', layer: 0, sound: constantSound(RATE, 0.1) });
+    h.send({ type: 'set-sound', layer: 1, sound: constantSound(RATE, 0.125) });
+    h.send({ type: 'play' });
+    h.renderUntil(50_000);
+    h.send({ type: 'set-sound', layer: 1, sound: constantSound(RATE, 0.25) });
+    h.renderUntil(51_280);
+    h.send({ type: 'record', layer: 1, bars: 0, countIn: false, fitTempo: false });
+    expect(h.noticesOf('sound-applied').at(-1)?.value).toBe(51_280);
+    expect(h.noticesOf('take-started')[0]?.value).toBe(51_280);
+    expect(h.status().layers[1]!.pending).toBe(false);
+  });
 });
 
 describe('tomas libres', () => {
@@ -231,6 +306,49 @@ describe('sobregrabación', () => {
     expect(content.data.every((x) => x === 0.25)).toBe(true);
   });
 
+  it('una toma de 4 compases sobre una capa de 3 suena igual durante la toma y después', () => {
+    const h = new Harness({ sampleRate: RATE });
+    h.send({ type: 'set-sound', layer: 0, sound: rampSound(RATE, 12) });
+    h.send({ type: 'play' });
+    h.renderUntil(13 * BEAT);
+    // Entrada en silencio: la capa nueva es lo que sonó durante la toma (pulsos 16 a 32).
+    h.send({ type: 'record', layer: 0, bars: 4, countIn: false, fitTempo: false });
+    const during = h.renderUntil(32 * BEAT).left;
+    const after = h.render(16 * BEAT).left;
+    expect(h.noticesOf('take-started')[0]?.value).toBe(16 * BEAT);
+    const content = h.core.layerContent(0)!;
+    expect(content.lengthBeats).toBe(16);
+    expect(content.frames).toBe(16 * BEAT);
+    // Lo que sonó en el pulso 16 + x vuelve a sonar en el 32 + x (pasado el cruce de la confirmación).
+    let worst = 0;
+    for (let x = 2000; x < 16 * BEAT; x++) {
+      worst = Math.max(worst, Math.abs(after[x]! - during[3 * BEAT + x]!));
+    }
+    expect(worst).toBeLessThan(1e-4);
+  });
+
+  it('una toma libre que sigue un bucle de 12 pulsos sobre una capa de 8 no la desplaza', () => {
+    const h = new Harness({ sampleRate: RATE });
+    h.send({ type: 'set-sound', layer: 0, sound: constantSound(RATE, 0.1, 12) });
+    h.send({ type: 'set-pan', layer: 0, pan: 1 });
+    h.send({ type: 'set-sound', layer: 1, sound: rampSound(RATE, 8) });
+    h.send({ type: 'set-pan', layer: 1, pan: -1 });
+    h.send({ type: 'play' });
+    h.renderUntil(150_000); // pulso 4,6875
+    h.send({ type: 'record', layer: 1, bars: 0, countIn: false, fitTempo: false });
+    const during = h.render(12 * BEAT).left;
+    const after = h.render(12 * BEAT).left;
+    expect(h.noticesOf('take-started')[0]?.value).toBe(150_000);
+    const content = h.core.layerContent(1)!;
+    expect(content.lengthBeats).toBe(12);
+    expect(content.offsetBeats).toBeCloseTo(4.6875, 12);
+    let worst = 0;
+    for (let x = 2000; x < 12 * BEAT; x++) {
+      worst = Math.max(worst, Math.abs(after[x]! - during[x]!));
+    }
+    expect(worst).toBeLessThan(1e-4);
+  });
+
   it.each([120, 60])('a %i BPM sobre una capa de 90 BPM, remuestrea la toma donde suena', (bpm) => {
     const h = new Harness({ sampleRate: RATE });
     h.send({ type: 'set-sound', layer: 0, sound: constantSound(RATE, 0) });
@@ -303,6 +421,30 @@ describe('juntas, bloqueos y estados', () => {
     h.render(RATE / 2);
     const { left } = h.render(3 * BAR);
     const own = 0.5 * 2 * Math.PI * (97 / RATE) * CENTER;
+    expect(maxJump(left)).toBeLessThanOrEqual(own + 0.01);
+  });
+
+  it('tampoco con polaridad opuesta a fondo de escala (Δ = 1,8 a 44,1 kHz)', () => {
+    const rate = 44_100;
+    const bar = loopFrames(4, rate); // 117.600 muestras
+    const junctionFrames = 441; // 10 ms
+    // Medio ciclo por compás: la toma empieza en −0,9 y acaba en +0,9.
+    const input: InputSource = (frame) => 0.9 * Math.cos((Math.PI * frame) / bar);
+    const h = new Harness({ sampleRate: rate });
+    h.send({ type: 'play' });
+    h.renderUntil(1000, input);
+    h.send({ type: 'record', layer: 0, bars: 1, countIn: false, fitTempo: false });
+    h.renderUntil(2 * bar + 2000, input);
+    const content = h.core.layerContent(0)!;
+    // En la junta, el final de la vuelta (+0,9) se cruza con el principio de la toma (−0,9).
+    expect(content.data[0]).toBeCloseTo(0.9, 2);
+    expect(content.data[junctionFrames + 10]).toBeCloseTo(-0.9, 2);
+    h.send({ type: 'set-pan', layer: 0, pan: -1 });
+    h.render(rate / 2);
+    const { left } = h.render(2 * bar);
+    const own = (0.9 * Math.PI) / bar;
+    // π/2 · 1,8 / 441 ≈ 0,0064: dentro del margen (con 5 ms serían 0,0128).
+    expect(maxJump(left)).toBeGreaterThan(0.005);
     expect(maxJump(left)).toBeLessThanOrEqual(own + 0.01);
   });
 
@@ -405,7 +547,29 @@ describe('juntas, bloqueos y estados', () => {
     expect(status.recordSeconds).toBeCloseTo(BAR / 2 / RATE, 2);
   });
 
-  it('rechaza tomas imposibles: duración no válida, con el disco agarrado o demasiado largas', () => {
+  it('rechaza las tomas que pasarían de 60 s (record: too-long)', () => {
+    // Un bucle de 88 pulsos a 90 BPM dura 58,7 s; a 60 BPM, una toma libre que lo siga duraría 88 s.
+    const a = new Harness({ sampleRate: RATE });
+    a.send({ type: 'set-sound', layer: 0, sound: constantSound(RATE, 0.1, 88) });
+    a.send({ type: 'set-tempo', bpm: 60 });
+    a.send({ type: 'record', layer: 1, bars: 0, countIn: false, fitTempo: false });
+    // Sobregrabar una capa de 4 pulsos grabada a 40 BPM (72.000 muestras por pulso) para que siga un
+    // bucle de 44 pulsos: la toma dura 11 s a 240 BPM, pero la capa crecería a 66 s.
+    const b = new Harness({ sampleRate: RATE });
+    b.send({ type: 'set-sound', layer: 0, sound: sound('rapida', 44 * 12_000, 44, () => 0.1) });
+    b.send({ type: 'set-sound', layer: 1, sound: sound('lenta', 4 * 72_000, 4, () => 0.1) });
+    b.send({ type: 'set-tempo', bpm: 240 });
+    b.send({ type: 'record', layer: 1, bars: 0, countIn: false, fitTempo: false });
+    for (const h of [a, b]) {
+      expect(h.noticesOf('rejected')).toEqual([
+        expect.objectContaining({ command: 'record', reason: 'too-long' }),
+      ]);
+      expect(h.status().recording).toBe('idle');
+      expect(h.core.layerContent(1)?.source.kind).toBe(h === a ? undefined : 'library');
+    }
+  });
+
+  it('rechaza tomas imposibles: duración no válida o con el disco agarrado', () => {
     const h = new Harness({ sampleRate: RATE });
     h.send({ type: 'record', layer: 0, bars: 3 as 1, countIn: false, fitTempo: false });
     h.send({ type: 'record', layer: 9, bars: 1, countIn: false, fitTempo: false });
