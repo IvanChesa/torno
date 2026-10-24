@@ -349,6 +349,10 @@ test.describe('instrumento HTML', () => {
     await instrumentAudio(page);
     const driver = new InstrumentDriver(page);
     await driver.open();
+    // Vacías, las regiones vivas de los avisos siguen en el árbol de accesibilidad.
+    await expect(page.getByRole('alert')).toHaveCount(1);
+    await expect(page.getByRole('alert')).toBeEmpty();
+    await expect(page.getByRole('status')).toHaveCount(1);
     const check = async () => {
       const results = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])

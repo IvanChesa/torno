@@ -87,8 +87,16 @@ import { HTML_INSTRUMENT_CONTENT } from './html-instrument.content';
       color: var(--color-ink-muted);
     }
 
+    /*
+     * Vacías, las regiones vivas siguen en el árbol de accesibilidad (con display: none, un lector
+     * podría no anunciar su primer cambio): ocultas a la vista y fuera de la rejilla.
+     */
     .notice:empty {
-      display: none;
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
     }
 
     .notice--error {
