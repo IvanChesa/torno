@@ -10,6 +10,7 @@ Lo escribe Claude Code (CLAUDE.md, «Ciclo de cada fase» y «Paradas»):
 | Fase | Fecha | Veredicto de la revisión | Métricas clave |
 |---|---|---|---|
 | 0 · Cimientos y pruebas técnicas (`fase-0-cimientos`, fusión `1924d2a`) | 2026-10-24 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 2 Importantes y los 8 Menores, corregidos ([revisión](../revisiones/fase-0.md), [informe](fase-0.md)) | JS inicial de `/` 293,5 kB (aviso a 300) · desbloqueo de audio 0,7 kB · worklet 1,9 kB · worker 1,3 kB · fuentes 144,1 kB · pitido por el worklet −12,0 dBFS y 24.000/24.000 muestras · tono del worker 48.000/48.000 en 5,2 ms · 122 tests en Node (100 % de líneas en el TS puro) + 31 en Angular + 31 e2e · axe: 0 violaciones |
+| 1 · Núcleo de audio en TS puro (`fase-1-nucleo-audio`, fusión `e170652`) | 2026-10-24 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 2 Importantes, los 10 Menores y 3 de las 4 Sugerencias, corregidos (la #14 queda para la fase 3) ([revisión](../revisiones/fase-1.md), [informe](fase-1.md)) | `LoopCore` a 240–242× tiempo real · 0,0 KiB reservados por `process()` en 60 s · peor caso de memoria 195,84 MB a 48 kHz (≤ 220) · limitador −0,342 dBFS · cola y tomas exactas a la muestra, deriva 0 en 10 min · `LoopCore` minificado 34,1 kB · 314 tests en Node (98,35 % de sentencias y 94,38 % de ramas en el TS puro) + 31 en Angular + 31 e2e |
 
 ## Bloques
 
