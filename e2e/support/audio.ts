@@ -93,7 +93,9 @@ export async function instrumentAudio(page: Page, options: InstrumentOptions = {
       Native.prototype.resume = function (this: AudioContext) {
         const event = currentEvent();
         log.calls.push(`resume:${event}`);
-        if (pointerupIsNotAGesture && event === 'pointerup') return new Promise<void>(() => {});
+        // Pendiente para siempre: no se resuelve ni se rechaza.
+        if (pointerupIsNotAGesture && event === 'pointerup')
+          return new Promise<void>(() => undefined);
         return resume.call(this);
       };
       window.AudioContext = class extends Native {
