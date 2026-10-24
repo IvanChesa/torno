@@ -150,13 +150,16 @@ export class Limiter {
       this.#delayR[pos] = r;
       const read = pos + 1 === window ? 0 : pos + 1;
       this.#delayPos = read;
-      outL[offset + i] = this.#safety(this.#delayL[read]! * gain);
-      outR[offset + i] = this.#safety(this.#delayR[read]! * gain);
+      outL[offset + i] = this.clip(this.#delayL[read]! * gain);
+      outR[offset + i] = this.clip(this.#delayR[read]! * gain);
     }
   }
 
-  /** Saturación suave por encima del codo: lleva (codo, ∞) a (codo, techo). */
-  #safety(y: number): number {
+  /**
+   * Saturación suave por encima del codo: lleva (codo, ∞) a (codo, techo). La usa también el
+   * metrónomo, que se suma después del limitador.
+   */
+  clip(y: number): number {
     if (y !== y) return 0; // NaN
     const knee = this.#knee;
     if (y > knee)

@@ -8,7 +8,7 @@
  *   `AudioEngine` de la fase 2.
  */
 import type { TakeBars } from './constants';
-import type { SessionState } from './session';
+import type { SessionError, SessionState } from './session';
 
 export const PROTOCOL_VERSION = 2;
 
@@ -84,24 +84,35 @@ export type NoticeCode =
   | 'take-started'
   /** La toma está en la capa (`value` = muestras). */
   | 'take-committed'
-  /** Toma descartada (`reason`: cancelled, too-short). */
+  /** Toma descartada (`reason`: cancelled, too-short, standby). */
   | 'take-cancelled'
   /** Ha entrado un cambio de sonido de la cola (`value` = muestra del transporte). */
   | 'sound-applied'
   /** El tempo se ha ajustado a la primera toma libre (`value` = BPM). */
   | 'tempo-fitted'
-  /** Comando ignorado durante una toma (`reason` = tipo de comando). */
+  /** Comando ignorado durante una toma (`command`). */
   | 'locked'
-  /** Comando no válido o imposible (`reason` = motivo). */
+  /** Comando no válido o imposible (`command` y `reason`). */
   | 'rejected'
   /** La salida se ha apagado del todo tras pausar o parar. */
   | 'stopped';
+
+/** Por qué se rechaza un comando (o el error de la sesión que no se ha podido cargar). */
+export type RejectReason =
+  'range' | 'invalid' | 'no-memory' | 'too-long' | 'disc' | 'empty' | 'unknown' | SessionError;
+
+/** Por qué se descarta una toma. */
+export type CancelReason = 'cancelled' | 'too-short' | 'standby';
+
+export type NoticeReason = RejectReason | CancelReason | 'none';
 
 export interface Notice {
   code: NoticeCode;
   layer: number;
   value: number;
-  reason: string;
+  /** El comando bloqueado o rechazado (`none` si el aviso no viene de un comando). */
+  command: CoreCommandType | 'none';
+  reason: NoticeReason;
 }
 
 export interface LayerStatus {

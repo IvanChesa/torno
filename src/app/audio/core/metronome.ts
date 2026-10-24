@@ -60,19 +60,15 @@ export class Metronome {
     this.#position = this.#table.length;
   }
 
-  /** Suma el clic a las dos salidas en las `frames` primeras muestras. */
-  renderAdd(outL: Float32Array, outR: Float32Array, frames: number): void {
+  /** Suma el clic (mono) a `out` en las `frames` primeras muestras. */
+  renderInto(out: Float32Array, frames: number): void {
     const table = this.#table;
     const length = table.length;
     let position = this.#position;
     if (position >= length) return;
     const start = this.#delay < frames ? this.#delay : frames;
     this.#delay -= start;
-    for (let i = start; i < frames && position < length; i++) {
-      const sample = table[position++]!;
-      outL[i] = outL[i]! + sample;
-      outR[i] = outR[i]! + sample;
-    }
+    for (let i = start; i < frames && position < length; i++) out[i] = out[i]! + table[position++]!;
     this.#position = position;
   }
 }

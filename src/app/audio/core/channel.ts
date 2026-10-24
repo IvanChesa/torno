@@ -6,6 +6,7 @@
 import {
   CHANGE_FADE_SECONDS,
   DISC_BEATS_PER_TURN,
+  DISC_DC_BLOCK_HZ,
   DISC_FOLLOW_SECONDS,
   DISC_RELEASE_FADE_SECONDS,
   SMOOTHING_SECONDS,
@@ -18,8 +19,11 @@ import { cutoffForAmount, LowpassSvf } from './svf';
 import type { Clock } from './transport';
 import { Voice } from './voice';
 
-/** Voces por capa: la que suena más las que se están apagando. */
-export const VOICES_PER_LAYER = 4;
+/**
+ * Voces por capa: la que suena más las que se están apagando. Con un cambio en cada bloque de 128
+ * muestras y fundidos de 10–15 ms, no suenan más de 7 a la vez: no hace falta robar ninguna.
+ */
+export const VOICES_PER_LAYER = 8;
 /** El corte del filtro se recalcula cada 32 muestras (con el valor suavizado). */
 export const FILTER_BLOCK = 32;
 /** Por debajo de este brazo (y con el objetivo en 0), el filtro se retira y pasa a *bypass*. */
@@ -89,8 +93,9 @@ export class LayerChannel {
     this.changeFade = fadeTable(framesOf(CHANGE_FADE_SECONDS, sampleRate));
     this.releaseFade = fadeTable(framesOf(DISC_RELEASE_FADE_SECONDS, sampleRate));
     this.#discFollow = onePoleCoefficient(DISC_FOLLOW_SECONDS, sampleRate);
+    const dcBlock = Math.exp((-2 * Math.PI * DISC_DC_BLOCK_HZ) / sampleRate);
     for (let i = 0; i < VOICES_PER_LAYER; i++) {
-      this.voices.push(new Voice(this.changeFade, this.#discFollow));
+      this.voices.push(new Voice(this.changeFade, this.#discFollow, dcBlock));
     }
     this.#smoothing = onePoleCoefficient(SMOOTHING_SECONDS, sampleRate);
     this.#amountStep = 1 - Math.exp(-FILTER_BLOCK / (SMOOTHING_SECONDS * sampleRate));
@@ -203,6 +208,15 @@ export class LayerChannel {
     if (!this.discHeld) return;
     this.discHeld = false;
     this.show(this.content, beat, beatsPerFrame, this.releaseFade);
+  }
+
+  /** ¿Suena alguna voz que sigue al disco (agarrado o apagándose al soltarlo)? */
+  hasDiscVoice(): boolean {
+    for (let i = 0; i < VOICES_PER_LAYER; i++) {
+      const voice = this.voices[i]!;
+      if (voice.active && voice.disc) return true;
+    }
+    return false;
   }
 
   /** Corta todo en seco (cargar una sesión con la salida ya apagada). */

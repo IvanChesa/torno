@@ -7,7 +7,7 @@ import { constantSound, Harness, loopFrames, maxJump, type InputSource } from '.
 const RATE = 48_000;
 const BEAT = 32_000; // a 90 BPM
 const BAR = 4 * BEAT;
-const JUNCTION = 240; // 5 ms
+const JUNCTION = 480; // 10 ms
 const CENTER = Math.SQRT1_2;
 const junction = fadeTable(JUNCTION);
 
@@ -331,7 +331,7 @@ describe('juntas, bloqueos y estados', () => {
     h.send({ type: 'set-volume', volume: 0.8 });
     const status = h.status();
     h.flush();
-    expect(h.noticesOf('locked').map((n) => n.reason)).toEqual([
+    expect(h.noticesOf('locked').map((n) => n.command)).toEqual([
       'set-tempo',
       'set-reverse',
       'disc-hold',
@@ -418,7 +418,7 @@ describe('juntas, bloqueos y estados', () => {
     h.send({ type: 'record', layer: 1, bars: 4, countIn: false, fitTempo: false });
     h.send({ type: 'cancel-recording' });
     h.flush();
-    const reasons = h.noticesOf('rejected').map((n) => n.reason);
+    const reasons = h.noticesOf('rejected').map((n) => `${n.command}: ${n.reason}`);
     expect(reasons).toEqual(['record: range', 'record: range', 'record: disc']);
     expect(h.noticesOf('take-cancelled')).toHaveLength(1);
     expect(loopFrames(16, RATE, 40)).toBe(24 * RATE);

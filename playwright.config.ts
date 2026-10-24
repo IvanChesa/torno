@@ -5,8 +5,10 @@ import { defineConfig, devices } from '@playwright/test';
 // - «estatico»: el build prerenderizado servido en local (`npm run build` antes).
 // Chromium sin interfaz va con --mute-audio (lo pone Playwright): el audio se procesa y se mide,
 // pero no suena por los altavoces.
-const DEV_PORT = 4200;
-const STATIC_PORT = 4300;
+// Puertos poco comunes y sin reutilizar un servidor que ya escuche en ellos: en local puede haber
+// otro proyecto en el 4200 o el 4300, y un servidor ajeno con «fallback» de SPA responde 200 a todo.
+const DEV_PORT = 4317;
+const STATIC_PORT = 4318;
 const CI = !!process.env['CI'];
 
 export default defineConfig({
@@ -35,13 +37,13 @@ export default defineConfig({
     {
       command: `npx ng serve --port ${DEV_PORT}`,
       url: `http://localhost:${DEV_PORT}`,
-      reuseExistingServer: !CI,
+      reuseExistingServer: false,
       timeout: 180_000,
     },
     {
       command: `node scripts/serve-static.mjs --port ${STATIC_PORT}`,
       url: `http://localhost:${STATIC_PORT}`,
-      reuseExistingServer: !CI,
+      reuseExistingServer: false,
     },
   ],
 });

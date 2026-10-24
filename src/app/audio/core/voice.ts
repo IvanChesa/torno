@@ -28,9 +28,14 @@ export class Voice {
 
   /** Coeficiente del suavizado con el que la cabeza sigue al disco. */
   readonly #discFollow: number;
+  /** Polo del filtro de continua de la voz del disco (un disco quieto no suena). */
+  readonly #dcBlock: number;
+  #dcIn = 0;
+  #dcOut = 0;
 
-  constructor(fade: Float32Array, discFollow = 1) {
+  constructor(fade: Float32Array, discFollow = 1, dcBlock = 0) {
     this.#discFollow = discFollow;
+    this.#dcBlock = dcBlock;
     this.gain = new Ramp(0, fade);
   }
 
@@ -54,6 +59,8 @@ export class Voice {
     this.disc = disc;
     this.headBeat = beat;
     this.discTarget = beat;
+    this.#dcIn = 0;
+    this.#dcOut = 0;
     let position = wrap(beat - content.offsetBeats, content.lengthBeats) * this.#framesPerBeat;
     if (position >= this.#frames) position -= this.#frames;
     this.position = position;
@@ -151,6 +158,9 @@ export class Voice {
     const constant = this.gain.current;
     const targetBeat = this.discTarget;
     const follow = this.#discFollow;
+    const dcBlock = this.#dcBlock;
+    let dcIn = this.#dcIn;
+    let dcOut = this.#dcOut;
     if (ramping) this.gain.renderInto(gains, frames);
     const data = content.data;
     const n = this.#frames;
@@ -177,9 +187,15 @@ export class Voice {
       const c1 = 0.5 * (x1 - xm1);
       const c2 = xm1 - 2.5 * x0 + 2 * x1 - 0.5 * x2;
       const c3 = 0.5 * (x2 - xm1) + 1.5 * (x0 - x1);
-      const sample = ((c3 * t + c2) * t + c1) * t + x0;
+      const raw = ((c3 * t + c2) * t + c1) * t + x0;
+      // Filtro de continua: con la cabeza quieta, la salida se apaga sola en unos 16 ms.
+      const sample = raw - dcIn + dcBlock * dcOut;
+      dcIn = raw;
+      dcOut = sample;
       out[i] = out[i]! + sample * (ramping ? gains[i]! : constant);
     }
+    this.#dcIn = dcIn;
+    this.#dcOut = dcOut;
     this.headBeat = head;
     this.position = wrap(head - offset, length) * framesPerBeat;
     if (this.position >= n) this.position -= n;

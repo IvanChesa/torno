@@ -16,6 +16,7 @@ import {
   JUNCTION_FADE_SECONDS,
   LAYER_COUNT,
   MAX_BPM,
+  MAX_DISC_TURNS,
   MAX_INPUT_GAIN,
   MAX_LATENCY_SECONDS,
   MAX_LAYER_SECONDS,
@@ -41,8 +42,11 @@ import {
   type CoreStatus,
   type LayerStatus,
   type LibrarySound,
+  type CancelReason,
   type Notice,
   type NoticeCode,
+  type NoticeReason,
+  type RejectReason,
   type TransportState,
 } from './protocol';
 import { Recorder, type TakeKind } from './recorder';
@@ -144,6 +148,7 @@ export class LoopCore {
   readonly #busR = new Float32Array(MAX_SEGMENT);
   readonly #transportBuffer = new Float32Array(MAX_SEGMENT);
   readonly #inputGains = new Float32Array(MAX_SEGMENT);
+  readonly #clicks = new Float32Array(MAX_SEGMENT);
   readonly #minFreeFrames: number;
   readonly #maxTakeFrames: number;
   readonly #maxLayerFrames: number;
@@ -346,7 +351,9 @@ export class LoopCore {
       }
       case 'disc-move':
         if (this.#discLayer < 0) return;
-        if (!Number.isFinite(command.turns)) return this.#reject(command.type, 'range');
+        if (!isNumberIn(command.turns, -MAX_DISC_TURNS, MAX_DISC_TURNS)) {
+          return this.#reject(command.type, 'range');
+        }
         this.#channels[this.#discLayer]!.moveDisc(command.turns);
         return;
       case 'disc-release':
@@ -389,11 +396,13 @@ export class LoopCore {
         this.#load(this.#emptySession());
         return;
       case 'standby':
+        // Reposo: nada sigue sonando, tampoco una capa agarrada con el disco.
         this.#cancelTake('standby');
+        this.#releaseDisc();
         this.#pause(false);
         return;
       default:
-        this.#reject(String((command as { type?: unknown }).type), 'unknown');
+        this.#reject('none', 'unknown');
     }
   }
 
@@ -406,12 +415,12 @@ export class LoopCore {
   /** Durante una toma (también en la cuenta previa) se bloquean los cambios que la romperían. */
   #locked(type: CoreCommandType): boolean {
     if (!this.#recorder.active) return false;
-    this.#notify('locked', this.#recorder.layer, 0, type);
+    this.#notify('locked', this.#recorder.layer, 0, type, 'none');
     return true;
   }
 
-  #reject(type: string, reason: string): void {
-    this.#notify('rejected', -1, 0, `${type}: ${reason}`);
+  #reject(command: CoreCommandType | 'none', reason: RejectReason): void {
+    this.#notify('rejected', -1, 0, command, reason);
   }
 
   #setSound(layer: number, sound: LibrarySound | null): void {
@@ -441,7 +450,7 @@ export class LoopCore {
     channel.pendingActive = false;
     channel.pendingContent = null;
     this.#applyContent(layer, content);
-    this.#notify('sound-applied', layer, this.#transport.frame, '');
+    this.#notify('sound-applied', layer, this.#transport.frame, 'none', 'none');
   }
 
   #isValidSound(sound: LibrarySound): boolean {
@@ -512,12 +521,7 @@ export class LoopCore {
       this.#stopAfterFade = false;
       this.#rewind();
     }
-    const load = this.#pendingLoad;
-    if (load) {
-      this.#pendingLoad = null;
-      this.#applyLoad(load);
-    }
-    this.#notify('stopped', -1, 0, '');
+    this.#notify('stopped', -1, 0, 'none', 'none');
   }
 
   #rewind(): void {
@@ -555,7 +559,7 @@ export class LoopCore {
     channel.pendingActive = false;
     channel.pendingContent = null;
     this.#applyContent(layer, content);
-    this.#notify('sound-applied', layer, this.#transport.frame, '');
+    this.#notify('sound-applied', layer, this.#transport.frame, 'none', 'none');
   }
 
   /** Una edición: el contenido nuevo entra en el historial y suena con un fundido cruzado. */
@@ -588,7 +592,7 @@ export class LoopCore {
     if (!this.#channelAt(layer)) return this.#reject('record', 'range');
     if (recorder.active) {
       if (layer !== recorder.layer) {
-        this.#notify('locked', recorder.layer, 0, 'record');
+        this.#notify('locked', recorder.layer, 0, 'record', 'none');
         return;
       }
       if (recorder.state === 'count-in') this.#cancelTake('cancelled');
@@ -597,12 +601,33 @@ export class LoopCore {
     }
     if (!(TAKE_BARS as readonly number[]).includes(bars)) return this.#reject('record', 'range');
     if (this.#discLayer >= 0) return this.#reject('record', 'disc');
-    if (!this.#planTake(layer, bars, fitTempo === true)) return;
-    if (this.#transportStateValue === 'playing') {
-      this.#scheduleTakeStart(countIn === true);
+    const playing = this.#transportStateValue === 'playing';
+    const withCountIn = countIn === true;
+    // Con el transporte parado a mitad de compás, la cuenta previa empieza en el compás siguiente:
+    // los clics de la cuenta siguen el ritmo de la toma y se graba desde ese compás.
+    if (!playing && withCountIn) {
+      const bar = barAtOrAfter(this.#transport.beat);
+      if (bar !== this.#transport.beat) {
+        this.#transport.locate(bar);
+        this.#timelineMoved();
+      }
+    }
+    const kind: TakeKind = bars > 0 ? 'fixed' : this.#loopBeats() > 0 ? 'follow' : 'first';
+    // El tempo y el transporte ya no cambian hasta que empiece: el pulso de inicio se sabe ahora.
+    const beat = this.#transport.beat;
+    const startBeat = withCountIn
+      ? playing
+        ? barAtOrAfter(beat + COUNT_IN_BEATS)
+        : beat
+      : kind === 'fixed'
+        ? barAtOrAfter(beat)
+        : beat;
+    if (!this.#planTake(layer, kind, bars, fitTempo === true, startBeat)) return;
+    if (playing) {
+      this.#scheduleTakeStart(withCountIn);
       return;
     }
-    if (countIn === true) {
+    if (withCountIn) {
       // Con el transporte parado, la cuenta previa va antes de arrancarlo.
       const beatFrames = (60 * this.sampleRate) / this.#transport.bpm;
       recorder.timerBeatFrames = beatFrames;
@@ -617,15 +642,23 @@ export class LoopCore {
   }
 
   /**
-   * Reserva el búfer de la toma. Primera toma libre: 60 s. Con duración: la de la toma o, si se
-   * sobregraba, la de la capa (repetida si la toma es más larga), con su contenido copiado.
+   * Reserva el búfer de la toma (en el manejador del comando: aquí sí se puede reservar). Primera
+   * toma libre: 60 s. Con duración: la de la toma o, si se sobregraba, una copia de lo que sonará
+   * durante la toma, que es sobre lo que se graba.
    */
-  #planTake(layer: number, bars: number, fitTempo: boolean): boolean {
+  #planTake(
+    layer: number,
+    kind: TakeKind,
+    bars: number,
+    fitTempo: boolean,
+    startBeat: number,
+  ): boolean {
     const channel = this.#channels[layer]!;
-    if (channel.pendingActive) this.#applyPending(layer);
-    const content = channel.content;
+    // Un sonido en cola en esta capa: si entra (en su compás) antes de que empiece la toma, se graba
+    // sobre él; si la toma empieza antes (una toma libre que empieza ya), entra ahora.
+    if (channel.pendingActive && channel.pendingBeat > startBeat) this.#applyPending(layer);
+    const content = channel.pendingActive ? channel.pendingContent : channel.content;
     const sessionBeats = this.#loopBeats();
-    const kind: TakeKind = bars > 0 ? 'fixed' : sessionBeats > 0 ? 'follow' : 'first';
     let target: MutableLayerContent;
     if (kind === 'first') {
       if (!this.#ensureMemory(this.#maxTakeFrames * 4)) return this.#rejectFalse('no-memory');
@@ -651,24 +684,39 @@ export class LoopCore {
           offsetBeats: 0,
           source: RECORDING_SOURCE,
         };
+      } else if (takeBeats <= content.lengthBeats) {
+        // La capa conserva su duración y su fase: la toma se suma a una copia.
+        if (!this.#ensureMemory(content.frames * 4)) return this.#rejectFalse('no-memory');
+        const data = new Float32Array(content.frames);
+        data.set(content.data.subarray(0, content.frames));
+        target = {
+          data,
+          frames: content.frames,
+          lengthBeats: content.lengthBeats,
+          offsetBeats: content.offsetBeats,
+          source: RECORDING_SOURCE,
+        };
       } else {
-        const lengthBeats = Math.max(content.lengthBeats, takeBeats);
-        const total =
-          lengthBeats > content.lengthBeats
-            ? Math.round((lengthBeats * content.frames) / content.lengthBeats)
-            : content.frames;
+        // La toma es más larga que la capa: la capa crece hasta la duración de la toma y su vuelta
+        // empieza donde empieza la toma. La copia es lo que sonará durante la toma, leído desde la
+        // cabeza de la capa en ese pulso: «lo que oíste más lo que tocaste».
+        const framesPerBeat = content.frames / content.lengthBeats;
+        const total = Math.round(takeBeats * framesPerBeat);
         if (total > this.#maxLayerFrames) return this.#rejectFalse('too-long');
         if (!this.#ensureMemory(total * 4)) return this.#rejectFalse('no-memory');
+        const head =
+          Math.round(wrap(startBeat - content.offsetBeats, content.lengthBeats) * framesPerBeat) %
+          content.frames;
+        // En reverso, la cabeza de la capa nueva baja desde su final: una copia hacia delante que
+        // empiece en −cabeza − total (módulo la capa) suena al revés igual que la capa original.
+        const from = channel.reversed ? wrap(-head - total, content.frames) : head;
         const data = new Float32Array(total);
-        // Lo que había, repetido si la capa crece: es lo que se oye durante la toma.
-        for (let at = 0; at < total; at += content.frames) {
-          data.set(content.data.subarray(0, Math.min(content.frames, total - at)), at);
-        }
+        copyLooped(content.data, content.frames, from, data, total);
         target = {
           data,
           frames: total,
-          lengthBeats,
-          offsetBeats: content.offsetBeats,
+          lengthBeats: takeBeats,
+          offsetBeats: wrap(startBeat, takeBeats),
           source: RECORDING_SOURCE,
         };
       }
@@ -680,7 +728,7 @@ export class LoopCore {
     return true;
   }
 
-  #rejectFalse(reason: string): false {
+  #rejectFalse(reason: RejectReason): false {
     this.#reject('record', reason);
     return false;
   }
@@ -737,7 +785,7 @@ export class LoopCore {
       direction,
       speed,
     );
-    this.#notify('take-started', recorder.layer, transport.frame, '');
+    this.#notify('take-started', recorder.layer, transport.frame, 'none', 'none');
   }
 
   /** La toma está completa (también su final cruzado con la junta): entra en la capa. */
@@ -761,7 +809,7 @@ export class LoopCore {
         if (bars > 0) {
           beats = bars * BEATS_PER_BAR;
           bpm = (beats * 60 * this.sampleRate) / frames;
-          this.#notify('tempo-fitted', layer, bpm, '');
+          this.#notify('tempo-fitted', layer, bpm, 'none', 'none');
         }
       }
       target.lengthBeats = beats;
@@ -779,19 +827,19 @@ export class LoopCore {
     }
     channel.history.push(target);
     channel.show(target, transport.beat, transport.beatsPerFrame);
-    this.#notify('take-committed', layer, target.frames, '');
+    this.#notify('take-committed', layer, target.frames, 'none', 'none');
     recorder.finish();
     this.#memoryDirty = true;
   }
 
-  #cancelTake(reason: string): void {
+  #cancelTake(reason: CancelReason): void {
     const recorder = this.#recorder;
     if (!recorder.active) return;
     const layer = recorder.layer;
     this.#timerRunning = false;
     recorder.finish();
     this.#memoryDirty = true;
-    this.#notify('take-cancelled', layer, 0, reason);
+    this.#notify('take-cancelled', layer, 0, 'none', reason);
   }
 
   // --- Sesión ---------------------------------------------------------------------------------
@@ -826,12 +874,27 @@ export class LoopCore {
           : null,
       ),
     };
-    if (this.#transportStateValue !== 'stopped') {
-      this.#pendingLoad = prepared;
-      this.#pause(true);
+    // El deshacer no sobrevive a una carga: se suelta ya, y el pico de memoria es el estado actual
+    // más la sesión nueva. El disco se suelta (con su fundido) antes de cargar.
+    for (let i = 0; i < LAYER_COUNT; i++) {
+      const channel = this.#channels[i]!;
+      channel.history.reset(channel.content);
+    }
+    this.#releaseDisc();
+    this.#memoryDirty = true;
+    if (this.#transportStateValue === 'stopped' && !this.#discSounding()) {
+      this.#applyLoad(prepared);
       return;
     }
-    this.#applyLoad(prepared);
+    // Sonando: primero se apaga la salida (y el disco), y `#processEvents` aplica la carga.
+    this.#pendingLoad = prepared;
+    this.#pause(true);
+  }
+
+  /** ¿Suena alguna voz del disco? (No pasan por el fundido del transporte.) */
+  #discSounding(): boolean {
+    for (let i = 0; i < LAYER_COUNT; i++) if (this.#channels[i]!.hasDiscVoice()) return true;
+    return false;
   }
 
   #applyLoad(session: PreparedSession): void {
@@ -860,7 +923,13 @@ export class LoopCore {
 
   // --- Estado, avisos y memoria ---------------------------------------------------------------
 
-  #notify(code: NoticeCode, layer: number, value: number, reason: string): void {
+  #notify(
+    code: NoticeCode,
+    layer: number,
+    value: number,
+    command: CoreCommandType | 'none',
+    reason: NoticeReason,
+  ): void {
     if (this.#queuedCount >= NOTICE_CAPACITY) {
       this.#dropped++;
       return;
@@ -869,6 +938,7 @@ export class LoopCore {
     notice.code = code;
     notice.layer = layer;
     notice.value = value;
+    notice.command = command;
     notice.reason = reason;
   }
 
@@ -909,6 +979,7 @@ export class LoopCore {
       to.code = from.code;
       to.layer = from.layer;
       to.value = from.value;
+      to.command = from.command;
       to.reason = from.reason;
     }
     status.noticeCount = this.#queuedCount;
@@ -929,6 +1000,8 @@ export class LoopCore {
       if (channel.pendingActive) memory.add(channel.pendingContent?.data);
     }
     memory.add(this.#recorder.target?.data);
+    const load = this.#pendingLoad;
+    if (load) for (let i = 0; i < LAYER_COUNT; i++) memory.add(load.contents[i]?.data);
     this.#memoryBytes = memory.total + this.#fixedBytes;
     this.#memoryDirty = false;
   }
@@ -965,8 +1038,15 @@ export class LoopCore {
     const transport = this.#transport;
     const recorder = this.#recorder;
     if (this.#scheduleDirty) this.#reschedule();
-    if (this.#transportStateValue === 'pausing' && !this.#transportGain.ramping)
+    if (this.#transportStateValue === 'pausing' && !this.#transportGain.ramping) {
       this.#finishPause();
+    }
+    // Una carga espera a que la salida esté apagada del todo, también la voz del disco.
+    if (this.#pendingLoad && this.#transportStateValue === 'stopped' && !this.#discSounding()) {
+      const load = this.#pendingLoad;
+      this.#pendingLoad = null;
+      this.#applyLoad(load);
+    }
     if (recorder.state === 'count-in' && this.#timerRunning && recorder.timerFrames <= 0) {
       this.#timerRunning = false;
       this.#startTransport();
@@ -1060,11 +1140,13 @@ export class LoopCore {
     const busR = this.#busR;
     busL.fill(0, 0, n);
     busR.fill(0, 0, n);
-    for (let i = 0; i < LAYER_COUNT; i++)
+    for (let i = 0; i < LAYER_COUNT; i++) {
       this.#channels[i]!.renderAdd(busL, busR, n, advancing, gain);
-    if (this.live) this.#renderClicks(n);
+    }
     this.#renderInput(input, offset, n);
     this.#limiter.processInto(busL, busR, outL, outR, offset, n);
+    // El metrónomo va después del limitador: un clic no hace «bombear» la música.
+    if (this.live) this.#renderClicks(outL, outR, offset, n);
     this.#renderVolume(outL, outR, offset, n);
     if (advancing) transport.advance(n);
     if (this.#timerRunning) this.#recorder.timerFrames -= n;
@@ -1076,8 +1158,11 @@ export class LoopCore {
     }
   }
 
-  /** Metrónomo y cuenta previa: un clic en la muestra exacta de cada pulso. */
-  #renderClicks(n: number): void {
+  /**
+   * Metrónomo y cuenta previa: un clic en la muestra exacta de cada pulso, sumado a la salida del
+   * limitador con su saturación de seguridad (la suma nunca pasa del techo).
+   */
+  #renderClicks(outL: Float32Array, outR: Float32Array, offset: number, n: number): void {
     const transport = this.#transport;
     const recorder = this.#recorder;
     const countIn = recorder.state === 'count-in';
@@ -1089,7 +1174,10 @@ export class LoopCore {
       }
       const delay = this.#nextClickFrame - transport.frame;
       if (delay < n) {
-        this.#metronome.trigger(wrap(this.#nextClickBeat, BEATS_PER_BAR) === 0, delay);
+        this.#metronome.trigger(
+          wrap(this.#nextClickBeat, BEATS_PER_BAR) === 0,
+          delay + this.outputLatency,
+        );
         this.#nextClickBeat++;
         this.#nextClickFrame = transport.frameAtBeat(this.#nextClickBeat);
       }
@@ -1100,11 +1188,23 @@ export class LoopCore {
       const elapsed = this.#timerTotal - recorder.timerFrames;
       const at = Math.round(this.#timerClick * recorder.timerBeatFrames);
       if (at - elapsed < n) {
-        this.#metronome.trigger(this.#timerClick === 0, at > elapsed ? at - elapsed : 0);
+        const delay = at > elapsed ? at - elapsed : 0;
+        this.#metronome.trigger(this.#timerClick === 0, delay + this.outputLatency);
         this.#timerClick++;
       }
     }
-    this.#metronome.renderAdd(this.#busL, this.#busR, n);
+    if (!this.#metronome.active) return;
+    // Los clics salen con la latencia del limitador, como la música, para seguir en su pulso.
+    const clicks = this.#clicks;
+    clicks.fill(0, 0, n);
+    this.#metronome.renderInto(clicks, n);
+    const limiter = this.#limiter;
+    for (let i = 0; i < n; i++) {
+      const c = clicks[i]!;
+      if (c === 0) continue;
+      outL[offset + i] = limiter.clip(outL[offset + i]! + c);
+      outR[offset + i] = limiter.clip(outR[offset + i]! + c);
+    }
   }
 
   /** Ganancia de entrada suavizada y grabación. */
@@ -1151,7 +1251,7 @@ export class LoopCore {
 }
 
 function emptyNotice(): Notice {
-  return { code: 'stopped', layer: -1, value: 0, reason: '' };
+  return { code: 'stopped', layer: -1, value: 0, command: 'none', reason: 'none' };
 }
 
 function emptyLayerStatus(): LayerStatus {
@@ -1202,4 +1302,22 @@ function createStatus(): CoreStatus {
 
 function isNumberIn(value: unknown, min: number, max: number): value is number {
   return typeof value === 'number' && value >= min && value <= max;
+}
+
+/** Copia `frames` muestras de un bucle de `loop` muestras desde la muestra `from`, dando vueltas. */
+function copyLooped(
+  source: Float32Array,
+  loop: number,
+  from: number,
+  target: Float32Array,
+  frames: number,
+): void {
+  let at = 0;
+  let start = from;
+  while (at < frames) {
+    const n = Math.min(loop - start, frames - at);
+    target.set(source.subarray(start, start + n), at);
+    at += n;
+    start = 0;
+  }
 }

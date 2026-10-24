@@ -262,14 +262,17 @@ const NEW_WORKER = {
 
 // --- Ruta caliente del hilo de audio (CLAUDE.md, «Hilo de audio») ---------------------------------
 //
-// En audio/core y audio/worklet, dentro de las funciones y los métodos `process*` y `render*` no se
-// reserva memoria: ni `new`, ni literales de objeto o de array, ni cierres, ni plantillas, ni `...`,
-// ni métodos que copian. Tampoco `throw`, `await` ni `console`. Es la convención que se revisa a
-// ojo; el test de memoria de LoopCore lo comprueba además en ejecución (perfil del heap de V8).
-const HOT_PATH =
-  ':matches(MethodDefinition[key.name=/^(process|render)/] > FunctionExpression, FunctionDeclaration[id.name=/^(process|render)(?!Offline)/])';
+// En audio/core y audio/worklet, ningún método reserva memoria: ni `new`, ni literales de objeto o de
+// array, ni cierres, ni plantillas, ni `...`, ni métodos que copian. Tampoco `throw`, `await` ni
+// `console`. Todos pueden acabar llamados desde `process()`. Las únicas excepciones son los
+// constructores y los métodos del manejador de comandos que preparan memoria antes de usarla
+// (`handle`, la copia de la sesión, los búferes de una toma, una carga y un sonido nuevo). Entre las
+// funciones sueltas, las `process*` y `render*` (salvo `renderOffline`). El test de memoria de
+// LoopCore lo comprueba además en ejecución, con el perfil de muestreo del heap de V8.
+const ALLOCATING_METHODS = /^(handle|exportState|planTake|load|setSound|emptySession)$/;
+const HOT_PATH = `:matches(MethodDefinition[kind!="constructor"]:not([key.name=${ALLOCATING_METHODS}]) > FunctionExpression, FunctionDeclaration[id.name=/^(process|render)(?!Offline)/])`;
 const HOT_PATH_MESSAGE =
-  'En la ruta caliente del audio (process*/render*) no se reserva memoria ni se lanza nada (CLAUDE.md, «Hilo de audio»).';
+  'En la ruta caliente del audio no se reserva memoria ni se lanza nada (CLAUDE.md, «Hilo de audio»): prepáralo en el constructor o en el manejador del comando.';
 const HOT_PATH_SYNTAX = [
   'NewExpression',
   'ArrayExpression',
@@ -380,7 +383,8 @@ export default defineConfig([
   },
   {
     files: ['src/app/audio/core/**/*.ts', 'src/app/audio/worklet/**/*.ts'],
-    ignores: ['**/*.spec.ts', 'src/app/audio/core/test-harness.ts'],
+    // beep.ts es la sonda temporal de la fase 0 (se borra en la fase 2).
+    ignores: ['**/*.spec.ts', 'src/app/audio/core/test-harness.ts', 'src/app/audio/core/beep.ts'],
     rules: {
       'no-restricted-syntax': [
         'error',

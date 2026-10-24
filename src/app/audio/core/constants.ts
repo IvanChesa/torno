@@ -32,8 +32,11 @@ export const UNDO_DEPTH = 3;
 export const SMOOTHING_SECONDS = 0.01;
 /** Fundido cruzado de los cambios de contenido: sonido en cola, reverso, toma y deshacer. */
 export const CHANGE_FADE_SECONDS = 0.01;
-/** Fundido cruzado de la junta de una toma con lo que se grabó justo después. */
-export const JUNCTION_FADE_SECONDS = 0.005;
+/**
+ * Fundido cruzado de la junta de una toma con lo que se grabó justo después. Con 10 ms, el salto de
+ * un cruce de Δ = 2 (polaridad opuesta a fondo de escala) es de 0,0071 a 44,1 kHz: dentro de §5.
+ */
+export const JUNCTION_FADE_SECONDS = 0.01;
 /** Fundido al soltar el disco y volver a la línea de tiempo. */
 export const DISC_RELEASE_FADE_SECONDS = 0.015;
 /** Fundido de la salida al reproducir, pausar y parar. */
@@ -42,6 +45,13 @@ export const TRANSPORT_FADE_SECONDS = 0.01;
 export const DISC_FOLLOW_SECONDS = 0.01;
 /** Una vuelta del disco = un compás. */
 export const DISC_BEATS_PER_TURN = BEATS_PER_BAR;
+/** Vueltas del disco que se aceptan en `disc-move` (más allá se pierde la precisión). */
+export const MAX_DISC_TURNS = 1e6;
+/**
+ * La voz del disco pasa por un filtro de continua de un polo: un disco quieto no suena (la cabeza
+ * congelada daría una continua) y el sonido al arrastrarlo no cambia por encima de unos 30 Hz.
+ */
+export const DISC_DC_BLOCK_HZ = 10;
 
 /** Techo del limitador: −0,3 dBFS. */
 export const LIMITER_CEILING = 10 ** (-0.3 / 20);

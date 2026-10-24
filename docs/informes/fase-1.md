@@ -231,3 +231,30 @@ npm run check            # todo
 ```
 
 Esta fase no suena todavía en el navegador: el núcleo entra en el worklet en la fase 2.
+
+---
+
+## Respuesta a la revisión (en curso)
+
+Revisión: `docs/revisiones/fase-1.md` (CAMBIOS NECESARIOS: 0 Bloqueantes, 2 Importantes, 10 Menores, 4 Sugerencias). Estado al cortar la sesión por el límite de uso:
+
+**Hecho en el código (sin commit de tests completo):**
+- #1 Sobregrabación más larga que la capa: el destino se construye con lo que sonará durante la toma (fase desde el pulso de inicio, copia desde la cabeza de la capa, también en reverso). El pulso de inicio se calcula en `#record` antes de reservar.
+- #2 Disco: el reposo suelta el disco; cargar o empezar de cero suelta el disco, suelta el deshacer y espera a que callen la salida y la voz del disco antes de aplicar.
+- #3 8 voces por capa (con un cambio por bloque no hace falta robar).
+- #4 Junta de 10 ms.
+- #5 Filtro de continua (10 Hz) en la voz del disco: un disco quieto no suena.
+- #6 Cuenta previa con el transporte parado a mitad de compás: el transporte se coloca en el compás siguiente antes de contar.
+- #7 Un sonido en cola que entra antes de que empiece la toma se queda en cola y la toma se graba sobre él; si la toma empieza antes, entra al momento.
+- #8 `disc-move` acotado a ±10⁶ vueltas.
+- #9 La carga pendiente cuenta en la memoria y suelta el deshacer al llegar.
+- #11 Avisos con `command` y `reason` tipados (`RejectReason`, `CancelReason`).
+- #13 La regla de lint de la ruta caliente vigila todos los métodos de `audio/core/` y del worklet salvo constructores y los del manejador que reservan.
+- #15 Metrónomo después del limitador (con su saturación de seguridad y la misma latencia).
+- #16 Playwright en los puertos 4317/4318 sin reutilizar servidores ajenos.
+
+**Pendiente (siguiente sesión):**
+- Reescribir `loop-core.disc.spec.ts` para el filtro de continua (3 tests fallan porque leían la posición en la salida congelada: ahora hay que leerla del estado), con los casos nuevos de reposo y carga con el disco agarrado.
+- Tests nuevos: #1 (diente de sierra de 3 compases + toma de 4, y toma libre de 12 pulsos sobre 8), #3 (8 cambios seguidos), #4 (polaridad opuesta), #6 (cuenta previa desde el pulso 5,3), #7 (cola + grabar), #8 en el *fuzz*, #9 (memoria con carga), #10 (`too-long`), #15 (sin bombeo).
+- `docs/AUDIO.md` (junta de 10 ms, disco sin continua, metrónomo después del limitador, memoria de la carga, matiz de los 0 KiB) y la tabla de respuesta de este informe; #12 (corregir la mención a `layer.ts` del §0).
+- `npm run check`, fusión de la fase 1 en `main` y push; después, la fase 2 (plan en el borrador).

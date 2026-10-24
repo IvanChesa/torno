@@ -53,7 +53,7 @@ describe('contabilidad de memoria', () => {
   it('si ni soltando el deshacer cabe, la toma se rechaza', () => {
     const h = new Harness({ sampleRate: RATE, memoryBudgetBytes: 2 * MB });
     h.send({ type: 'record', layer: 0, bars: 0, countIn: false, fitTempo: false });
-    expect(h.noticesOf('rejected')[0]?.reason).toBe('record: no-memory');
+    expect(h.noticesOf('rejected')[0]).toMatchObject({ command: 'record', reason: 'no-memory' });
     expect(h.status().recording).toBe('idle');
   });
 
