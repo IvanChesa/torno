@@ -12,6 +12,8 @@ export default defineConfig({
     testTimeout: 30_000,
     include: [
       ...PURE_LAYERS.map((layer) => `src/app/${layer}/**/*.spec.ts`),
+      // El adaptador del worklet, con el AudioWorkletGlobalScope simulado.
+      'src/app/audio/worklet/**/*.spec.ts',
       'scripts/**/*.spec.ts',
     ],
     coverage: {

@@ -1,66 +1,83 @@
 /**
- * Procesador del AudioWorklet: adapta el núcleo (audio/core) al `AudioWorkletProcessor`. Lo
- * compila aparte esbuild (scripts/build-worklet.mjs) en public/audio/processor.<hash>.js (PLAN D5).
+ * Procesador del AudioWorklet: adapta `LoopCore` (audio/core) al `AudioWorkletProcessor` (PLAN §4.3).
+ * Lo compila aparte esbuild (scripts/build-worklet.mjs) en public/audio/processor.<hash>.js (D5).
  *
- * Fase 0: prueba técnica con el pitido de `BeepGenerator`. En la fase 1 lo sustituye `LoopCore`.
+ * - Entrada 0: el micrófono (mono), solo mientras se graba o se calibra. Salida 0: estéreo.
+ * - Los mensajes que llegan se validan: los del núcleo, campo a campo en `LoopCore.handle`.
+ * - Al hilo principal salen el estado (≤ 30/s, el mismo objeto), la copia de la sesión cuando se
+ *   pide y la grabación de la calibración, con el PCM transferido.
+ *
  * Reglas del hilo de audio: `process()` no reserva memoria, no usa `async` ni `console` y no crea
- * cierres; los mensajes que salen se reservan antes.
+ * cierres. La única excepción es el `postMessage` de los eventos (CLAUDE.md).
  */
-import { BeepGenerator } from '../core/beep';
+import { LoopCore } from '../core/loop-core';
 import {
   PROCESSOR_NAME,
   PROTOCOL_VERSION,
   isCurrentMessage,
-  type BeepEndedEvent,
-  type WorkletCommand,
+  type SessionCopyEvent,
+  type WorkletMessage,
 } from '../core/protocol';
 
 class TornoProcessor extends AudioWorkletProcessor {
-  private readonly beep = new BeepGenerator(sampleRate);
-  private readonly beepEnded: BeepEndedEvent = {
-    v: PROTOCOL_VERSION,
-    type: 'beep-ended',
-    frames: 0,
-  };
-  /** Hay un pitido cuyo final aún no se ha avisado (aunque empiece y acabe en el mismo bloque). */
-  private endPending = false;
-  private alive = true;
+  readonly #core = new LoopCore({ sampleRate });
+  /** Lista de transferencia reutilizada para la calibración (sin reservar en `process()`). */
+  readonly #transfer: ArrayBuffer[] = [new ArrayBuffer(0)];
+  #alive = true;
 
   constructor() {
     super();
-    this.port.onmessage = (event) => {
-      if (isCurrentMessage(event.data)) this.handle(event.data as WorkletCommand);
-    };
+    this.port.onmessage = (event) => this.handle(event.data);
   }
 
-  private handle(command: WorkletCommand): void {
-    switch (command.type) {
-      case 'beep':
-        this.beep.start(command.frequency, command.seconds, command.gain);
-        this.endPending = true;
-        break;
+  /** Un mensaje del hilo principal (aquí sí se puede reservar: va entre dos bloques). */
+  handle(data: unknown): void {
+    if (!isCurrentMessage(data)) return;
+    const message = data as WorkletMessage;
+    switch (message.type) {
+      case 'copy-session': {
+        if (typeof message.id !== 'number') return;
+        const session = this.#core.exportState();
+        const event: SessionCopyEvent = {
+          v: PROTOCOL_VERSION,
+          type: 'session',
+          id: message.id,
+          session,
+        };
+        const transfer: ArrayBuffer[] = [];
+        for (const layer of session.layers)
+          if (layer.pcm) transfer.push(layer.pcm.buffer as ArrayBuffer);
+        this.port.postMessage(event, transfer);
+        return;
+      }
       case 'dispose':
-        this.beep.stop();
-        this.endPending = false;
-        this.alive = false;
+        this.#alive = false;
         this.port.close();
-        break;
+        return;
+      default:
+        this.#core.handle(message);
     }
   }
 
-  process(_inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
-    const channels = outputs[0];
-    const first = channels?.[0];
-    if (channels && first) {
-      this.beep.process(first, 0, first.length);
-      for (let c = 1; c < channels.length; c++) channels[c]?.set(first);
+  process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
+    const core = this.#core;
+    const output = outputs[0];
+    const left = output?.[0];
+    if (left) {
+      const input = inputs[0]?.[0] ?? null;
+      core.process(input, left, output[1] ?? left, left.length);
     }
-    if (this.endPending && !this.beep.active) {
-      this.endPending = false;
-      this.beepEnded.frames = this.beep.lengthFrames;
-      this.port.postMessage(this.beepEnded);
+    if (core.statusReady) {
+      core.statusReady = false;
+      this.port.postMessage(core.status);
     }
-    return this.alive;
+    const calibration = core.calibrationResult;
+    if (calibration) {
+      core.calibrationResult = null;
+      this.#transfer[0] = calibration.pcm.buffer as ArrayBuffer;
+      this.port.postMessage(calibration, this.#transfer);
+    }
+    return this.#alive;
   }
 }
 
