@@ -29,6 +29,7 @@ import {
   TAKE_BARS,
   TRANSPORT_FADE_SECONDS,
 } from './constants';
+import { CalibrationRun } from './calibration';
 import { LayerChannel } from './channel';
 import { RECORDING_SOURCE, type LayerContent, type MutableLayerContent } from './content';
 import { fadeTable, framesOf, INSTANT_FADE, onePoleCoefficient, Ramp, wrap } from './dsp';
@@ -37,6 +38,7 @@ import { MEMORY_BUDGET_BYTES, MemoryCounter } from './memory';
 import { Metronome } from './metronome';
 import {
   PROTOCOL_VERSION,
+  type CalibrationEvent,
   type CoreCommand,
   type CoreCommandType,
   type CoreStatus,
@@ -92,6 +94,8 @@ export class LoopCore {
   readonly status: CoreStatus;
   /** `process` ha dejado un estado nuevo en `status` (≤ 30/s); lo baja quien lo envía. */
   statusReady = false;
+  /** Grabación de una calibración terminada, para enviarla; quien la envía la pone a `null`. */
+  calibrationResult: CalibrationEvent | null = null;
 
   readonly #transport: Transport;
   readonly #channels: LayerChannel[] = [];
@@ -111,6 +115,7 @@ export class LoopCore {
   #generation = 0;
   #takeGeneration = 0;
   #pendingLoad: PreparedSession | null = null;
+  #calibration: CalibrationRun | null = null;
 
   #metronomeEnabled = false;
   #nextClickBeat = Number.NaN;
@@ -272,6 +277,7 @@ export class LoopCore {
     const transport = this.#transport;
     switch (command.type) {
       case 'play':
+        if (this.#calibration) return this.#reject(command.type, 'busy');
         this.#startTransport();
         return;
       case 'pause':
@@ -360,10 +366,12 @@ export class LoopCore {
         this.#releaseDisc();
         return;
       case 'record':
+        if (this.#calibration) return this.#reject(command.type, 'busy');
         this.#record(command.layer, command.bars, command.countIn, command.fitTempo);
         return;
       case 'cancel-recording':
         this.#cancelTake('cancelled');
+        this.#cancelCalibration('cancelled');
         return;
       case 'set-volume':
         if (!isNumberIn(command.volume, 0, 1)) return this.#reject(command.type, 'range');
@@ -389,17 +397,29 @@ export class LoopCore {
         return;
       case 'load-session':
         if (this.#locked(command.type)) return;
+        if (this.#calibration) return this.#reject(command.type, 'busy');
         this.#load(command.session);
         return;
       case 'reset':
         if (this.#locked(command.type)) return;
+        if (this.#calibration) return this.#reject(command.type, 'busy');
         this.#load(this.#emptySession());
         return;
       case 'standby':
         // Reposo: nada sigue sonando, tampoco una capa agarrada con el disco.
         this.#cancelTake('standby');
+        this.#cancelCalibration('standby');
         this.#releaseDisc();
         this.#pause(false);
+        return;
+      case 'calibrate':
+        // Con el transporte parado y sin toma: si no, los clics se mezclarían con la música.
+        if (this.#recorder.active || this.#calibration || this.#transportStateValue !== 'stopped') {
+          return this.#reject(command.type, 'busy');
+        }
+        this.#calibration = new CalibrationRun(this.sampleRate);
+        this.calibrationResult = null;
+        this.#memoryDirty = true;
         return;
       default:
         this.#reject('none', 'unknown');
@@ -832,6 +852,14 @@ export class LoopCore {
     this.#memoryDirty = true;
   }
 
+  #cancelCalibration(reason: CancelReason): void {
+    if (!this.#calibration) return;
+    this.#calibration = null;
+    this.#metronome.stop();
+    this.#memoryDirty = true;
+    this.#notify('calibration-cancelled', -1, 0, 'none', reason);
+  }
+
   #cancelTake(reason: CancelReason): void {
     const recorder = this.#recorder;
     if (!recorder.active) return;
@@ -1000,6 +1028,7 @@ export class LoopCore {
       if (channel.pendingActive) memory.add(channel.pendingContent?.data);
     }
     memory.add(this.#recorder.target?.data);
+    memory.add(this.#calibration?.event.pcm);
     const load = this.#pendingLoad;
     if (load) for (let i = 0; i < LAYER_COUNT; i++) memory.add(load.contents[i]?.data);
     this.#memoryBytes = memory.total + this.#fixedBytes;
@@ -1146,8 +1175,9 @@ export class LoopCore {
     this.#renderInput(input, offset, n);
     this.#limiter.processInto(busL, busR, outL, outR, offset, n);
     // El metrónomo va después del limitador: un clic no hace «bombear» la música.
-    if (this.live) this.#renderClicks(outL, outR, offset, n);
+    if (this.live && !this.#calibration) this.#renderClicks(outL, outR, offset, n);
     this.#renderVolume(outL, outR, offset, n);
+    if (this.#calibration) this.#renderCalibration(input, outL, outR, offset, n);
     if (advancing) transport.advance(n);
     if (this.#timerRunning) this.#recorder.timerFrames -= n;
     this.#statusCountdown -= n;
@@ -1205,6 +1235,44 @@ export class LoopCore {
       outL[offset + i] = limiter.clip(outL[offset + i]! + c);
       outR[offset + i] = limiter.clip(outR[offset + i]! + c);
     }
+  }
+
+  /**
+   * Calibración: los clics suenan en sus muestras exactas, a nivel fijo (después del volumen: con
+   * la rueda a cero también se oyen), y la entrada se graba sin tocar. Al terminar, la grabación
+   * queda en `calibrationResult`.
+   */
+  #renderCalibration(
+    input: Float32Array | null,
+    outL: Float32Array,
+    outR: Float32Array,
+    offset: number,
+    n: number,
+  ): void {
+    const run = this.#calibration!;
+    const at = run.nextClickFrame;
+    if (at >= 0 && at < run.frame + n) {
+      this.#metronome.trigger(false, at > run.frame ? at - run.frame : 0);
+      run.nextClick++;
+    }
+    if (this.#metronome.active) {
+      const clicks = this.#clicks;
+      clicks.fill(0, 0, n);
+      this.#metronome.renderInto(clicks, n);
+      const limiter = this.#limiter;
+      for (let i = 0; i < n; i++) {
+        const c = clicks[i]!;
+        if (c === 0) continue;
+        outL[offset + i] = limiter.clip(outL[offset + i]! + c);
+        outR[offset + i] = limiter.clip(outR[offset + i]! + c);
+      }
+    }
+    run.record(input, offset, n);
+    if (!run.done) return;
+    this.calibrationResult = run.event;
+    this.#calibration = null;
+    this.#memoryDirty = true;
+    this.#notify('calibrated', -1, run.frame, 'none', 'none');
   }
 
   /** Ganancia de entrada suavizada y grabación. */
