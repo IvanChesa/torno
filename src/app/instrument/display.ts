@@ -113,10 +113,23 @@ function model(
   if (title) parts.push(title);
   parts.push(...lines);
   const selected = rows.find((row) => row.selected);
-  if (selected)
-    parts.push(selected.value ? `${selected.label}: ${selected.value}` : selected.label);
+  if (selected) {
+    const value = spoken(selected.value);
+    parts.push(value ? `${selected.label}: ${value}` : selected.label);
+  }
   if (status) parts.push(status);
   return { mode, title, lines, rows, status, pilots, summary: sentences(parts) };
+}
+
+/**
+ * Lo que se lee de un valor de la pantalla: sin la flecha de los submenús y con la marca de lo
+ * elegido dicha con palabras (un lector de pantalla leería el símbolo).
+ */
+function spoken(value: string): string {
+  const inUse = value.endsWith('•');
+  const clean = value.replace('›', '').replace('•', '').trim();
+  if (!inUse) return clean;
+  return clean ? `${clean} · ${d.inUse}` : d.inUse;
 }
 
 function mainLines(state: InstrumentState, status: InstrumentStatus): string[] {
@@ -219,7 +232,7 @@ function confirmQuestion(action: NonNullable<InstrumentState['menu']['confirm']>
 export function sentences(parts: readonly string[]): string {
   return parts
     .map((part) => {
-      const lower = part.toLocaleLowerCase('es-ES').replaceAll(' · ', ', ').replace(' •', '');
+      const lower = part.toLocaleLowerCase('es-ES').replaceAll(' · ', ', ');
       return `${lower.charAt(0).toLocaleUpperCase('es-ES')}${lower.slice(1)}.`;
     })
     .join(' ');

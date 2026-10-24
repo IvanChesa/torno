@@ -119,6 +119,8 @@ export const INSTRUMENT_CONTENT = {
     playing: 'EN MARCHA',
     paused: 'PAUSA',
     standby: 'REPOSO',
+    /** Lo elegido (el sonido de la capa, el modo de latencia), en voz en lugar de «•». */
+    inUse: 'EN USO',
     takeLengths: ['TOMA LIBRE', 'TOMA DE 1 COMPÁS', 'TOMA DE 2 COMPASES', 'TOMA DE 4 COMPASES'],
   },
 } as const;

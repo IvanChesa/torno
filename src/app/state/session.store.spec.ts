@@ -291,10 +291,38 @@ describe('SessionStore', () => {
   it('el resumen en voz se emite con antirrebote y en frases', async () => {
     vi.useFakeTimers();
     const { store } = await setup();
-    store.input({ type: 'turn', control: 'main', steps: 5 });
-    store.input({ type: 'turn', control: 'main', steps: 5 });
+    store.input({ type: 'press', control: 'layer-1' });
+    store.input({ type: 'press', control: 'layer-2' });
     expect(store.announcement()).toBe('');
     vi.advanceTimersByTime(700);
-    expect(store.announcement()).toBe('100 bpm, pausa. Capa 1, vacía. Toma libre.');
+    expect(store.announcement()).toBe('90 bpm, pausa. Capa 3, vacía. Toma libre.');
+  });
+
+  it('girar un dial no se anuncia (lo lee el propio control) y el resumen no lee símbolos', async () => {
+    vi.useFakeTimers();
+    const { store, engine } = await setup();
+    // El arranque del motor se anuncia; después, los giros ya no.
+    vi.advanceTimersByTime(700);
+    expect(store.announcement()).toBe('90 bpm, pausa. Capa 1, vacía. Toma libre.');
+    store.input({ type: 'turn', control: 'main', steps: 5 });
+    store.input({ type: 'turn', control: 'layer-0', steps: -2 });
+    vi.advanceTimersByTime(700);
+    expect(store.announcement()).toBe('90 bpm, pausa. Capa 1, vacía. Toma libre.');
+    const drums = layer({
+      hasContent: true,
+      sourceKind: 'library',
+      sourceId: 'prueba-bateria',
+      lengthBeats: 8,
+    });
+    engine.emit({ type: 'status', status: status({ layers: [drums, layer(), layer(), layer()] }) });
+    vi.advanceTimersByTime(STATUS_INTERVAL_MS);
+    // En el menú: sin la flecha de los submenús, y el sonido de la capa dicho con palabras.
+    store.input({ type: 'press', control: 'main' });
+    vi.advanceTimersByTime(700);
+    expect(store.announcement()).toBe('Menú. Sonido. Toma libre.');
+    store.input({ type: 'press', control: 'main' });
+    store.input({ type: 'press', control: 'main' });
+    vi.advanceTimersByTime(700);
+    expect(store.announcement()).toBe('Batería. Prueba: en uso. Toma libre.');
   });
 });

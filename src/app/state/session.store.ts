@@ -187,7 +187,9 @@ export class SessionStore {
     this.#state.set(state);
     for (const intent of intents) this.#apply(intent);
     if (state.settings !== before.settings) this.#autosave();
-    this.#announce();
+    // Lo que cambia al girar un control lo lee el propio control (su `aria-valuetext`): no se
+    // repite en la región viva. Los avisos se anuncian igual (`#show`).
+    if (input.type !== 'turn' && input.type !== 'set' && input.type !== 'drag') this.#announce();
   }
 
   /** Abre el selector de archivos (lo registra el instrumento: tiene que abrirse en el gesto). */
