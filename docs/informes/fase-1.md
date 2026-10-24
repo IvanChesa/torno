@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-1-nucleo-audio`
 - **Fecha:** 2026-10-24
-- **Estado:** listo para revisión
+- **Estado:** terminada (revisión aplicada)
 
 ## 0. Plan de la fase
 
@@ -20,7 +20,7 @@ La fase 1 construye `LoopCore`: el instrumento entero **a nivel de muestras**, s
 7. `protocol.ts`: comandos y eventos del núcleo, tipados y versionados (versión 2), con validación de lo que llega por el puerto. La sonda de la fase 0 se mantiene hasta que la fase 2 la sustituya.
 
 **1.b · Capas, voces, cola, disco y deshacer**
-1. `layer.ts`: contenido de una capa (PCM, duración en pulsos, fase, origen) y voces de lectura (posición desde el transporte, *varispeed*, reverso en espejo exacto, Hermite con vuelta al inicio). Hasta 4 voces por capa: cada cambio (sonido en cola, reverso, toma, deshacer, soltar el disco) es un fundido cruzado entre voces, sin clics.
+1. `content.ts`, `voice.ts` y `channel.ts` (este plan decía `layer.ts`; se repartió en tres piezas): contenido de una capa (PCM, duración en pulsos, fase, origen), voces de lectura (posición desde el transporte, *varispeed*, reverso en espejo exacto, Hermite con vuelta al inicio) y el canal con su mezcla. Hasta 8 voces por capa (eran 4; revisión, #3): cada cambio (sonido en cola, reverso, toma, deshacer, soltar el disco) es un fundido cruzado entre voces, sin clics.
 2. `history.ts`: deshacer y rehacer de 3 estados por capa, con copia en escritura (el PCM confirmado no se modifica nunca) y sin reservas al moverse.
 3. `loop-core.ts`: transporte con fundidos al reproducir, pausar y parar (mantener = volver al pulso 0); nivel, silencio y panorama de igual potencia suavizados (~10 ms); filtro por capa; volumen general; cola de sonidos exacta a la muestra en el siguiente compás; disco (mantener, arrastrar con 1 vuelta = 1 compás, soltar con fundido de ~15 ms); estado y avisos agrupados con un contador de muestras (≤ 30/s); reposo.
 
@@ -216,7 +216,7 @@ Para las fases siguientes:
 
 ## 10. Propuestas de cambio al plan
 
-1. §4.4, «Juntas del bucle»: escribir «fundido cruzado de ~5 ms en la junta de cada toma, con lo que se grabó justo después; los bucles de la biblioteca se sintetizan sin junta». Así se recoge lo que hace el núcleo (§4.1 de este informe).
+1. §4.4, «Juntas del bucle»: escribir «fundido cruzado de 10 ms en la junta de cada toma, con lo que se grabó justo después; los bucles de la biblioteca se sintetizan sin junta». Así se recoge lo que hace el núcleo (§4.1 de este informe). Son 10 ms y no 5 por la revisión (#4): con 5 ms, una junta de polaridad opuesta a fondo de escala daba un salto de 0,0128, por encima del margen de 0,01.
 2. §4.4, «Toma libre»: dejar escrita la regla de §5: la duración del bucle es la de la capa más larga, la «primera» toma libre es la de la sesión vacía, y con otras capas la toma sigue esa duración y se cierra sola.
 3. Fase 1, tarea 6: aceptar como prueba del «heap estable» el perfil de muestreo del heap de V8 con una cota en bytes (hoy, < 16 KiB por minuto simulado).
 
@@ -234,27 +234,35 @@ Esta fase no suena todavía en el navegador: el núcleo entra en el worklet en l
 
 ---
 
-## Respuesta a la revisión (en curso)
+## Respuesta a la revisión
 
-Revisión: `docs/revisiones/fase-1.md` (CAMBIOS NECESARIOS: 0 Bloqueantes, 2 Importantes, 10 Menores, 4 Sugerencias). Estado al cortar la sesión por el límite de uso:
+Revisión: `docs/revisiones/fase-1.md` (CAMBIOS NECESARIOS: 0 Bloqueantes, 2 Importantes, 10 Menores y 4 Sugerencias). Se han corregido los dos Importantes, los diez Menores y tres de las cuatro Sugerencias; la #14 queda para la fase 3. Cada corrección de código lleva su test.
 
-**Hecho en el código (sin commit de tests completo):**
-- #1 Sobregrabación más larga que la capa: el destino se construye con lo que sonará durante la toma (fase desde el pulso de inicio, copia desde la cabeza de la capa, también en reverso). El pulso de inicio se calcula en `#record` antes de reservar.
-- #2 Disco: el reposo suelta el disco; cargar o empezar de cero suelta el disco, suelta el deshacer y espera a que callen la salida y la voz del disco antes de aplicar.
-- #3 8 voces por capa (con un cambio por bloque no hace falta robar).
-- #4 Junta de 10 ms.
-- #5 Filtro de continua (10 Hz) en la voz del disco: un disco quieto no suena.
-- #6 Cuenta previa con el transporte parado a mitad de compás: el transporte se coloca en el compás siguiente antes de contar.
-- #7 Un sonido en cola que entra antes de que empiece la toma se queda en cola y la toma se graba sobre él; si la toma empieza antes, entra al momento.
-- #8 `disc-move` acotado a ±10⁶ vueltas.
-- #9 La carga pendiente cuenta en la memoria y suelta el deshacer al llegar.
-- #11 Avisos con `command` y `reason` tipados (`RejectReason`, `CancelReason`).
-- #13 La regla de lint de la ruta caliente vigila todos los métodos de `audio/core/` y del worklet salvo constructores y los del manejador que reservan.
-- #15 Metrónomo después del limitador (con su saturación de seguridad y la misma latencia).
-- #16 Playwright en los puertos 4317/4318 sin reutilizar servidores ajenos.
+| # | Severidad | Qué se ha hecho | Evidencia |
+|---|---|---|---|
+| 1 | Importante | La sobregrabación más larga que la capa construye el destino con **lo que suena durante la toma**: la fase sale del pulso de inicio (que ya se sabe en `#record`) y la copia es la capa leída desde su cabeza en ese pulso, también en reverso. | Dos tests nuevos con la entrada en silencio. Diente de sierra de 3 compases y toma de 4: la vuelta siguiente repite lo que sonó durante la toma (error < 10⁻⁴; antes, 0,47). Toma libre que sigue un bucle de 12 pulsos sobre una capa de 8, desde el pulso 4,6875: lo mismo. |
+| 2 | Importante | El reposo suelta el disco. Cargar y la sesión nueva sueltan el disco y el deshacer, y aplican la carga cuando ya no suenan ni la salida ni la voz del disco. | `loop-core.disc.spec.ts`: el reposo con el disco agarrado y arrastrándose (en marcha y parado) da `discHeld: false`, saltos ≤ los de la señal + 0,01 y silencio exacto a los 50 ms. Cargar y la sesión nueva con el disco agarrado, en marcha y parado (4 casos): sin clic, la sesión queda aplicada y suena al reproducir. |
+| 3 | Menor | 8 voces por capa. Además, se ha encontrado la causa de fondo: cada cambio **reiniciaba el fundido de salida de todas las voces**, así que con cambios seguidos ninguna terminaba de apagarse y al final había que robar una que aún sonaba. Ahora una voz que ya se apaga sigue con su fundido. Si llegan más cambios de los que caben en un mismo bloque, se roba la voz más baja, que es una que aún no ha sonado. | Tres tests nuevos con un seno de 41 Hz a 0,9: reverso alternado en cada bloque de 128 muestras (40 cambios), deshacer y rehacer alternados con ±0,9, y una ráfaga de 12 cambios en el mismo bloque. El salto máximo es el de la propia señal (0,0034); antes del arreglo, 0,034. |
+| 4 | Menor | Junta de 10 ms. | Test nuevo a 44,1 kHz con polaridad opuesta a fondo de escala (Δ = 1,8): salto de ≈ 0,0064, entre 0,005 (la junta se ejercita de verdad) y el margen de 0,01. Con 5 ms serían 0,0128. Propuesta 1 del §10, actualizada. |
+| 5 | Menor | La voz del disco pasa por un filtro de continua de 10 Hz: un disco quieto no suena y el limitador no trabaja por una continua. | Tests del disco reescritos: la posición de la cabeza se lee del estado (`positionBeats`: 3,125 pulsos tras agarrar en la muestra 100.000), la salida queda por debajo de 10⁻⁶ con el disco quieto, y arrastrar a la velocidad del transporte conserva la energía de la capa (±4 %). |
+| 6 | Menor | Con el transporte parado a mitad de compás, la cuenta previa coloca antes el transporte en el compás siguiente. | Test nuevo desde una pausa en el pulso 5,3: cuatro clics separados un pulso exacto, nada más, y la toma empieza en el pulso 8, un pulso después del último clic. |
+| 7 | Menor | Si la cola entra (en su compás) antes de que empiece la toma, sigue en cola y la toma se graba sobre ese sonido. Si la toma empieza antes (una toma libre), el sonido entra al empezar la toma. Documentado en `AUDIO.md` §3. | Dos tests nuevos: la cola entra en la muestra 128.000 exacta y la toma empieza ahí y se suma al sonido nuevo (deshacer devuelve el sonido de la cola y después el anterior). Con una toma libre, el sonido entra en la muestra 51.280, la del inicio de la toma. |
+| 8 | Menor | `disc-move` admite como mucho ±10⁶ vueltas; el resto se rechaza (`range`). | Test nuevo con 10³⁰⁸ y −2·10⁶ vueltas: dos rechazos, posición finita y la otra capa sigue sonando. El *fuzz* prueba ahora también 10³⁰⁸, −2·10⁶ e `Infinity`. |
+| 9 | Menor | Al recibir `load-session` se sueltan el deshacer y el rehacer de todas las capas, y la sesión que espera al fundido cuenta en la memoria. El pico (lo actual más lo que llega: 92,16 MB con 8 capas de 60 s a 48 kHz) está en `AUDIO.md` §4. | Test nuevo: con el historial lleno (16 estados), al cargar sonando se cuentan 8 búferes; al aplicar la carga, 4, sin deshacer. |
+| 10 | Menor | Test de `record: too-long` en los dos casos. El test anterior ya no promete en el título lo que no prueba. | Una toma libre que seguiría un bucle de 88 pulsos a 60 BPM (88 s) y una sobregrabación que haría crecer una capa de 40 BPM hasta 66 s: las dos, rechazadas con `too-long` y sin cambiar nada. |
+| 11 | Menor | `Notice` lleva `command` (el tipo de comando) y `reason` (`RejectReason` o `CancelReason`), separados y tipados. | Tests actualizados (`toMatchObject({ command: 'record', reason: 'no-memory' })`). |
+| 12 | Menor | Corregida la mención a `layer.ts` del §0. En la fase 2, un commit por pieza con su test. | — |
+| 13 | Sugerencia | La regla de lint vigila ahora todos los métodos de `audio/core/` y del worklet, salvo los constructores y los del manejador que preparan memoria (`handle`, `exportState`, `planTake`, `load`, `setSound`, `emptySession`). Frase matizada en `AUDIO.md` §5 y §6: 0 KiB en régimen permanente y unos KiB en los cambios raros. | `eslint-layers.spec.ts`: un `return [1]` en un método auxiliar ya no pasa el lint. |
+| 14 | Sugerencia | Se mide en la fase 3 con los bucles reales a 240 BPM. Si el alias se oye, se prefiltra. | Anotado abajo, para la fase 3. |
+| 15 | Sugerencia | Los clics del metrónomo se suman después del limitador, con su saturación de seguridad y la misma latencia que la música. | Test nuevo: con la música a 0,85 (bajo el codo) y el metrónomo, la música sigue intacta al bit 60 ms después de cada clic, y la suma no pasa del techo. |
+| 16 | Sugerencia | Playwright usa los puertos 4317 y 4318 con `reuseExistingServer: false`: si están ocupados, falla de forma visible. | `playwright.config.ts`. |
 
-**Pendiente (siguiente sesión):**
-- Reescribir `loop-core.disc.spec.ts` para el filtro de continua (3 tests fallan porque leían la posición en la salida congelada: ahora hay que leerla del estado), con los casos nuevos de reposo y carga con el disco agarrado.
-- Tests nuevos: #1 (diente de sierra de 3 compases + toma de 4, y toma libre de 12 pulsos sobre 8), #3 (8 cambios seguidos), #4 (polaridad opuesta), #6 (cuenta previa desde el pulso 5,3), #7 (cola + grabar), #8 en el *fuzz*, #9 (memoria con carga), #10 (`too-long`), #15 (sin bombeo).
-- `docs/AUDIO.md` (junta de 10 ms, disco sin continua, metrónomo después del limitador, memoria de la carga, matiz de los 0 KiB) y la tabla de respuesta de este informe; #12 (corregir la mención a `layer.ts` del §0).
-- `npm run check`, fusión de la fase 1 en `main` y push; después, la fase 2 (plan en el borrador).
+**Cifras tras las correcciones** (`npm run check` en verde):
+- **Tests:** 314 en Node (19 archivos), de los que 223 son del núcleo y la síntesis; 31 en Angular.
+- **Cobertura del TS puro:** 98,35 % de sentencias, 94,38 % de ramas, 100 % de funciones y 99,82 % de líneas.
+- **Rendimiento:** 240×, 241× y 242× tiempo real en tres ejecuciones de `npm run test:bench`.
+- **Memoria de `process()`:** 0,0 KiB en 60 s simulados.
+- **Tamaño de `LoopCore` minificado:** 34,1 kB (11,2 kB con gzip); el worklet de la fase 2 tiene 40 kB de presupuesto.
+- **Presupuestos:** sin cambios (`/` 293,5 kB, worklet de la sonda 1,9 kB, fuentes 144,1 kB).
+
+**Para la fase 3** (#14): medir el *varispeed* hacia arriba con los bucles reales a 240 BPM y, si el alias se oye, prefiltrar (una copia filtrada de la capa para velocidades > 1, o un interpolador con el corte proporcional a 1/velocidad).
