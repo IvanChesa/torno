@@ -47,26 +47,42 @@ import { HTML_INSTRUMENT_CONTENT } from './html-instrument.content';
       text-transform: uppercase;
     }
 
-    /* Una ranura con su tirador de latón: el brazo, horizontal; la rueda, vertical. */
+    /*
+     * Una ranura con su tirador de latón: el brazo, horizontal; la rueda, vertical. El control
+     * entero es la zona de toque (44 px de grosor); la ranura que se ve es su ::before.
+     */
     .track {
       position: relative;
-      border-radius: var(--radius-pill);
-      background: var(--color-screen);
       cursor: ew-resize;
       touch-action: none;
     }
 
+    .track::before {
+      content: '';
+      position: absolute;
+      border-radius: var(--radius-pill);
+      background: var(--color-screen);
+    }
+
     .track--arm {
       inline-size: 7rem;
-      block-size: 0.5rem;
-      margin-block: 1rem;
+      block-size: var(--target-min);
+    }
+
+    .track--arm::before {
+      inset-inline: 0;
+      inset-block: calc(50% - 0.25rem);
     }
 
     .track--volume {
-      inline-size: 0.5rem;
+      inline-size: var(--target-min);
       block-size: 5.5rem;
-      margin-inline: 1rem;
       cursor: ns-resize;
+    }
+
+    .track--volume::before {
+      inset-block: 0;
+      inset-inline: calc(50% - 0.25rem);
     }
 
     .handle {

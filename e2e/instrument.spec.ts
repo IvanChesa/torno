@@ -307,6 +307,31 @@ test.describe('instrumento HTML', () => {
     expect([...values]).toEqual(['Capa 1, 8 pulsos']);
   });
 
+  test('cada control se toca en una zona de al menos 44 × 44 px, en el móvil y en el escritorio', async ({
+    page,
+  }) => {
+    const driver = new InstrumentDriver(page);
+    for (const viewport of [
+      { width: 412, height: 915 },
+      { width: 1440, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await driver.open();
+      const controls = page.locator('[data-control]');
+      const count = await controls.count();
+      expect(count).toBeGreaterThan(10);
+      for (let i = 0; i < count; i++) {
+        const control = controls.nth(i);
+        const box = (await control.boundingBox())!;
+        const name = await control.getAttribute('data-control');
+        expect(
+          Math.min(box.width, box.height),
+          `${name} a ${viewport.width} px`,
+        ).toBeGreaterThanOrEqual(44);
+      }
+    }
+  });
+
   test('pasa axe sin violaciones, también con el menú abierto', async ({ page }) => {
     await instrumentAudio(page);
     const driver = new InstrumentDriver(page);
