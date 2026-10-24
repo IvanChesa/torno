@@ -5,11 +5,6 @@ export const HOME_CONTENT = {
   lead: 'Instrumento de bucles de cuatro capas, en 3D, que se toca en el navegador.',
   status:
     'Esto es la página base. El instrumento se construye por fases: primero el audio, luego el aparato en 3D y al final la web que lo presenta.',
-  probe: {
-    title: 'Prueba técnica del audio',
-    intro:
-      'Dos comprobaciones de los cimientos. Nada suena ni se carga hasta que pulsas un botón, y el sonido nunca sale de tu navegador.',
-  },
   sample: {
     title: 'Muestrario del diseño',
     intro:

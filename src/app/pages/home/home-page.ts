@@ -1,23 +1,16 @@
 import { Component } from '@angular/core';
-import { AudioProbe } from '../../features/audio-probe/audio-probe';
 import { DesignSample } from '../../features/design-sample/design-sample';
 import { HOME_CONTENT } from './home.content';
 
-/** Portada. En la fase 0 es la página base: presentación, prueba técnica y muestrario. */
+/** Portada. Hasta la fase 7 es la página base: presentación, instrumento y muestrario. */
 @Component({
   selector: 'trn-home-page',
-  imports: [AudioProbe, DesignSample],
+  imports: [DesignSample],
   template: `
     <section class="hero">
       <h1>{{ text.title }}</h1>
       <p class="hero__lead">{{ text.lead }}</p>
       <p class="hero__status">{{ text.status }}</p>
-    </section>
-
-    <section class="section" aria-labelledby="prueba-audio">
-      <h2 id="prueba-audio">{{ text.probe.title }}</h2>
-      <p class="section__intro">{{ text.probe.intro }}</p>
-      <trn-audio-probe />
     </section>
 
     <section class="section" aria-labelledby="muestrario">

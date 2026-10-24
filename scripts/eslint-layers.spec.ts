@@ -43,7 +43,7 @@ describe('capas de la arquitectura (ESLint)', { timeout: 60_000 }, () => {
     ['src/app/audio/files/x.ts', 'export const d = document.title;', 'TS puro'],
     [
       'src/app/instrument/x.ts',
-      "import { BeepGenerator } from '../audio/core/beep';",
+      "import { LoopCore } from '../audio/core/loop-core';",
       '«audio/core»',
     ],
     // Worklet: solo audio/core.
@@ -64,7 +64,7 @@ describe('capas de la arquitectura (ESLint)', { timeout: 60_000 }, () => {
     ['src/app/features/x/x.ts', "import { Mesh } from 'three';", '`three` solo se importa'],
     [
       'src/app/features/x/x.ts',
-      "import { BeepGenerator } from '../../audio/core/beep';",
+      "import { LoopCore } from '../../audio/core/loop-core';",
       '«audio/core»',
     ],
     [
@@ -154,9 +154,9 @@ describe('capas de la arquitectura (ESLint)', { timeout: 60_000 }, () => {
   });
 
   const allowed: [file: string, code: string][] = [
-    ['src/app/audio/core/x.ts', "import { BeepGenerator } from './beep';"],
+    ['src/app/audio/core/x.ts', "import { LoopCore } from './loop-core';"],
     ['src/app/audio/synth/x.ts', "import { PROTOCOL_VERSION } from '../core/protocol';"],
-    ['src/app/audio/worklet/x.ts', "import { BeepGenerator } from '../core/beep';"],
+    ['src/app/audio/worklet/x.ts', "import { LoopCore } from '../core/loop-core';"],
     ['src/app/audio/workers/x.ts', "import { renderTone } from '../synth/tone';"],
     [
       'src/app/audio/engine/x.ts',

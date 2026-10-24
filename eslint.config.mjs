@@ -383,8 +383,7 @@ export default defineConfig([
   },
   {
     files: ['src/app/audio/core/**/*.ts', 'src/app/audio/worklet/**/*.ts'],
-    // beep.ts es la sonda temporal de la fase 0 (se borra en la fase 2).
-    ignores: ['**/*.spec.ts', 'src/app/audio/core/test-harness.ts', 'src/app/audio/core/beep.ts'],
+    ignores: ['**/*.spec.ts', 'src/app/audio/core/test-harness.ts'],
     rules: {
       'no-restricted-syntax': [
         'error',

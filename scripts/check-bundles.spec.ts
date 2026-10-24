@@ -53,7 +53,7 @@ describe('check-bundles', () => {
 
   it.each([
     ['node_modules/three/build/three.module.js', 'three'],
-    ['src/app/audio/core/beep.ts', 'audio'],
+    ['src/app/audio/core/loop-core.ts', 'audio'],
     ['src/app/audio/synth/tone.ts', 'audio'],
     ['src/app/audio/worklet/processor.ts', 'audio'],
     ['src/app/audio/engine/probe.ts', 'motor'],
