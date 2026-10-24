@@ -77,10 +77,11 @@ El núcleo cuenta los bytes de los búferes de PCM vivos sin contar dos veces el
 ## 6. Cifras medidas (fase 1)
 | Medida | Valor | Cómo |
 |---|---|---|
-| Rendimiento | 231× tiempo real | 4 capas con *varispeed*, filtro, panorama y limitador; 60 s a 48 kHz en bloques de 128; Node 24 en el PC de Iván (`npm run test:bench`) |
+| Rendimiento | 230–243× tiempo real (3 ejecuciones) | 4 capas con *varispeed*, filtro, panorama y limitador; 60 s a 48 kHz en bloques de 128; Node 24 en el PC de Iván (`npm run test:bench`) |
 | Memoria reservada por `process()` | 0 KiB en 60 s simulados | Perfil de muestreo del heap de V8 (`loop-core.memory.spec.ts`) |
 | Deriva | 0 (±1 muestra tras 10 min a 97 BPM y 44,1 kHz) | `loop-core.playback.spec.ts` |
 | Cola exacta | En la muestra `ceil(compás × 60 × fs / bpm)` | 48 kHz/90 BPM y 44,1 kHz/97 BPM |
 | *Varispeed* | Al doble de tempo, el bucle dura la mitad ±1 muestra | 3 combinaciones de frecuencia y tempo |
-| Filtro | −3 dB en el corte ±10 % (medido entre 150 Hz y 15 kHz) | Bisección de la respuesta en régimen permanente |
-| Limitador | Pico ≤ −0,3 dBFS con 4 capas a tope en fase | `limiter.spec.ts` y `loop-core.playback.spec.ts` |
+| Filtro | −3 dB exactamente en el corte (error < 0,01 % entre 150 Hz y 15 kHz; el criterio es ±10 %) | Bisección de la respuesta en régimen permanente, a 44,1 y 48 kHz |
+| Limitador | Pico de −0,34 dBFS con 4 capas a tope en fase (techo −0,3) | `limiter.spec.ts` y `loop-core.playback.spec.ts` |
+| Tamaño | `LoopCore` minificado: 32,7 kB (presupuesto del worklet: 40 kB) | esbuild con `--minify`, como el worklet |
