@@ -8,6 +8,8 @@ const PURE_LAYERS = ['audio/core', 'audio/synth', 'audio/files', 'instrument'];
 export default defineConfig({
   test: {
     environment: 'node',
+    // Los tests del DSP renderizan minutos de audio; con la cobertura instrumentada tardan más.
+    testTimeout: 30_000,
     include: [
       ...PURE_LAYERS.map((layer) => `src/app/${layer}/**/*.spec.ts`),
       'scripts/**/*.spec.ts',

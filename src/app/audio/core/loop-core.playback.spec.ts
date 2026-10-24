@@ -156,7 +156,7 @@ describe('varispeed y reverso', () => {
     const after = h.render(RATE);
     const own = maxJump(before.left, RATE / 2);
     expect(maxJump(after.left)).toBeLessThanOrEqual(own + 0.01);
-    expect(h.core.flushStatus().layers[0]!.reversed).toBe(true);
+    expect(h.status().layers[0]!.reversed).toBe(true);
   });
 });
 
@@ -171,7 +171,7 @@ describe('cola de sonidos', () => {
     h.send({ type: 'play' });
     h.renderUntil(Math.round((5.3 * 60 * rate) / bpm)); // a mitad del 2.º compás
     h.send({ type: 'set-sound', layer: 0, sound: constantSound(rate, -0.5) });
-    expect(h.core.flushStatus().layers[0]!.pending).toBe(true);
+    expect(h.status().layers[0]!.pending).toBe(true);
     const start = h.frame;
     const { left } = h.render(3 * rate);
     // Primera muestra con pulso ≥ 8: ceil(8 · 60 · fs / bpm), sin redondeos acumulados.
@@ -348,7 +348,7 @@ describe('deriva y determinismo', () => {
       expect(Math.abs(start + n - exact)).toBeLessThanOrEqual(1);
     }
     expect(wraps(left).length).toBeGreaterThan(0);
-  });
+  }, 60_000);
 
   it('mismos comandos en las mismas muestras → mismos bytes, sea cual sea el tamaño de bloque', () => {
     const script = (block: number) => {

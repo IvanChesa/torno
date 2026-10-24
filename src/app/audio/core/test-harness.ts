@@ -4,7 +4,13 @@
  */
 import { DEFAULT_BPM } from './constants';
 import { LoopCore, type LoopCoreOptions } from './loop-core';
-import { PROTOCOL_VERSION, type CoreCommand, type LibrarySound, type Notice } from './protocol';
+import {
+  PROTOCOL_VERSION,
+  type CoreCommand,
+  type CoreStatus,
+  type LibrarySound,
+  type Notice,
+} from './protocol';
 
 type Body<C> = C extends unknown ? Omit<C, 'v'> : never;
 /** Un comando sin la versión (el arnés la pone). */
@@ -68,9 +74,16 @@ export class Harness {
     return this.render(Math.max(0, frame - this.frame), input);
   }
 
-  /** Avisos con un código dado (desde el principio). */
+  /** Avisos con un código dado (desde el principio, también los que aún no han salido). */
   noticesOf(code: Notice['code']): Notice[] {
+    this.flush();
     return this.notices.filter((notice) => notice.code === code);
+  }
+
+  /** Estado actual (sin perder los avisos que trae). */
+  status(): CoreStatus {
+    this.flush();
+    return this.core.status;
   }
 
   /** Recoge los avisos del último estado. */
