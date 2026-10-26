@@ -224,18 +224,30 @@ export class AudioEngine {
     return waitForSound(() => this.#output(), since, timeoutMs);
   }
 
-  /** Lo último que ha salido del núcleo (crea el analizador la primera vez). */
+  /**
+   * Lo último que ha salido del núcleo, con la hora a la que sale por el altavoz su última muestra
+   * (crea el analizador la primera vez). La ventana, de 16384 muestras (≈ 0,34 s a 48 kHz), cubre
+   * de sobra lo que pueda tardar en leerse aunque el hilo principal esté ocupado.
+   */
   #output(): OutputWindow | null {
     const context = this.#context;
     const node = this.#node;
     if (!context || !node) return null;
     if (!this.#analyser || !this.#analyserData) {
-      this.#analyser = new AnalyserNode(context, { fftSize: 512 });
+      this.#analyser = new AnalyserNode(context, { fftSize: 16_384 });
       this.#analyserData = new Float32Array(this.#analyser.fftSize);
       node.connect(this.#analyser);
     }
     this.#analyser.getFloatTimeDomainData(this.#analyserData);
-    return { samples: this.#analyserData, sampleRate: context.sampleRate };
+    // La última muestra del analizador es la de `currentTime`; `getOutputTimestamp` dice a qué hora
+    // sale por el altavoz el instante del contexto que suena ahora. Sin esa marca, la hora actual.
+    const stamp =
+      typeof context.getOutputTimestamp === 'function' ? context.getOutputTimestamp() : undefined;
+    const end =
+      stamp?.performanceTime && stamp.contextTime !== undefined
+        ? stamp.performanceTime + (context.currentTime - stamp.contextTime) * 1000
+        : performance.now();
+    return { samples: this.#analyserData, sampleRate: context.sampleRate, end };
   }
 
   subscribe(listener: (event: EngineEvent) => void): () => void {

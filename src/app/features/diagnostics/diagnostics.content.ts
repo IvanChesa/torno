@@ -34,7 +34,7 @@ export const DIAGNOSTICS_CONTENT = {
     latencyModes: { auto: 'automática', calibrated: 'calibrada', manual: 'manual' },
   },
 
-  note: 'El primer sonido se mide a la salida del motor: lo que se oye llega además con la latencia de salida.',
+  note: 'El primer sonido se mide hasta que sale por el altavoz, con la latencia de salida que informa el navegador (con auriculares Bluetooth, la real suele ser mayor).',
   copy: 'Copiar el informe',
   copied: 'Informe copiado.',
   copyFailed: 'No se ha podido copiar: selecciona el texto del panel.',

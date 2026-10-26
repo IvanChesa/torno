@@ -45,25 +45,28 @@ export function playbackStats(context: BaseAudioContext): Readonly<Record<string
   return null;
 }
 
-/** Índice de la primera muestra con sonido (|x| por encima de `threshold`), o −1. */
-export function firstSound(samples: Float32Array, threshold = 1e-3): number {
-  for (let i = 0; i < samples.length; i++) {
+/** Índice de la primera muestra con sonido (|x| por encima de `threshold`) desde `from`, o −1. */
+export function firstSound(samples: Float32Array, threshold = 1e-3, from = 0): number {
+  for (let i = Math.max(0, from); i < samples.length; i++) {
     if (Math.abs(samples[i]!) > threshold) return i;
   }
   return -1;
 }
 
-/** Lo último que ha salido: las muestras (la más reciente al final) y su frecuencia. */
+/** Lo último que ha salido: las muestras (la más reciente al final), su frecuencia y su hora. */
 export interface OutputWindow {
   readonly samples: Float32Array;
   readonly sampleRate: number;
+  /** Cuándo sale por el altavoz la última muestra, en el reloj de `performance.now()`. */
+  readonly end: number;
 }
 
 /**
  * Espera a que suene algo y devuelve cuántos ms pasaron desde `since` (reloj de
- * `performance.now()`) hasta la primera muestra con sonido, o `null` si no suena en `timeoutMs`.
- * `read` devuelve lo último que ha salido (o `null` si aún no hay audio). Se lee cada pocos ms y se
- * descuenta lo que llevaba sonando dentro de la ventana leída.
+ * `performance.now()`, el del toque) hasta que la primera muestra con sonido sale por el altavoz, o
+ * `null` si no suena en `timeoutMs`. `read` devuelve lo último que ha salido (o `null` si aún no
+ * hay audio). La ventana es larga y lleva su hora: no importa cuándo se lea, mientras el arranque
+ * siga dentro. Solo cuenta el sonido posterior al toque (no la cola de una pausa reciente).
  */
 export async function waitForSound(
   read: () => OutputWindow | null,
@@ -74,10 +77,13 @@ export async function waitForSound(
 ): Promise<number | null> {
   while (now() - since < timeoutMs) {
     const output = read();
-    const index = output ? firstSound(output.samples) : -1;
-    if (output && index >= 0) {
-      const sounding = ((output.samples.length - index) / output.sampleRate) * 1000;
-      return Math.max(0, now() - since - sounding);
+    if (output) {
+      const { samples, sampleRate, end } = output;
+      const msPerSample = 1000 / sampleRate;
+      // Muestra de la ventana que sonó en el momento del toque (negativa si es anterior).
+      const touch = Math.ceil(samples.length - (end - since) / msPerSample);
+      const index = firstSound(samples, 1e-3, touch);
+      if (index >= 0) return Math.max(0, end - (samples.length - index) * msPerSample - since);
     }
     await pause();
   }

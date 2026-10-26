@@ -59,8 +59,11 @@ test.describe('diagnóstico', () => {
     const [cold, warm] = await measures(page);
     console.info(`Primer sonido (panel de diagnóstico): en frío ${cold} ms; después ${warm} ms`);
     expect(cold).toBeLessThan(3000);
-    // PLAN §5: ≤ 100 ms con el motor cargado (en el CI, margen ×3).
-    expect(warm).toBeLessThanOrEqual(process.env['CI'] ? 300 : 100);
+    // El panel mide hasta el altavoz (con la latencia de salida que informa el navegador, unos
+    // 40 ms en Windows): ≈ 50 ms en caliente con el PC tranquilo, y bastante más con todos los e2e
+    // en paralelo saturando el procesador. Aquí basta con que mida: una cota de cordura. El
+    // ≤ 100 ms de PLAN §5, a la salida del motor, lo mide instrument.spec.ts.
+    expect(warm).toBeLessThan(500);
 
     // Copiar el informe (al portapapeles, en local).
     await panel.getByRole('button', { name: 'Copiar el informe' }).click();

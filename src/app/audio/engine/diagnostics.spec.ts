@@ -7,25 +7,17 @@ describe('diagnóstico del audio', () => {
   });
 
   it('copia las estadísticas de reproducción que dé el navegador (numéricas)', () => {
-    class Stats {
-      get underrunEvents(): number {
-        return 2;
-      }
-      get averageLatency(): number {
-        return 0.012;
-      }
-      get label(): string {
-        return 'no';
-      }
-    }
-    // Getters enumerables del prototipo, como los atributos WebIDL.
-    for (const key of ['underrunEvents', 'averageLatency', 'label']) {
-      Object.defineProperty(Stats.prototype, key, {
-        ...Object.getOwnPropertyDescriptor(Stats.prototype, key),
-        enumerable: true,
-      });
-    }
-    const withStats = { playbackStats: new Stats() } as unknown as BaseAudioContext;
+    // Getters enumerables en el prototipo, como los atributos WebIDL.
+    const prototype = Object.defineProperties(
+      {},
+      {
+        underrunEvents: { get: () => 2, enumerable: true },
+        averageLatency: { get: () => 0.012, enumerable: true },
+        label: { get: () => 'no', enumerable: true },
+      },
+    );
+    const stats: object = Object.create(prototype);
+    const withStats = { playbackStats: stats } as unknown as BaseAudioContext;
     expect(playbackStats(withStats)).toEqual({ underrunEvents: 2, averageLatency: 0.012 });
     const experimental = {
       playoutStats: { fallbackFramesEvents: 1 },
@@ -34,37 +26,43 @@ describe('diagnóstico del audio', () => {
     expect(playbackStats({} as BaseAudioContext)).toBeNull();
   });
 
-  it('mide del toque al primer sonido, descontando lo que ya sonaba en la ventana leída', async () => {
-    let clock = 1000;
-    const quiet: OutputWindow = { samples: new Float32Array(480), sampleRate: 48_000 };
-    // Cuando se lee, el sonido empezó 2,5 ms antes del final de la ventana (120 muestras).
-    const sounding = new Float32Array(480);
-    sounding.fill(0.3, 360);
-    const reads = [null, quiet, quiet, { samples: sounding, sampleRate: 48_000 }];
-    const ms = await waitForSound(
+  /** Una ventana de 10 ms a 48 kHz (480 muestras) con sonido en los tramos dados, y su hora. */
+  function window(end: number, ...ranges: [number, number][]): OutputWindow {
+    const samples = new Float32Array(480);
+    for (const [from, to] of ranges) samples.fill(0.3, from, to);
+    return { samples, sampleRate: 48_000, end };
+  }
+
+  /** `waitForSound` con un reloj de mentira que avanza 4 ms en cada espera. */
+  function measure(reads: (OutputWindow | null)[], since: number, timeoutMs = 5000) {
+    let clock = since;
+    return waitForSound(
       () => reads.shift() ?? null,
-      990,
-      5000,
+      since,
+      timeoutMs,
       () => clock,
       async () => {
         clock += 4;
       },
     );
-    // 3 esperas de 4 ms: se lee a los 1012; empezó a sonar a los 1009,5 (19,5 ms tras el toque).
-    expect(ms).toBeCloseTo(19.5, 6);
+  }
+
+  it('mide del toque a que el primer sonido sale por el altavoz (con la hora de la ventana)', async () => {
+    // La tercera lectura trae sonido en sus últimas 120 muestras (2,5 ms); su última muestra sale a
+    // los 1015 ms: el sonido empezó a salir a los 1012,5, 22,5 ms después del toque (990).
+    const ms = await measure([null, window(1000), window(1004), window(1015, [360, 480])], 990);
+    expect(ms).toBeCloseTo(22.5, 6);
+  });
+
+  it('no cuenta lo que sonaba antes del toque (la cola de una pausa reciente)', async () => {
+    // Toque a los 1009: la ventana termina a los 1015, así que el toque cae en la muestra 192. Lo
+    // de las muestras 0–99 sonó antes; cuenta el sonido de la 360 (1012,5 ms).
+    const ms = await measure([window(1015, [0, 100], [360, 480])], 1009);
+    expect(ms).toBeCloseTo(3.5, 6);
   });
 
   it('sin sonido en el plazo, devuelve null', async () => {
-    let clock = 0;
-    const ms = await waitForSound(
-      () => ({ samples: new Float32Array(64), sampleRate: 48_000 }),
-      0,
-      50,
-      () => clock,
-      async () => {
-        clock += 10;
-      },
-    );
-    expect(ms).toBeNull();
+    const reads = Array.from({ length: 20 }, (_, i) => window(i * 4));
+    expect(await measure(reads, 0, 50)).toBeNull();
   });
 });
