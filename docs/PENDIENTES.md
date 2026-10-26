@@ -28,6 +28,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 - [ ] Escuchar los 12 sonidos y 3 combinaciones (`npm run demo:sounds`, final del bloque B).
 - [ ] Pruebas en Android e iPhone por el staging (fase 4; necesarias antes del bloque C).
   - `TODO(ivan)`: en esas pruebas, calibrar la latencia y grabar varias tomas seguidas con auriculares, para ver si quedan alineadas entre sí. En Chromium, la latencia del camino del micrófono cambia en cada apertura de la pista (12–21 ms medidos en un retorno; informe de la fase 2, §10, propuesta 1).
+  - `TODO(ivan)`: y una de 5 min con las 4 capas largas (tomas de 30–60 s) y el autoguardado activo, girando diales: sin cortes en el audio (revisión de la fase 2, #6).
 - [ ] Aprobar el diseño del instrumento (parada de la fase 5.a).
 - [ ] Revisar los textos de la web (fase 7).
 - [ ] Visto bueno final en el móvil y en el iPhone (fase 8).

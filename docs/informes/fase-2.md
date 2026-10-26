@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-2-motor-navegador`
 - **Fecha:** 2026-10-24
-- **Estado:** listo para revisión
+- **Estado:** terminada (revisión aplicada)
 
 ## 0. Plan de la fase
 
@@ -111,7 +111,7 @@ Torno ya se toca en el navegador. El núcleo de la fase 1 corre en el AudioWorkl
 
 El modelo del instrumento (`instrument/`, TS puro) traduce gestos y teclas en intenciones que `SessionStore` lleva al motor. El instrumento HTML, accesible y con teclado completo, sustituye a la prueba técnica en la portada, diferido con `@defer`.
 
-Se demuestra con 393 tests en Node, 36 en Angular y 62 e2e con audio real: sonido, gesto, hidratación, micrófono, alineación, archivos, autoguardado, privacidad, errores, teclado, axe y WebKit.
+Se demuestra con 393 tests en Node, 36 en Angular y 62 e2e con audio real: sonido, gesto, hidratación, micrófono, alineación, archivos, autoguardado, privacidad, errores, teclado, axe y WebKit. Tras aplicar la revisión: 398 en Node, 41 en Angular y 81 e2e (ver «Respuesta a la revisión»).
 
 ## 2. Criterios de aceptación
 
@@ -122,7 +122,7 @@ Se demuestra con 393 tests en Node, 36 en Angular y 62 e2e con audio real: sonid
 | e2e: la pista del micrófono queda `ended` tras terminar, cancelar, reposo y pestaña oculta | ✅ | `microphone.spec.ts`: las 4 situaciones, con las pistas instrumentadas (`readyState === 'ended'`). Con la pestaña oculta, además, la toma se cancela y el transporte se pausa. |
 | e2e: con la carga del worklet retrasada 1,5 s, el contexto se crea y se reanuda dentro del gesto (con control negativo) y suena al cargar | ✅ | `instrument.spec.ts`: el contexto está en `running` antes de 1 s tras el primer toque; las llamadas son `new:pointerup` y `resume:pointerup`. El sonido elegido y «reproducir», pulsados mientras carga, esperan en la cola y suenan al llegar el módulo (≥ 1,5 s). Control negativo: un contexto creado tras un `await` real se anota `new:ninguno`. |
 | e2e: un toque antes de la hidratación termina con el audio desbloqueado o con el aviso «Toca para activar el sonido» | ✅ | `hydration.spec.ts`, contra el build. (a) Con el chunk de la portada retenido y el JS principal ya cargado, el toque desbloquea el audio en el gesto real (`new:pointerup`) y, tras hidratar, no hay aviso. (b) Con el JS principal retenido, el toque no puede desbloquear; Angular lo repite tras hidratar, el instrumento enseña «Toca el instrumento para activar el sonido.» y el siguiente toque lo desbloquea en su gesto. |
-| `.torno`: ida y vuelta idéntica byte a byte (misma frecuencia) y correcta con remuestreo; 1000 archivos malformados rechazados sin cambiar el estado | ✅ | `torno-format.spec.ts` (Node): ida y vuelta byte a byte, también en blanco y con ids no ASCII, y **1000 archivos malformados** (20 tipos de defecto) rechazados con su código y sin excepciones. `files.spec.ts` (e2e): guardar, cargar en otra página y volver a guardar da los mismos bytes; una sesión de 44,1 kHz se remuestrea a 48 kHz (256.000 muestras exactas, los 4704 cruces por cero de los 441 Hz ±2 y el pico de 0,5); un archivo roto o que no es un `.torno` muestra el aviso y la sesión guardada después es idéntica byte a byte. |
+| `.torno`: ida y vuelta idéntica byte a byte (misma frecuencia) y correcta con remuestreo; 1000 archivos malformados rechazados sin cambiar el estado | ✅ | `torno-format.spec.ts` (Node): ida y vuelta byte a byte, también en blanco y con ids no ASCII, y **1000 archivos malformados** (20 tipos de defecto) rechazados con su código y sin excepciones. `files.spec.ts` (e2e): guardar, cargar en otra página y volver a guardar da los mismos bytes; una sesión de 44,1 kHz se remuestrea a 48 kHz (256.000 muestras exactas, los 4704 cruces por cero de los 441 Hz ±2 y el pico de 0,5); un archivo roto o que no es un `.torno` muestra el aviso y la sesión guardada después es idéntica byte a byte. Tras la revisión (#10), el remuestreo es el de `decodeAudioData`: un tono de 15 kHz de 44,1 a 48 kHz queda a 0,00 dB y sus imágenes a −87,8 y −105,4 dB. |
 | WAV válidos (los lee el test y `decodeAudioData`); la mezcla exportada coincide con el render del núcleo | ✅ | `export.spec.ts` (Node) y `files.spec.ts` (e2e): la mezcla de 2 vueltas sin fundido coincide con `renderOffline` en Node con **≤ 1 LSB de 24 bits**, y `decodeAudioData` la lee (2 canales, la duración esperada). Las pistas: un ZIP con un WAV mono por capa, cada uno igual a la capa sola (≤ 1 LSB). |
 | Autoguardado: recargar y recuperar devuelve la misma sesión | ✅ | `files.spec.ts`: tras recargar, «Recuperar la sesión anterior» devuelve una sesión que, guardada, es idéntica byte a byte a la de antes. «Empezar de cero» borra el autoguardado y ya no se ofrece. |
 | Instrumento HTML: todo con teclado, axe sin violaciones graves y capturas | ✅ | `instrument.spec.ts`: los 12 controles en orden de tabulación, con nombre, descripción, rol y valor en voz; diales con flechas, Mayús ×10, Inicio y Fin; Intro y Mayús+Intro; disco con Espacio y flechas; atajos 1–4, Espacio, R, Z y `?`; menú con Esc. axe: **0 violaciones** (ninguna grave, crítica, moderada ni leve), también con el menú abierto. Puntero: arrastrar un dial, mantener una tecla y tocar. Capturas en `docs/informes/img/fase-2/` (§7). |
@@ -179,6 +179,8 @@ Además:
 
 ## 6. Salida de los checks
 
+Salida al entregar la fase para revisión. Las cifras tras las correcciones están al final, en «Respuesta a la revisión».
+
 ```
 $ npm run check
 > lint       typecheck (4 tsconfig) ✔ · All files pass linting · Prettier ✔
@@ -225,6 +227,7 @@ Métricas de la fase (audio):
 `docs/informes/img/fase-2/` (con `?captura=1`, movimiento reducido):
 - la portada, `/sobre-el-proyecto` y `/404`: `inicio-*.png`, `sobre-el-proyecto-*.png` y `404-*.png`;
 - el instrumento de cerca, en reposo y con el menú BUCLE abierto: `instrumento-reposo-*.png` y `instrumento-menu-*.png`;
+- tras la revisión (#19), los avisos: la chuleta de atajos (`instrumento-atajos-*.png`), el audio cargando (`instrumento-cargando-*.png`), el error con «Reintentar» (`instrumento-error-*.png`) y el panel de recuperar la sesión anterior, con la fecha fija (`instrumento-recuperar-*.png`);
 - todo en escritorio (1440 × 900) y en móvil (Pixel 7).
 
 ## 8. Dependencias añadidas
@@ -234,7 +237,10 @@ Ninguna. El navegador WebKit de Playwright (parte de `@playwright/test`, ya en l
 ## 9. Pendientes y `TODO(ivan)`
 
 En `docs/PENDIENTES.md`:
-- **Fase 4, en móviles reales:** comprobar la alineación de las tomas tras calibrar, sabiendo que en Chromium la latencia del camino del micrófono cambia en cada apertura (§10, propuesta 1).
+- **Fase 4, en móviles reales:**
+  - comprobar la alineación de las tomas tras calibrar, sabiendo que en Chromium la latencia del camino del micrófono cambia en cada apertura (§10, propuesta 1);
+  - una prueba de cortes con capas largas y el autoguardado activo (revisión, #6).
+- **Decisión de Iván:** qué hacer con el autoguardado mientras el panel de recuperar sigue sin contestar (revisión, #21).
 
 Para las fases siguientes:
 - **Fase 3:**
@@ -245,7 +251,9 @@ Para las fases siguientes:
   - **Ojo al peso:** el worker de exportación lleva el núcleo entero y está a 38,8 kB de 40.
 - **Fase 4:**
   - la CSP y el `.htaccess` tienen que permitir el worklet, los dos workers y `blob:` para las descargas;
-  - el CI corre ya los e2e de WebKit (Linux): comprobar allí reproducir y pausar con audio.
+  - el CI corre ya los e2e de WebKit (Linux): reproducir y pausar con audio (resultado del primer CI de `main`, en la respuesta a la revisión, #14);
+  - en la lista de pruebas en móviles, una de 5 min con 4 capas largas (tomas de 30–60 s) y el autoguardado activo, girando diales: 0 cortes (revisión, #6).
+- **Fase 5.a:** la maqueta 2D del instrumento HTML pone el dial principal y el brazo arriba a la derecha, como el original; se alinea con la distribución del aparato que apruebe Iván, porque seguirá siendo la alternativa sin WebGL (revisión, #20).
 
 ## 10. Propuestas de cambio al plan
 
@@ -255,6 +263,10 @@ Para las fases siguientes:
    Propongo decidirlo con las medidas de Iván.
 2. **Fase 2, criterio de alineación:** escribir «ataques ±2 ms tras compensar, con un micrófono de retorno determinista en el e2e; en dispositivos reales, ±5 ms (§5)».
 3. **§5, JS de la primera visita:** anotar que `@defer` añade ~10 kB fijos al `main` (el instrumento y el 3D irán siempre diferidos).
+4. **§5, memoria de audio: el pico de una copia que coincide con una toma.** La copia de la sesión (guardar, autoguardar o exportar) es memoria transitoria del worklet: hasta 46,08 MB durante menos de 1 s con 4 capas de 60 s a 48 kHz (`AUDIO.md` §4). Durante una toma no se copia nada, pero una copia empezada justo antes de pulsar grabar coincide con la reserva de la toma: el pico sería 195,84 + 46,08 = 241,92 MB, por encima de los 220 MB de §5, durante menos de 1 s y solo en el peor caso (las 4 capas de 60 s con el historial lleno). Dos salidas:
+   - **(a)** que el núcleo aplace el inicio de la toma hasta que termine la copia en curso (como mucho 1 s; en una toma fija, que empieza en el compás siguiente, casi nunca se notaría);
+   - **(b)** que §5 hable del régimen permanente y admita ese pico transitorio, documentado.
+   Propongo (b) para la v1 y (a) si las pruebas de la fase 4 o la 8 muestran problemas de memoria en el móvil.
 
 ## 11. Cómo probarlo
 
@@ -270,6 +282,60 @@ En la portada, en «Tócalo»:
 5. Recarga la página: el instrumento ofrece recuperar la sesión.
 
 ```
-npm run e2e                    # 62 e2e: dev, estático y WebKit
+npm run e2e                    # 81 e2e: dev, estático y WebKit
 npm run capturas -- --fase=2   # tras npm run build
 ```
+
+---
+
+## Respuesta a la revisión
+
+Revisión: `docs/revisiones/fase-2.md` (CAMBIOS NECESARIOS: 0 Bloqueantes, 6 Importantes, 9 Menores y 6 Sugerencias). Se han corregido los seis Importantes, los ocho Menores de código y las seis Sugerencias (la #20, para la fase 5.a; la segunda parte de la #21, la decide Iván). Cada corrección de código lleva su test, y los e2e nuevos fallan sin el arreglo. Como no quedaba ningún Bloqueante, no hace falta otra ronda (CLAUDE.md, paso 5).
+
+| # | Severidad | Qué se ha hecho | Evidencia | Commit |
+|---|---|---|---|---|
+| 1 | Importante | «Recuperar» ya no suelta la sesión guardada hasta haberla cargado, y mientras tanto el autoguardado no la pisa. Dentro del gesto, sale del reposo o, si el audio no cargó a tiempo, reintenta la carga; luego espera hasta 10 s a que el motor esté listo. Si el audio no arranca, avisa («AÚN NO SE PUEDE RECUPERAR») y el panel sigue. | `files.spec.ts`, tres casos con la sesión recuperada idéntica byte a byte a la guardada: el módulo retrasado 2,5 s (un dial arranca el motor y se pulsa «Recuperar» al momento), el reposo, y el módulo que no carga en 5 s (el primer toque avisa y deja el panel; el segundo reintenta y recupera). El último falla sin el reintento. Tests del store: tras un error, reintenta y suelta el panel solo al cargar; sin Web Audio, avisa al momento, sin esperar 10 s. | `d346a09`, `0b85a49` |
+| 2 | Importante | Los atajos solo actúan con el foco dentro del grupo de controles (`.instrument`). En los botones de los avisos, Espacio e Intro los pulsan. | e2e: Espacio sobre «Cerrar» cierra la chuleta y no reproduce (Reproducir sigue con `aria-pressed="false"`); Espacio sobre «Recuperar la sesión anterior» la recupera. | `74e3241` |
+| 3 | Importante | Suelto, el disco dice un valor estable: «Capa 1, 8 pulsos». La posición solo se dice mientras se agarra («Congelado en el pulso 1,5 de 8»), que es cuando la mueve quien toca. | Tests de `controlValue` en Node. e2e: con el foco en el disco y el transporte en marcha, 20 lecturas de `aria-valuetext` en 2 s dan un solo valor (antes, 23 cambios en 3 s). | `2b5d3e7` |
+| 4 | Importante | `checkHeader` devuelve objetos nuevos: en los ajustes, solo las cinco claves validadas; en el origen, solo `kind` e `id`. `#loaded()` copia las cinco claves una a una. | Test del formato: un `.torno` con `"latency": null, "repeats": 999` en los ajustes, `"volumen": 11` en un origen y una clave de más en la raíz se lee con las cinco claves justas y el origen limpio. | `b987469` |
+| 5 | Importante | El desbloqueo ya no tiene la guarda de «reanudando». Mientras el contexto no suene, cada `click`, `pointerup`, `touchend` o `keydown` sobre el instrumento vuelve a pedir `resume()` y el búfer silencioso. Los oyentes solo se avisan cuando el contexto suena de verdad. | e2e con la simulación de la revisión (el contexto nace suspendido y un `resume()` en `pointerup` queda pendiente para siempre): tras `new:pointerup` y `resume:pointerup`, el `resume:click` del mismo toque lo pone en `running`, y el aviso desaparece. | `f3ae9cd`, `273a3c5` |
+| 6 | Importante | La copia de la sesión se hace por tramos en `process()`. El manejador toma la instantánea del núcleo (`LoopCore.snapshot()`) y reserva los búferes; cada bloque copia hasta 32.768 muestras. Los primeros tramos son más pequeños y el bucle de copia se calienta al crear el worklet. Documentado en `AUDIO.md` §7. | Banco con 4 capas de 60 s sonando, tres ejecuciones: de golpe, 7,4–7,8 ms; por tramos, 368 bloques con mediana de 0,04–0,05 ms y peor bloque de 0,09–0,26 ms, con el render incluido (el test exige < 2 ms; un bloque dura 2,67). `session-copy.spec.ts`: la copia es idéntica byte a byte a la de golpe aunque la sesión cambie mientras tanto. El worklet pasa a 37,7 kB (≤ 40). La prueba de cortes con capas largas va a la lista de la fase 4 (§9). | `a66a503` |
+| 7 | Menor | El control suelta el disco en `focusout` y en el `blur` de la ventana. Con la pestaña oculta, el motor manda `disc-release`. | e2e: agarrado con Espacio, Tab lo suelta (la pantalla deja «DISCO» y el valor vuelve a «Capa 1, 8 pulsos»), y el `blur` de la ventana también. Con la pestaña oculta, el worklet recibe `disc-release` después de `disc-hold`. | `9ae8e17` |
+| 8 | Menor | Sin contexto, o si no se puede remuestrear, `loadSession` lanza `load-failed`: el motor avisa («NO SE HA PODIDO CARGAR») y no devuelve ajustes. El store solo dice «cargada» si se ha cargado, y trata cualquier otro fallo de `openFile`. Grabar con el audio aún cargando espera a que esté listo; pulsar otra vez lo cancela. | e2e sin Web Audio: cargar un `.torno` avisa y la capa sigue vacía. e2e con el módulo retrasado 2 s: reproducir y grabar seguidos graban la toma (falla sin la espera). Test del store. | `c9380d4` |
+| 9 | Menor | El reposo y la pestaña oculta cancelan la calibración a propósito, también mientras espera al transporte o al micrófono. `calibrate()` devuelve `null` y el store no lo avisa como error. | e2e: con la calibración sonando, el reposo suelta el micrófono, y en 11 s no aparece ningún aviso de error (antes llegaba a los 10,1 s). Test del store. | `3ccf0c6` |
+| 10 | Menor | El remuestreo usa `decodeAudioData` de un `OfflineAudioContext` sobre un WAV en coma flotante con tres vueltas, que se escribe directamente (sin la copia triplicada). | e2e con un tono de 15 kHz, de 44,1 a 48 kHz: queda a 0,00 dB, con las imágenes a −87,8 y −105,4 dB (límites: ±0,5 dB y < −60 dB). Con el remuestreo anterior: −3,44 dB, imágenes a −15,0 y −27,3 dB, y el e2e falla. | `6c4c662` |
+| 11 | Menor | La zona de toque es el control entero, y la ranura que se ve es su `::before`. | e2e: los 12 controles miden al menos 44 × 44 px, a 412 y a 1440 px de ancho. | `8b958d3` |
+| 12 | Menor | Girar un dial, el brazo, la rueda o el disco no se anuncia en la región viva, porque ya lo lee el control (los avisos sí se anuncian). El resumen hablado no lleva la flecha de los submenús y cambia la marca de lo elegido por «en uso». | Tests del store: girar no cambia el anuncio; el menú se lee «Menú. Sonido. Toma libre.» y «Batería. Prueba: en uso. Toma libre.». | `9238e24` |
+| 13 | Menor | Borrados `stageTapped` (y con él el uso de `isAudioUnlocked` fuera del desbloqueo), `Microphone.isOpen`, los getters `status`, `sampleRate` y `mic` del motor, los textos `hint*` del menú y `layerState`. | Ninguno aparece ya en `src/`; `npm run check` en verde. | `c42dfa4` |
+| 14 | Menor | Se comprueba en el primer CI de `main` tras la fusión, antes de la fase 3. | Pendiente: se apunta aquí en cuanto termine. | — |
+| 15 | Menor | Sin reescribir el historial. Los arreglos de esta revisión ya van cada uno con su test; en la fase 3, un commit por pieza con su test. | — | — |
+| 16 | Sugerencia | Los controles que no giran (las teclas) no pasan a «girar» al moverse: un temblor del dedo ya no cancela pulsar ni mantener. | Test de la máquina de gestos y e2e: un arrastre de 12 px sobre «Reproducir» reproduce (falla sin el cambio). | `e721ecc` |
+| 17 | Sugerencia | Vacías, las regiones vivas de los avisos se ocultan a la vista (1 px recortado y fuera de la rejilla), no con `display: none`. | El e2e de axe comprueba que las dos regiones (`alert` y `status`) están en el árbol, vacías (falla sin el cambio). | `3145520` |
+| 18 | Sugerencia | `matchMedia` se crea una vez, tras el primer render, y se lee su `matches`. | e2e: con movimiento reducido, el disco no gira solo; al quitar la preferencia, vuelve a girar sin recargar. | `3c8abec` |
+| 19 | Sugerencia | `npm run capturas` también fotografía la chuleta de atajos, el audio cargando, el error con «Reintentar» y el panel de recuperar, con la fecha y la zona horaria fijas. | 8 capturas nuevas en `docs/informes/img/fase-2/` (§7). | `d9f110f` |
+| 20 | Sugerencia | Para la fase 5.a: la maqueta 2D se alineará con la distribución del aparato que apruebe Iván. | Apuntado en §9. | — |
+| 21 | Sugerencia | (a) Cargar un `.torno` lo autoguarda. (b) Autoguardar con el panel de recuperar sin contestar lo decide Iván: las opciones están en `PENDIENTES.md` y la propuesta es un segundo hueco en IndexedDB. | (a) Test del store: tras cargar, se pide el autoguardado con los ajustes cargados. | `54f6ef4`, `54d728b` |
+
+**Cifras tras las correcciones.**
+- **`npm run check`, en verde:**
+  - 398 tests en Node (28 archivos) y 41 en Angular (8 archivos);
+  - cobertura del TS puro: 98,23 % de sentencias, 94,65 % de ramas, 100 % de funciones y 99,37 % de líneas;
+  - build sin avisos de presupuesto.
+- **Presupuestos:**
+
+  | Pieza | Tamaño | Límite |
+  |---|---|---|
+  | JS inicial de `/` | 301,4 kB | aviso a 330 |
+  | Desbloqueo de audio | 1,8 kB | < 2 |
+  | Motor (`engine.ts`) | 20,7 kB | ≤ 60 |
+  | Worklet | 37,7 kB | ≤ 40 |
+  | Worker de exportación | 38,6 kB | ≤ 40 |
+  | Worker de síntesis | 2,5 kB | ≤ 40 |
+  | Fuentes | 144,1 kB | ≤ 150 |
+- **`npm run e2e`:** 81 de 81 en 57 s (dev 34, estático 46 y WebKit 1).
+  - Primer sonido tras pulsar: 14, 14, 11, 9 y 9 ms (dev); 8, 9, 13, 7 y 11 ms (estático).
+  - Pico de la salida con el sonido de prueba: −9,6 y −9,0 dBFS.
+  - En una ejecución anterior, con el PC muy cargado por otras aplicaciones (CPU al 83 %), falló una vez «una toma con el micrófono sintético… cada 500 ms»: un hueco entre ataques salió de 510 ms. La desviación fue de 480 muestras justas (10 ms), que es el bloque de captura del micrófono sintético de Chromium; el worklet trabaja en bloques de 128. Repetido 8 veces seguidas, 8 en verde. El CI tiene un reintento.
+- **Banco** (`npm run test:bench`): `LoopCore` a 233×, 221× y 204× tiempo real en tres ejecuciones. Con el PC muy cargado bajó a 27–50× y no llegó a los 100× del test. Es la máquina, no el código: los arreglos de la revisión no tocan `LoopCore.process()`.
+
+**Propuesta nueva** (§10, 4): el pico de memoria de una copia de la sesión que coincide con el principio de una toma.
