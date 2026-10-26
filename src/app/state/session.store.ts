@@ -184,6 +184,12 @@ export class SessionStore {
   #lastLocalChange = -Infinity;
   #nextMessageId = 1;
   #filePicker: (() => void) | null = null;
+  /**
+   * La primera reproducción está esperando a que su sonido llegue a la capa. Mientras, otro
+   * «reproducir» no hace nada (si no, el transporte arrancaría vacío y el sonido entraría en cola un
+   * compás después) y pausar o parar cancelan el arranque.
+   */
+  #startingWithSound = false;
 
   constructor() {
     // En cuanto un gesto activa el sonido, deja de pedirse otro toque.
@@ -403,8 +409,14 @@ export class SessionStore {
   #run(engine: AudioEngine, intent: InstrumentIntent): void {
     switch (intent.type) {
       case 'play':
+        if (this.#startingWithSound) return;
+        engine.send({ type: 'play' });
+        return;
       case 'pause':
       case 'stop':
+        this.#startingWithSound = false;
+        engine.send({ type: intent.type });
+        return;
       case 'disc-release':
         engine.send({ type: intent.type });
         return;
@@ -462,7 +474,11 @@ export class SessionStore {
         return;
       case 'start-with-sound':
         // Reproducir cuando el sonido ya está en la capa: sin un compás vacío al empezar.
-        void engine.setSound(intent.layer, intent.sound).then(() => engine.send({ type: 'play' }));
+        this.#startingWithSound = true;
+        void engine.setSound(intent.layer, intent.sound).then(() => {
+          if (this.#startingWithSound) engine.send({ type: 'play' });
+          this.#startingWithSound = false;
+        });
         return;
       case 'set-latency':
         engine.setLatency({ mode: intent.mode, ms: intent.ms });

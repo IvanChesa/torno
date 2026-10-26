@@ -12,7 +12,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const RATE = 48_000;
+const rateArg = process.argv.indexOf('--rate');
+const RATE = rateArg > 0 ? Number(process.argv[rateArg + 1]) : 48_000;
 const LIMIT_MS = 50 * (process.env['CI'] ? 3 : 1);
 
 const bundle = path.join(tmpdir(), `torno-bench-synth-${process.pid}.mjs`);

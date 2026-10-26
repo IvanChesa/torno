@@ -107,11 +107,22 @@ describe('la colección', () => {
       const pcm = render(id, 48_000);
       expect(seam(pcm)).toBeLessThanOrEqual(1);
     }
-    // Control: un seno que no da un número entero de vueltas sí tiene junta.
+    // Controles: un seno que no da un número entero de vueltas, y OLIVO con una cola de eco a
+    // −30 dB que llega al final y no vuelve a entrar por el principio, sí tienen junta.
     const broken = new Float32Array(48_000);
     for (let i = 0; i < broken.length; i++)
       broken[i] = 0.5 * Math.sin((2 * Math.PI * 440.5 * i) / 48_000);
     expect(seam(broken)).toBeGreaterThan(1);
+    const cut = Float32Array.from(render('olivo', 48_000));
+    const tail = 9600;
+    for (let i = 0; i < tail; i++) {
+      const at = cut.length - tail + i;
+      cut[at] = cut[at]! + 0.0316 * Math.sin((2 * Math.PI * 3000 * i) / 48_000 + 0.3);
+    }
+    expect(seam(cut)).toBeGreaterThan(1);
+    // Con una batería o una textura, el ataque o el ruido de alrededor tapan una cola así: ahí la
+    // falta de junta la da la construcción (todo pasa por `LoopBuffer`, `processLooped`, `loopEcho`,
+    // ruido de un bucle entero y ciclos de vueltas enteras; ver synth.spec.ts).
   });
 
   it('las fundamentales de los bajos están en Re menor y son las de su línea (FFT nota a nota)', () => {
@@ -147,13 +158,13 @@ describe('la colección', () => {
 
 /**
  * Cuánto se sale la junta de su entorno: la mayor segunda diferencia que cruza la junta (un salto
- * o un quiebro, como un seno cortado a media vuelta) entre 1,5 veces la mayor de los 5 ms de cada
- * lado, más un margen de 0,001. ≤ 1: la junta no se distingue de su entorno.
+ * o un quiebro, como un seno cortado a media vuelta) entre 1,5 veces la mayor del milisegundo de
+ * cada lado, más un margen de 0,001. ≤ 1: la junta no se distingue de su entorno.
  */
 function seam(pcm: Float32Array): number {
   const n = pcm.length;
   const d2 = (a: number, b: number, c: number) => Math.abs(pcm[a]! - 2 * pcm[b]! + pcm[c]!);
-  const around = Math.round(0.005 * 48_000);
+  const around = Math.round(0.001 * 48_000);
   let local = 0;
   for (let i = 1; i < around; i++)
     local = Math.max(local, d2(i - 1, i, i + 1), d2(n - i - 2, n - i - 1, n - i));

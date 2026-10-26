@@ -34,14 +34,21 @@ test.describe('sonidos', () => {
       .toHaveLength(1);
     await driver.expectScreen('CAPA 2 · BAJO · RAÍZ');
     await expect(driver.screen).not.toContainText('EN COLA');
-    // Entró en un límite de compás exacto: la muestra del transporte es múltiplo de un compás.
+    // Entró en un límite de compás exacto, el siguiente al de la orden.
     const rate = await sampleRate(page);
     const bar = (4 * 60 * rate) / 90;
     const [applied] = (await coreNotices(page, 'sound-applied')).filter((n) => n.layer === 1);
-    console.info(`Cola: entró en la muestra ${applied!.value} (${applied!.value / bar} compases)`);
+    const ordered = await page.evaluate(() => window.__torno!.setSoundFrames.at(-1)!);
+    console.info(
+      `Cola: pedida hacia la muestra ${ordered}; entró en la ${applied!.value} (${applied!.value / bar} compases)`,
+    );
     expect(Number.isInteger(bar)).toBe(true);
     expect(applied!.value % bar).toBe(0);
-    expect(applied!.value).toBeGreaterThan(0);
+    // El estado que da `ordered` puede llevar hasta 33 ms de retraso (1600 muestras a 48 kHz): si la
+    // orden cayó justo antes del límite, el compás siguiente es el de después.
+    const next = (Math.floor(ordered / bar) + 1) * bar;
+    const late = ordered % bar > bar - 0.04 * rate;
+    expect(late ? [next, next + bar] : [next]).toContain(applied!.value);
 
     // Otro bajo en cola y deshacer antes del compás: la cola se cancela y sigue RAÍZ.
     await driver.menu(MENU.sound, MENU.categories.bass, 1);

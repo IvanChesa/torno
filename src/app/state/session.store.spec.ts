@@ -60,8 +60,11 @@ class FakeEngine {
   cancelRecording(): void {
     this.#log('cancelRecording');
   }
+  /** Si se pone, `setSound` espera a esta promesa (un render que tarda). */
+  soundGate: Promise<void> | null = null;
   async setSound(layer: number, id: string | null): Promise<void> {
     this.#log('setSound', layer, id);
+    if (this.soundGate) await this.soundGate;
   }
   setLatency(setting: unknown): void {
     this.#log('setLatency', setting);
@@ -226,6 +229,30 @@ describe('SessionStore', () => {
     expect(store.state().selected).toBe(1);
   });
 
+  it('primera reproducción: mientras llega el sonido, otro «reproducir» no hace nada y pausar la cancela', async () => {
+    const { store, engine } = await setup();
+    let release = () => undefined as void;
+    engine.soundGate = new Promise<void>((resolve) => (release = resolve));
+    store.input({ type: 'press', control: 'play' });
+    // El estado del audio sigue diciendo «parado»: el segundo toque pide `play` y se absorbe.
+    store.input({ type: 'press', control: 'play' });
+    expect(engine.sent()).toEqual([]);
+    release();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(engine.sent()).toEqual([{ type: 'play' }]);
+  });
+
+  it('primera reproducción: parar antes de que llegue el sonido cancela el arranque', async () => {
+    const { store, engine } = await setup();
+    let release = () => undefined as void;
+    engine.soundGate = new Promise<void>((resolve) => (release = resolve));
+    store.input({ type: 'press', control: 'play' });
+    store.input({ type: 'hold', control: 'play' });
+    release();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(engine.sent()).toEqual([{ type: 'stop' }]);
+  });
+
   it('cada pulsación lleva su momento (para el tempo por pulsaciones)', async () => {
     const { store, engine } = await setup();
     // BUCLE → MARCAR TEMPO y dos pulsaciones a 500 ms: 120 BPM.
@@ -245,13 +272,15 @@ describe('SessionStore', () => {
 
   it('traduce las intenciones del modelo a llamadas del motor', async () => {
     const { store, engine } = await setup();
-    // La primera reproducción (ALFAR en la capa 1 y la capa 2 elegida) ya está hecha.
+    // La primera reproducción (ALFAR en la capa 1, reproducir y la capa 2 elegida) ya está hecha.
     store.input({ type: 'press', control: 'play' });
+    await new Promise((resolve) => setTimeout(resolve));
     store.input({ type: 'turn', control: 'layer-1', steps: -30 });
     store.input({ type: 'hold', control: 'layer-1' });
     store.input({ type: 'press', control: 'play' });
     store.input({ type: 'press', control: 'record' });
     expect(engine.sent()).toEqual([
+      { type: 'play' },
       { type: 'set-level', layer: 1, level: 0.7 },
       { type: 'set-mute', layer: 1, muted: true },
       { type: 'play' },

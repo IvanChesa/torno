@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-3-sonidos`
 - **Fecha:** 2026-10-26
-- **Estado:** listo para revisión
+- **Estado:** revisado; correcciones aplicadas
 
 ## 0. Plan de la fase
 
@@ -47,7 +47,7 @@ Torno ya tiene su colección: 12 bucles propios sintetizados en TS puro, determi
 | Picos y RMS en rango | ✅ | Picos de −1,1 (ADOBE) a −14,1 dBFS (BRASA), todos ≤ −1 dBFS. RMS en su objetivo (batería −16, bajo −17, acordes −19, textura −23); ADOBE −17,3 (manda el pico; dentro del margen de −3 dB). A 44,1 y 48 kHz. |
 | Sin continua (DC) | ✅ | Media < −100 dBFS en todos. |
 | Fundamentales de los bajos en la tonalidad (FFT) | ✅ | FFT nota a nota de las 51 notas de las tres líneas: el pico más fuerte es la nota escrita, con la mayor desviación en 0,1 (RAÍZ), 2,2 (CINCA) y 15,2 cents (SURCO, por el portamento); todas en Re menor (más Do♯). El test encontró un error real: en CINCA, el seno de refuerzo iba en contrafase con la fundamental de la sierra y la anulaba. |
-| Render ≤ 50 ms por bucle en escritorio | ✅ | `node scripts/bench-synth.mjs` (código empaquetado como el worker; en `npm run test:bench`): en caliente, 5,6–33,0 ms; en frío, el más lento 42,6 ms. |
+| Render ≤ 50 ms por bucle en escritorio | ✅ (en caliente) | `node scripts/bench-synth.mjs` (código empaquetado como el worker; en `npm run test:bench`), a 48 kHz: en caliente, 5,2–32,2 ms; en frío (lo que hace el worker, que renderiza cada sonido una vez), 7–43 ms en esta pasada, y hasta 61 ms en la de la revisión. A 96 kHz, el doble de muestras: hasta 93 ms en caliente. Se renderiza una vez por sonido, en el worker, sin bloquear la interfaz ni el audio. Ver §10, propuesta 3. |
 | e2e: la cola entra exactamente en el compás siguiente y deshacer la cancela | ✅ | `e2e/sounds.spec.ts` (Chromium dev y estático): el aviso `sound-applied` llega con la muestra 128 000 del transporte (1 compás exacto a 48 kHz); un segundo cambio en cola se cancela con DESHACER y, pasado más de un compás, no entra nada. |
 | Iván ha escuchado los sonidos | ⏳ | Apuntado en `PENDIENTES.md` (al final del bloque; no bloquea). |
 | Tarea 7: a 240 BPM con un tono alto, sin imágenes por encima de −60 dB; los 12 bucles, sin junta | ✅ | `loop-core.antialias.spec.ts`: tono de 12 kHz a 240 BPM, lo más alto a −68,7 dB (48 kHz) y −72,9 dB (44,1 kHz). Control: con la lectura de Hermite directa, la imagen supera −20 dB. Sin junta: la segunda diferencia que cruza la junta frente a la de los 5 ms de alrededor, con control negativo (un seno cortado a media vuelta falla). |
@@ -73,9 +73,10 @@ Torno ya tiene su colección: 12 bucles propios sintetizados en TS puro, determi
 - **`audio/core/analysis.ts`:** FFT y picos para los tests del núcleo y de la síntesis. No entra en ningún bundle (ni el worklet ni los workers lo importan).
 
 ## 5. Decisiones técnicas nuevas
-- **Filtro antialias IIR (Chebyshev II de orden 10) frente a una interpolación de sinc de banda limitada:** el IIR cuesta 5 secciones por muestra del PCM y se rediseña en microsegundos; la sinc tendría fase lineal, pero pediría ~140 coeficientes por muestra a 6×. La fase no lineal se compensa en los graves leyendo adelantado el retardo de grupo en continua (2–6 muestras).
+- **Filtro antialias IIR (Chebyshev II de orden 10) frente a una interpolación de sinc de banda limitada:** el IIR cuesta 5 secciones por muestra del PCM y se rediseña en microsegundos; la sinc tendría fase lineal, pero pediría ~140 coeficientes por muestra a 6×. La fase no lineal se compensa en los graves leyendo adelantado el retardo de grupo en continua (de 0,1 muestras al encenderse a 10,4 a 6×, según la velocidad y la frecuencia de muestreo).
 - **Secciones TPT** (SVF con salida de muesca) en lugar de formas directas: cambiar el corte con el filtro sonando no deja transitorios (medido al girar el tempo cerca del umbral: de 2,07× a 1,02× el salto de la propia señal).
 - **Umbral físico, no el tempo nativo:** el filtro solo se enciende cuando las imágenes podrían caer por debajo de 20 kHz (`(sr − 20 kHz)/(sr/2)`), con 2 % de histéresis y fundido de 10 ms. A 97 BPM (el banco de §5) no se filtra.
+- **El diseño sigue a la velocidad a pasos** (≤ 2 % por bloque, con el retardo interpolado dentro del bloque): un salto de tempo grande rediseñado de golpe dejaba un transitorio (revisión, #1). De 240 a 110 BPM tarda ≈ 0,1 s; si se sube de golpe, durante ese tiempo el corte va algo por encima de lo necesario.
 - **Primera reproducción consumible:** elegir un sonido, grabar o cargar una sesión también la consumen, para que no pise lo que el usuario acaba de hacer aunque el estado del audio llegue con retraso.
 - **Pad de VEGA:** las notas de un acorde comparten envolvente, así que se filtra la suma una sola vez.
 
@@ -118,6 +119,7 @@ Ninguna. (Un `npx esbuild` lanzado por error desde la carpeta temporal bajó la 
 ## 10. Propuestas de cambio al plan
 1. PLAN §5, «CPU del audio»: anotar la cifra a 240 BPM con el filtro (65×; peor caso 36×) como referencia, sin criterio nuevo.
 2. Fase 3, tarea 7: el criterio de −60 dB se mide sobre las imágenes del plegado. Las de la propia interpolación de Hermite (presentes a cualquier tempo fraccionario) siguen como en la fase 1.
+3. Fase 3, criterio de render: medirlo en caliente y a 48 kHz (es lo que mide el banco). En frío, el primer bucle de un worker nuevo carga además la compilación del código común; a 96 kHz hay el doble de muestras. Es una vez por sonido y en el worker.
 
 ## 11. Cómo probarlo
 - `npm start` → «Tócalo»: pulsa REPRODUCIR con la sesión vacía (ALFAR en la capa 1 y la capa 2 elegida); SONIDO → cualquier categoría; BUCLE → MARCAR TEMPO y pulsa el dial al ritmo.
@@ -127,4 +129,17 @@ Ninguna. (Un `npx esbuild` lanzado por error desde la carpeta temporal bajó la 
 ---
 
 ## Respuesta a la revisión
+Revisión: `docs/revisiones/fase-3.md` (CAMBIOS NECESARIOS: 0 Bloqueantes, 1 Importante, 6 Menores, 2 Sugerencias).
+
+| Hallazgo | Acción | Commit |
+|---|---|---|
+| #1 Importante: clic con un salto de tempo grande y el filtro encendido | El diseño sigue a la velocidad como mucho un 2 % por bloque y el retardo se interpola dentro del bloque (`voice.ts`, `DESIGN_GLIDE`). 7 tests nuevos con los saltos de la revisión (44,1 kHz 240 → 110 con 441 Hz y 1 kHz; 48 kHz 160 → 110, 180 → 120 con 2 kHz, 110 → 240; 40 BPM 240 → 52, también en reverso), con el criterio de §5. Sin el arreglo fallan 4 (por ejemplo, 0,191 frente a 0,144); con él pasan todos. | ver abajo |
+| #2 Retardo de grupo «2–6 muestras» | Corregido en §5 y en `docs/AUDIO.md`: de 0,1 a 10,4 muestras. | ver abajo |
+| #3 El banco mide en caliente | El criterio se queda en caliente, con las cifras en frío y a 96 kHz en §2, y la propuesta 3 de §10. El banco admite `--rate`. | ver abajo |
+| #4 Doble toque en la primera reproducción | El store absorbe un «reproducir» mientras el sonido de la primera reproducción llega a la capa; parar o pausar cancelan ese arranque. 2 tests del store con el render retenido. | ver abajo |
+| #5 El test «sin junta», débil en baterías | Ventana de 1 ms y un segundo control negativo: OLIVO con una cola de eco a −30 dB cortada al final, que el test detecta. En baterías y texturas, el ataque o el ruido de alrededor tapan una cola así; ahí la falta de junta la da la construcción (búfer circular, `processLooped`, eco en bucle, ruido de un bucle entero y ciclos de vueltas enteras), con sus tests en `synth.spec.ts`. Lo dejo dicho en el test. | ver abajo |
+| #6 La línea de la pantalla parte delante del «·» | Espacio sin ruptura delante de cada «·» en las líneas y el estado de la pantalla HTML. | ver abajo |
+| #7 El e2e de la cola no comprueba el compás *siguiente* | El arnés guarda la muestra del transporte al enviar `set-sound`; el e2e exige que entre en el compás siguiente (o en el de después si la orden cayó en los últimos 40 ms, por el retraso del estado). Pedida hacia la muestra 16 256: entró en la 128 000. | ver abajo |
+| #8 Determinismo por motor | Precisado en `docs/AUDIO.md`: los bytes son fijos en V8; otro motor puede variar en el último bit (el `.torno` guarda el PCM). | ver abajo |
+| #9 Precargar ALFAR | No aplicado: el primer gesto suele ser el propio REPRODUCIR, así que precargar en ese gesto no adelanta nada, y pedir un render antes de un gesto contradice «nada antes de una acción del usuario». Queda medir la primera reproducción en frío en la fase 4, con el móvil. | — |
 

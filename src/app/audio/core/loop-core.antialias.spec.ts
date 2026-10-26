@@ -196,6 +196,34 @@ describe('LoopCore a 240 BPM', () => {
     expect(maxJump(all)).toBeLessThanOrEqual(own + 0.01);
   });
 
+  it.each([
+    [44_100, 1000, 240, 110, 90, false],
+    [44_100, 441, 240, 110, 90, false],
+    [48_000, 1000, 160, 110, 90, false],
+    [48_000, 2000, 180, 120, 90, false],
+    [48_000, 441, 240, 52, 40, false],
+    [48_000, 441, 240, 52, 40, true],
+    [48_000, 1000, 110, 240, 90, false],
+  ] as const)(
+    'sin clics con un salto de tempo grande (%i Hz, tono de %i Hz, de %i a %i BPM, bucle de %i, reverso %s)',
+    (rate, tone, from, to, native, reversed) => {
+      // MARCAR TEMPO salta de golpe: rediseñado de una vez, el filtro dejaba un transitorio (0,191
+      // frente a 0,144 en el primer caso); a pasos, no (revisión de la fase 3, #1).
+      const { sound, hz } = toneLoop(rate, tone, native);
+      const h = new Harness({ sampleRate: rate });
+      h.send({ type: 'set-sound', layer: 0, sound });
+      if (reversed) h.send({ type: 'set-reverse', layer: 0, reversed: true });
+      h.send({ type: 'set-tempo', bpm: from });
+      h.send({ type: 'play' });
+      h.render(rate);
+      h.send({ type: 'set-tempo', bpm: to });
+      const { left } = h.render(rate / 2);
+      // El mayor salto propio: el del tempo más rápido de los dos.
+      const own = 2 * Math.PI * ((hz * Math.max(from, to)) / native / rate) * 0.5 * CENTER;
+      expect(maxJump(left)).toBeLessThanOrEqual(own + 0.01);
+    },
+  );
+
   it('a 240 BPM durante varias vueltas, sin saltos en las juntas del bucle', () => {
     const rate = 48_000;
     const { sound } = toneLoop(rate, 200);

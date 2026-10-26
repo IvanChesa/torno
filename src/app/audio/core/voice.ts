@@ -20,6 +20,12 @@ import type { Clock } from './transport';
 const ANTIALIAS_PREROLL = 512;
 /** Histéresis: se enciende un 2 % por encima del umbral y se apaga en el umbral. */
 const ANTIALIAS_HYSTERESIS = 1.02;
+/**
+ * El diseño del filtro sigue a la velocidad de lectura como mucho un 2 % por bloque: un salto de
+ * tempo grande (MARCAR TEMPO, por ejemplo) rediseñado de golpe deja un transitorio que se oye; a
+ * pasos pequeños, el TPT no lo deja. De 240 a 110 BPM tarda ≈ 0,1 s.
+ */
+const DESIGN_GLIDE = 1.02;
 /** Saltos de la posición (en muestras) que el filtro sigue sin volver a empezar. */
 const MAX_BACKWARD_JUMP = 3;
 const MAX_FORWARD_JUMP = 512;
@@ -60,6 +66,8 @@ export class Voice {
   #ringSlot = 0;
   /** Índice de la última muestra filtrada, en la vuelta de `position` (puede salirse de [0, frames)). */
   #fed = 0;
+  /** Retardo de grupo con el que acabó el bloque anterior (se interpola hasta el nuevo). */
+  #delay = 0;
 
   constructor(
     fade: Float32Array,
@@ -152,8 +160,11 @@ export class Voice {
     const wanted = on ? speed > this.#antialiasOff : speed > this.#antialiasOn;
     const mix = this.#antialiasMix;
     if (wanted) {
-      if (Math.abs(speed - this.#antialias.speed) > 1e-4 * speed) this.#antialias.design(speed);
       if (!this.#antialiasActive) {
+        // Al encenderse empieza vacío: se diseña ya para la velocidad de lectura. Después, el
+        // diseño la sigue a pasos (`DESIGN_GLIDE`, en el render).
+        this.#antialias.design(speed);
+        this.#delay = this.#antialias.delay;
         this.#antialiasActive = true;
         this.#restartAntialias();
       }
@@ -271,18 +282,28 @@ export class Voice {
     const mix = this.#mixGains;
     if (blend) mixRamp.renderInto(mix, frames);
     const filter = this.#antialias;
+    const speed = this.#speed;
+    const designed = filter.speed;
+    if (Math.abs(speed - designed) > 1e-4 * speed) {
+      filter.design(
+        speed > designed
+          ? Math.min(speed, designed * DESIGN_GLIDE)
+          : Math.max(speed, designed / DESIGN_GLIDE),
+      );
+    }
     const ring = this.#ring;
     const data = content.data;
     const n = this.#frames;
-    const speed = this.#speed;
     const reversed = this.reversed;
-    // Se lee lo filtrado adelantado en su retardo de grupo (ver `AntialiasFilter.delay`).
-    const delay = filter.delay;
+    // Se lee lo filtrado adelantado en su retardo de grupo (ver `AntialiasFilter.delay`), que pasa
+    // poco a poco del que había al del diseño nuevo.
+    const delayFrom = this.#delay;
+    const delayStep = (filter.delay - delayFrom) / frames;
     let slot = this.#ringSlot;
     let fed = this.#fed;
     let p = this.position;
     for (let i = 0; i < frames; i++) {
-      const pf = p + delay;
+      const pf = p + delayFrom + delayStep * (i + 1);
       const i1 = pf | 0;
       // Filtra el PCM (en el sentido de lectura) hasta la muestra que pide la interpolación.
       while (fed < i1 + 2) {
@@ -332,6 +353,7 @@ export class Voice {
     this.position = p;
     this.#fed = fed;
     this.#ringSlot = slot;
+    this.#delay = filter.delay;
     if (!mixRamp.ramping && mixRamp.target === 0) this.#antialiasActive = false;
     if (!this.gain.ramping && this.gain.target === 0) this.release();
   }
