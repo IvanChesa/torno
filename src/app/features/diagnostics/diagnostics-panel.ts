@@ -71,6 +71,10 @@ const REFRESH_MS = 1000;
       gap: var(--space-3);
     }
 
+    dt {
+      color: var(--color-ink-muted);
+    }
+
     dd {
       margin: 0;
       overflow-wrap: anywhere;

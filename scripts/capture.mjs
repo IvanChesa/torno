@@ -7,7 +7,7 @@
 //        abierto, con la chuleta de atajos, cargando el audio, con el error de «Reintentar» y
 //        ofreciendo recuperar la sesión anterior; desde la fase 3, el menú SONIDO con la colección,
 //        MARCAR TEMPO, un cambio EN COLA y el panel de recuperar con los dos huecos y su
-//        confirmación.
+//        confirmación; desde la fase 4, el panel de diagnóstico (`?diagnostico=1`).
 /* global document, AudioWorklet -- se usan dentro de page.evaluate() y addInitScript(), en la página */
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -93,6 +93,11 @@ try {
     await page.keyboard.press('?');
     await page.getByRole('heading', { name: 'Atajos de teclado' }).waitFor();
     await shootInstrument(page, 'atajos', viewport.name);
+
+    // El panel de diagnóstico, antes de tocar (sin cifras que cambien de una vez a otra).
+    await openHome(page, `${home}&diagnostico=1`);
+    await page.getByRole('region', { name: 'Diagnóstico del audio' }).waitFor();
+    await shootInstrument(page, 'diagnostico', viewport.name);
 
     // SONIDO → BATERÍA: los tres bucles y APAGADO.
     main = await openHome(page, home);
