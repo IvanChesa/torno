@@ -31,7 +31,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: CI,
   retries: CI ? 1 : 0,
-  reporter: CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  // En el CI, «github» deja cada fallo como anotación del commit, visible sin abrir el registro.
+  reporter: CI ? [['list'], ['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     locale: 'es-ES',
     trace: 'retain-on-failure',
