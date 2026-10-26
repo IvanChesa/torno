@@ -44,7 +44,7 @@ import {
   type TornoSettings,
 } from '../files/torno-format';
 import { createZip } from '../files/zip';
-import { clearAutosave, loadAutosave, saveAutosave } from './autosave';
+import { clearAutosave, loadAutosave, saveAutosave, type AutosaveSlot } from './autosave';
 import { download, fileStamp } from './download';
 import {
   autoLatencySeconds,
@@ -154,6 +154,9 @@ export class AudioEngine {
   #exporter: Worker | null = null;
   #autosaveTimer: ReturnType<typeof setTimeout> | undefined;
   #autosaveSettings: TornoSettings | null = null;
+  #autosaveSlot: AutosaveSlot = 'main';
+  /** Sube al cancelar: un autoguardado que ya estaba copiando la sesión no llega a escribir. */
+  #autosaveGeneration = 0;
   readonly #sounds = new Map<string, { pcm: Float32Array; lengthBeats: number }>();
 
   constructor() {
@@ -731,38 +734,57 @@ export class AudioEngine {
   // --- Autoguardado ------------------------------------------------------------------------------
 
   /**
-   * Pide un autoguardado (con antirrebote) tras una edición confirmada. Durante una toma se espera a
-   * que termine; una sesión vacía borra el autoguardado.
+   * Pide un autoguardado (con antirrebote) tras una edición confirmada, en el hueco `slot`. Durante
+   * una toma se espera a que termine; una sesión vacía vacía ese hueco.
    */
-  scheduleAutosave(settings: TornoSettings): void {
+  scheduleAutosave(settings: TornoSettings, slot: AutosaveSlot = 'main'): void {
     this.#autosaveSettings = settings;
+    this.#autosaveSlot = slot;
     clearTimeout(this.#autosaveTimer);
     this.#autosaveTimer = setTimeout(() => void this.#autosave(), AUTOSAVE_DELAY_MS);
   }
 
+  /** Olvida el autoguardado pendiente (también uno que ya estuviera copiando la sesión). */
+  cancelAutosave(): void {
+    clearTimeout(this.#autosaveTimer);
+    this.#autosaveTimer = undefined;
+    this.#autosaveGeneration++;
+  }
+
+  /** Autoguarda ya, sin antirrebote, en el hueco `slot` (al contestar el panel de recuperar). */
+  autosaveNow(settings: TornoSettings, slot: AutosaveSlot): Promise<void> {
+    this.cancelAutosave();
+    this.#autosaveSettings = settings;
+    this.#autosaveSlot = slot;
+    return this.#autosave();
+  }
+
   async #autosave(): Promise<void> {
     const settings = this.#autosaveSettings;
+    const slot = this.#autosaveSlot;
+    const generation = this.#autosaveGeneration;
     if (!settings || !this.#node) return;
     if (this.#status && this.#status.recording !== 'idle') {
-      this.scheduleAutosave(settings);
+      this.scheduleAutosave(settings, slot);
       return;
     }
     try {
       const session = await this.copySession();
+      if (generation !== this.#autosaveGeneration) return;
       if (session.layers.every((layer) => !layer.pcm)) {
-        await clearAutosave();
+        await clearAutosave(slot);
         return;
       }
-      const result = await saveAutosave(writeTorno(session, settings).buffer);
+      const result = await saveAutosave(writeTorno(session, settings).buffer, slot);
       if (result === 'quota') this.#emit({ type: 'problem', code: 'autosave-quota' });
     } catch {
       // Sin respuesta del núcleo (reposo, pestaña cerrándose): se intentará en la próxima edición.
     }
   }
 
-  /** Carga la sesión autoguardada. Devuelve sus ajustes, o `null` si no hay o no vale. */
-  async recoverAutosave(): Promise<TornoSettings | null> {
-    const saved = await loadAutosave();
+  /** Carga la sesión autoguardada en `slot`. Devuelve sus ajustes, o `null` si no hay o no vale. */
+  async recoverAutosave(slot: AutosaveSlot = 'main'): Promise<TornoSettings | null> {
+    const saved = await loadAutosave(slot);
     if (!saved) return null;
     return this.#loadTorno(saved.bytes);
   }

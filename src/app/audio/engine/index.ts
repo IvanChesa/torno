@@ -3,6 +3,7 @@
  * Entra en el bundle inicial, así que solo lleva el desbloqueo en el gesto (§4.9, < 2 kB) y tipos;
  * el motor se carga con `import()`.
  */
+import type { AutosaveDates, AutosaveSlot } from './autosave';
 import type { AudioEngine } from './engine';
 
 export {
@@ -33,20 +34,26 @@ export type {
 } from '../core/protocol';
 
 export type { TornoSettings } from '../files/torno-format';
+export type { AutosaveDates, AutosaveSlot } from './autosave';
 
 let loading: Promise<AudioEngine> | undefined;
 
 /**
- * Cuándo se autoguardó la sesión que se puede recuperar (o `null`). Solo lee IndexedDB: no carga el
- * motor ni toca el audio.
+ * Cuándo se autoguardó cada hueco (la sesión anterior y la que se tocó sin contestar el panel de
+ * recuperar). Solo lee IndexedDB: no carga el motor ni toca el audio.
  */
-export async function autosavedAt(): Promise<number | null> {
-  return (await import('./autosave')).autosaveDate();
+export async function autosaveDates(): Promise<AutosaveDates> {
+  return (await import('./autosave')).autosaveDates();
 }
 
-/** Borra el autoguardado de este navegador. */
-export async function deleteAutosave(): Promise<boolean> {
-  return (await import('./autosave')).clearAutosave();
+/** Borra un hueco del autoguardado de este navegador, o los dos. */
+export async function deleteAutosave(slot?: AutosaveSlot): Promise<boolean> {
+  return (await import('./autosave')).clearAutosave(slot);
+}
+
+/** Pasa la sesión del hueco nuevo al principal (al recuperarla, o si solo queda esa). */
+export async function promoteAutosave(): Promise<boolean> {
+  return (await import('./autosave')).promotePendingAutosave();
 }
 
 /** Carga el motor (una vez) y devuelve la instancia única. */

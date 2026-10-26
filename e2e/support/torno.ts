@@ -65,13 +65,13 @@ export function clickOnsetOffset(sampleRate: number, frequency: number, gain: nu
 }
 
 /**
- * La fecha del autoguardado de la página (o `null`), leída de IndexedDB con los nombres de
- * `src/app/audio/engine/autosave.ts`. Si la base no existe, no la crea. Borrar es asíncrono:
+ * La fecha de un hueco del autoguardado de la página (o `null`), leída de IndexedDB con los nombres
+ * de `src/app/audio/engine/autosave.ts`. Si la base no existe, no la crea. Borrar es asíncrono:
  * los tests esperan con esto a que termine antes de recargar.
  */
-export function autosavedAt(page: Page): Promise<number | null> {
+export function autosavedAt(page: Page, slot: 'main' | 'pending' = 'main'): Promise<number | null> {
   return page.evaluate(
-    () =>
+    (key) =>
       new Promise<number | null>((resolve) => {
         const request = indexedDB.open('torno');
         request.onupgradeneeded = () => request.transaction?.abort();
@@ -79,10 +79,7 @@ export function autosavedAt(page: Page): Promise<number | null> {
         request.onsuccess = () => {
           const database = request.result;
           try {
-            const get = database
-              .transaction('autoguardado')
-              .objectStore('autoguardado')
-              .get('fecha');
+            const get = database.transaction('autoguardado').objectStore('autoguardado').get(key);
             get.onsuccess = () => resolve(typeof get.result === 'number' ? get.result : null);
             get.onerror = () => resolve(null);
           } catch {
@@ -92,6 +89,7 @@ export function autosavedAt(page: Page): Promise<number | null> {
           }
         };
       }),
+    slot === 'main' ? 'fecha' : 'fecha-nueva',
   );
 }
 

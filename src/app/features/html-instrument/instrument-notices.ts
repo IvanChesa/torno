@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { SESSION_CONTENT, SessionStore } from '../../state';
 import { HTML_INSTRUMENT_CONTENT } from './html-instrument.content';
 
@@ -37,17 +37,51 @@ import { HTML_INSTRUMENT_CONTENT } from './html-instrument.content';
         }
       }
     </p>
-    @if (recoveryDate(); as date) {
+    @if (recoveryDates(); as dates) {
       <div class="panel">
-        <p>{{ recoveryText.question(date) }}</p>
-        <div class="actions">
-          <button type="button" class="button" data-audio-unlock (click)="store.recover()">
-            {{ recoveryText.recover }}
-          </button>
-          <button type="button" class="button button--secondary" (click)="store.discardAutosave()">
-            {{ recoveryText.discard }}
-          </button>
-        </div>
+        @if (store.confirmRecover(); as slot) {
+          <p>{{ recoveryText.confirm }}</p>
+          <div class="actions">
+            <button
+              #cancelRecover
+              type="button"
+              class="button button--secondary"
+              (click)="store.cancelRecover()"
+            >
+              {{ recoveryText.cancel }}
+            </button>
+            <button type="button" class="button" data-audio-unlock (click)="store.recover(slot)">
+              {{ recoveryText.confirmRecover }}
+            </button>
+          </div>
+        } @else {
+          <p>{{ recoveryText.question(dates.main) }}</p>
+          @if (dates.pending; as pending) {
+            <p>{{ recoveryText.pendingQuestion(pending) }}</p>
+          }
+          <div class="actions">
+            <button type="button" class="button" data-audio-unlock (click)="store.recover()">
+              {{ recoveryText.recover }}
+            </button>
+            @if (dates.pending) {
+              <button
+                type="button"
+                class="button"
+                data-audio-unlock
+                (click)="store.recover('pending')"
+              >
+                {{ recoveryText.recoverPending }}
+              </button>
+            }
+            <button
+              type="button"
+              class="button button--secondary"
+              (click)="store.discardAutosave()"
+            >
+              {{ recoveryText.discard }}
+            </button>
+          </div>
+        }
       </div>
     }
     @if (store.state().help) {
@@ -172,12 +206,22 @@ export class InstrumentNotices {
     return this.store.engineState() === 'error' && error ? SESSION_CONTENT.problems[error] : null;
   });
 
-  protected readonly recoveryDate = computed(() => {
-    const savedAt = this.store.recovery();
-    return savedAt === null
-      ? null
-      : new Intl.DateTimeFormat('es-ES', { dateStyle: 'long', timeStyle: 'short' }).format(savedAt);
+  protected readonly recoveryDates = computed(() => {
+    const recovery = this.store.recovery();
+    if (!recovery) return null;
+    const format = new Intl.DateTimeFormat('es-ES', { dateStyle: 'long', timeStyle: 'short' });
+    return {
+      main: format.format(recovery.main),
+      pending: recovery.pending === null ? null : format.format(recovery.pending),
+    };
   });
+
+  /** «Cancelar», el primero al pedir confirmación: el foco pasa a él (el botón pulsado se ha ido). */
+  private readonly cancelRecoverButton = viewChild<ElementRef<HTMLButtonElement>>('cancelRecover');
+
+  constructor() {
+    effect(() => this.cancelRecoverButton()?.nativeElement.focus());
+  }
 
   protected closeHelp(): void {
     this.store.input({ type: 'toggle-help' });

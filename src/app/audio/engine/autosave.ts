@@ -3,19 +3,34 @@
  * navegador. Nunca sale del dispositivo. Todo va con `try/catch`: sin IndexedDB (modo privado,
  * navegador antiguo) el autoguardado simplemente no está, y la cuota llena se avisa.
  *
+ * Dos huecos (decisión de Iván, 26-10): `main` es la sesión de siempre; `pending`, lo que se toca
+ * mientras el panel de recuperar sigue sin contestar, para no pisar la sesión anterior. Al
+ * contestar, queda solo `main`.
+ *
  * La fecha va en su propia clave: saber si hay algo que recuperar no lee el archivo entero.
  */
 
 const DATABASE = 'torno';
 const STORE = 'autoguardado';
-const BYTES_KEY = 'sesion';
-const DATE_KEY = 'fecha';
+
+export type AutosaveSlot = 'main' | 'pending';
+
+const KEYS: Record<AutosaveSlot, { readonly bytes: string; readonly date: string }> = {
+  main: { bytes: 'sesion', date: 'fecha' },
+  pending: { bytes: 'sesion-nueva', date: 'fecha-nueva' },
+};
 
 export interface Autosave {
   /** El `.torno` entero. */
   readonly bytes: ArrayBuffer;
   /** Cuándo se guardó (ms desde 1970). */
   readonly savedAt: number;
+}
+
+/** Cuándo se autoguardó cada hueco (ms desde 1970), o `null` si está vacío. */
+export interface AutosaveDates {
+  readonly main: number | null;
+  readonly pending: number | null;
 }
 
 export type AutosaveResult = 'saved' | 'quota' | 'unavailable';
@@ -49,11 +64,14 @@ async function transaction<T>(
   }
 }
 
-export async function saveAutosave(bytes: ArrayBuffer): Promise<AutosaveResult> {
+export async function saveAutosave(
+  bytes: ArrayBuffer,
+  slot: AutosaveSlot = 'main',
+): Promise<AutosaveResult> {
   try {
     await transaction('readwrite', (store) => {
-      store.put(bytes, BYTES_KEY);
-      store.put(Date.now(), DATE_KEY);
+      store.put(bytes, KEYS[slot].bytes);
+      store.put(Date.now(), KEYS[slot].date);
       return () => undefined;
     });
     return 'saved';
@@ -64,24 +82,31 @@ export async function saveAutosave(bytes: ArrayBuffer): Promise<AutosaveResult> 
   }
 }
 
-/** Cuándo se autoguardó la sesión que hay, o `null` si no hay ninguna. */
-export async function autosaveDate(): Promise<number | null> {
+/** Las fechas de los dos huecos (las dos `null` si no hay nada o no hay IndexedDB). */
+export async function autosaveDates(): Promise<AutosaveDates> {
   try {
-    const value = await transaction('readonly', (store) => {
-      const request = store.get(DATE_KEY);
-      return () => request.result as unknown;
+    const { main, pending } = await transaction('readonly', (store) => {
+      const mainRequest = store.get(KEYS.main.date);
+      const pendingRequest = store.get(KEYS.pending.date);
+      return () => ({
+        main: mainRequest.result as unknown,
+        pending: pendingRequest.result as unknown,
+      });
     });
-    return typeof value === 'number' ? value : null;
+    return {
+      main: typeof main === 'number' ? main : null,
+      pending: typeof pending === 'number' ? pending : null,
+    };
   } catch {
-    return null;
+    return { main: null, pending: null };
   }
 }
 
-export async function loadAutosave(): Promise<Autosave | null> {
+export async function loadAutosave(slot: AutosaveSlot = 'main'): Promise<Autosave | null> {
   try {
     const { bytes, savedAt } = await transaction('readonly', (store) => {
-      const bytesRequest = store.get(BYTES_KEY);
-      const dateRequest = store.get(DATE_KEY);
+      const bytesRequest = store.get(KEYS[slot].bytes);
+      const dateRequest = store.get(KEYS[slot].date);
       return () => ({
         bytes: bytesRequest.result as unknown,
         savedAt: dateRequest.result as unknown,
@@ -93,11 +118,40 @@ export async function loadAutosave(): Promise<Autosave | null> {
   }
 }
 
-export async function clearAutosave(): Promise<boolean> {
+/** Borra un hueco, o los dos si no se dice cuál. */
+export async function clearAutosave(slot?: AutosaveSlot): Promise<boolean> {
   try {
     await transaction('readwrite', (store) => {
-      store.delete(BYTES_KEY);
-      store.delete(DATE_KEY);
+      for (const key of slot ? [slot] : (['main', 'pending'] as const)) {
+        store.delete(KEYS[key].bytes);
+        store.delete(KEYS[key].date);
+      }
+      return () => undefined;
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Pasa el hueco `pending` a `main` en una sola transacción (si `pending` está vacío, no cambia
+ * nada). Para cuando solo queda el hueco nuevo.
+ */
+export async function promotePendingAutosave(): Promise<boolean> {
+  try {
+    await transaction('readwrite', (store) => {
+      const bytesRequest = store.get(KEYS.pending.bytes);
+      const dateRequest = store.get(KEYS.pending.date);
+      dateRequest.onsuccess = () => {
+        const bytes = bytesRequest.result as unknown;
+        const savedAt = dateRequest.result as unknown;
+        if (!(bytes instanceof ArrayBuffer) || typeof savedAt !== 'number') return;
+        store.put(bytes, KEYS.main.bytes);
+        store.put(savedAt, KEYS.main.date);
+        store.delete(KEYS.pending.bytes);
+        store.delete(KEYS.pending.date);
+      };
       return () => undefined;
     });
     return true;

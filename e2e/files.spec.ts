@@ -284,6 +284,59 @@ test.describe('archivos', () => {
     await expect(page.getByRole('button', { name: 'Recuperar la sesión anterior' })).toBeHidden();
   });
 
+  test('autoguardado con el panel sin contestar: lo nuevo va al segundo hueco y siguen las dos', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await instrumentAudio(page);
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    await twoLayers(driver);
+    const before = await saveSession(driver);
+    // El autoguardado espera 1,5 s tras la última edición.
+    await page.waitForTimeout(2500);
+    const previousAt = await autosavedAt(page);
+    expect(previousAt).not.toBeNull();
+
+    // Recargar y tocar sin contestar al panel: una capa nueva en la 3.
+    await driver.open();
+    const recover = page.getByRole('button', { name: 'Recuperar la sesión anterior' });
+    await expect(recover).toBeVisible();
+    await driver.key('main', '3');
+    await driver.chooseSound(MENU.categories.chords);
+    await driver.expectScreen('CAPA 3 · ACORDES');
+    await expect.poll(() => autosavedAt(page, 'pending'), { timeout: 10_000 }).not.toBeNull();
+    const touched = await saveSession(driver);
+    // La sesión anterior sigue intacta.
+    expect(await autosavedAt(page)).toBe(previousAt);
+
+    // Recargar otra vez sin contestar: se ofrecen las dos.
+    await driver.open();
+    const recoverPending = page.getByRole('button', { name: 'Recuperar lo que tocaste después' });
+    await expect(recover).toBeVisible();
+    await expect(recoverPending).toBeVisible();
+
+    // Se toca algo con sonido y luego «Recuperar»: pide confirmación, con «Cancelar» primero.
+    await driver.chooseSound(MENU.categories.drums);
+    await driver.expectScreen('CAPA 1 · BATERÍA');
+    await recover.click();
+    const cancel = page.getByRole('button', { name: 'Cancelar' });
+    await expect(cancel).toBeFocused();
+    await cancel.click();
+    await expect(recoverPending).toBeVisible();
+    // Lo último que se tocó antes de recargar, confirmado: vuelve esa sesión y queda un solo hueco.
+    await recoverPending.click();
+    await page.getByRole('button', { name: 'Recuperar', exact: true }).click();
+    await driver.expectScreen('SESIÓN RECUPERADA');
+    // En esa sesión solo estaban los acordes de la capa 3.
+    await driver.expectScreen('CAPA 1 · VACÍA');
+    const recovered = await saveSession(driver);
+    expect(Buffer.from(recovered.bytes).equals(Buffer.from(touched.bytes))).toBe(true);
+    expect(Buffer.from(recovered.bytes).equals(Buffer.from(before.bytes))).toBe(false);
+    await expect.poll(() => autosavedAt(page, 'pending')).toBeNull();
+    expect(await autosavedAt(page)).not.toBeNull();
+  });
+
   test('recuperar con el audio aún cargando o en reposo espera y recupera la misma sesión', async ({
     page,
   }) => {

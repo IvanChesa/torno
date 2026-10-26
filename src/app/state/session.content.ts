@@ -99,7 +99,14 @@ export const SESSION_CONTENT = {
 
   recovery: {
     question: (date: string) => `Hay una sesión autoguardada en este navegador (${date}).`,
+    pendingQuestion: (date: string) =>
+      `También se guardó lo que tocaste después sin contestar a esto (${date}).`,
     recover: 'Recuperar la sesión anterior',
+    recoverPending: 'Recuperar lo que tocaste después',
     discard: 'Empezar de cero',
+    confirm:
+      'Lo que has tocado desde que abriste la página se perderá. ¿Recuperar la sesión guardada?',
+    cancel: 'Cancelar',
+    confirmRecover: 'Recuperar',
   },
 } as const;

@@ -12,13 +12,16 @@
  */
 import { computed, inject, InjectionToken, Service, signal } from '@angular/core';
 import {
-  autosavedAt,
+  autosaveDates,
   deleteAutosave,
   loadAudioEngine,
   missedAudioGesture,
   onAudioUnlock,
   preloadAudioEngine,
+  promoteAutosave,
   type AudioEngine,
+  type AutosaveDates,
+  type AutosaveSlot,
   type CoreStatus,
   type EngineErrorCode,
   type EngineEvent,
@@ -78,15 +81,25 @@ export type StoreEngineState = EngineState | 'off';
 /** Lo que el store usa del motor (inyectable: los tests ponen uno de mentira). */
 export interface AudioEngineApi {
   load(): Promise<AudioEngine>;
-  autosavedAt(): Promise<number | null>;
-  deleteAutosave(): Promise<boolean>;
+  autosaveDates(): Promise<AutosaveDates>;
+  deleteAutosave(slot?: AutosaveSlot): Promise<boolean>;
+  promoteAutosave(): Promise<boolean>;
 }
 
 export const AUDIO_ENGINE_API = new InjectionToken<AudioEngineApi>('AUDIO_ENGINE_API', {
   providedIn: 'root',
-  factory: () => ({ load: loadAudioEngine, autosavedAt, deleteAutosave }),
+  factory: () => ({ load: loadAudioEngine, autosaveDates, deleteAutosave, promoteAutosave }),
 });
 export type Busy = 'idle' | 'calibrating' | 'exporting' | 'saving' | 'opening' | 'recovering';
+
+/**
+ * Lo que se puede recuperar al volver (PLAN §4.8): la sesión anterior (`main`) y, si se tocó algo
+ * sin contestar al panel y se recargó, también eso (`pending`). Fechas en ms desde 1970.
+ */
+export interface Recovery {
+  readonly main: number;
+  readonly pending: number | null;
+}
 
 export interface StoreMessage extends MessageText {
   readonly id: number;
@@ -124,7 +137,8 @@ export class SessionStore {
   readonly #mic = signal<MicState>('off');
   readonly #message = signal<StoreMessage | null>(null);
   readonly #busy = signal<Busy>('idle');
-  readonly #recovery = signal<number | null>(null);
+  readonly #recovery = signal<Recovery | null>(null);
+  readonly #confirmRecover = signal<AutosaveSlot | null>(null);
   /** Un toque llegó antes de que el JS pudiera activar el sonido (se lee al crear el store). */
   readonly #needsGesture = signal(missedAudioGesture());
   readonly #autoLatencyMs = signal(0);
@@ -139,8 +153,10 @@ export class SessionStore {
   readonly mic = this.#mic.asReadonly();
   readonly message = this.#message.asReadonly();
   readonly busy = this.#busy.asReadonly();
-  /** Fecha de una sesión autoguardada que se puede recuperar (o `null`). */
+  /** Las sesiones autoguardadas que se pueden recuperar (o `null`). */
   readonly recovery = this.#recovery.asReadonly();
+  /** «Recuperar» espera confirmación (hay sonido en la sesión actual que se perdería). */
+  readonly confirmRecover = this.#confirmRecover.asReadonly();
   /** Un toque llegó antes de poder activar el sonido: hay que pedir otro. */
   readonly needsGesture = computed(
     () => this.#needsGesture() || this.#engineState() === 'needs-gesture',
@@ -263,19 +279,34 @@ export class SessionStore {
     }
   }
 
-  /** Mira si hay una sesión autoguardada (solo lee IndexedDB: no toca el audio). */
+  /**
+   * Mira si hay una sesión autoguardada (solo lee IndexedDB: no toca el audio). Si solo quedó el
+   * hueco nuevo (se borró el principal a medias), pasa a ser la sesión anterior.
+   */
   async checkAutosave(): Promise<void> {
-    this.#recovery.set(await this.#api.autosavedAt());
+    let { main, pending } = await this.#api.autosaveDates();
+    if (main === null && pending !== null) {
+      await this.#api.promoteAutosave();
+      [main, pending] = [pending, null];
+    }
+    this.#recovery.set(main === null ? null : { main, pending });
   }
 
   /**
-   * «Recuperar la sesión anterior» (desde un gesto). Espera a que el audio esté listo (sale del
-   * reposo dentro del gesto, o reintenta la carga si el audio no cargó a tiempo) y no suelta la
-   * sesión guardada hasta haberla cargado: mientras tanto, el autoguardado no la pisa. Si el audio
-   * no arranca, el panel sigue y se avisa.
+   * «Recuperar la sesión anterior» (o lo que se tocó sin contestar, `slot = 'pending'`), desde un
+   * gesto. Si la sesión actual ya tiene sonido, primero pide confirmación (`confirmRecover`).
+   * Espera a que el audio esté listo (sale del reposo dentro del gesto, o reintenta la carga si el
+   * audio no cargó a tiempo) y no suelta la sesión guardada hasta haberla cargado: mientras tanto, lo
+   * nuevo se autoguarda en el otro hueco. Si el audio no arranca, el panel sigue y se avisa. Al
+   * recuperar, queda un solo hueco: el de la sesión recuperada.
    */
-  async recover(): Promise<void> {
+  async recover(slot: AutosaveSlot = 'main'): Promise<void> {
     if (this.#busy() === 'recovering') return;
+    if (this.#hasContent() && this.#confirmRecover() !== slot) {
+      this.#confirmRecover.set(slot);
+      return;
+    }
+    this.#confirmRecover.set(null);
     if (this.#engine?.state === 'standby') this.#engine.wake();
     else if (this.#engine?.state === 'error') this.retry();
     this.#busy.set('recovering');
@@ -285,7 +316,12 @@ export class SessionStore {
         this.#show(text.messages.recoverLater, 'error');
         return;
       }
-      const settings = await engine.recoverAutosave();
+      engine.cancelAutosave();
+      const settings = await engine.recoverAutosave(slot);
+      if (settings) {
+        if (slot === 'pending') await this.#api.promoteAutosave();
+        else await this.#api.deleteAutosave('pending');
+      }
       this.#recovery.set(null);
       if (settings) {
         this.#loaded(settings, text.messages.recovered);
@@ -296,16 +332,38 @@ export class SessionStore {
     }
   }
 
-  /** «Empezar de cero»: borra el autoguardado. */
-  async discardAutosave(): Promise<void> {
-    this.#recovery.set(null);
-    await this.#api.deleteAutosave();
+  /** Vuelve del paso de confirmar «Recuperar» al panel. */
+  cancelRecover(): void {
+    this.#confirmRecover.set(null);
   }
 
-  /** Borrar el autoguardado desde la web o el menú. */
+  /**
+   * «Empezar de cero»: borra la sesión anterior. Si ya se ha tocado algo con sonido, eso pasa a ser
+   * la sesión autoguardada (un solo hueco).
+   */
+  async discardAutosave(): Promise<void> {
+    this.#recovery.set(null);
+    this.#confirmRecover.set(null);
+    if (this.#engine && this.#hasContent()) {
+      await this.#engine.autosaveNow(this.#tornoSettings(), 'main');
+      await this.#api.deleteAutosave('pending');
+    } else {
+      this.#engine?.cancelAutosave();
+      await this.#api.deleteAutosave();
+    }
+  }
+
+  /** Borrar el autoguardado (los dos huecos) desde la web o el menú. */
   async clearAutosave(): Promise<void> {
     this.#recovery.set(null);
+    this.#confirmRecover.set(null);
+    this.#engine?.cancelAutosave();
     if (await this.#api.deleteAutosave()) this.#show(text.messages.autosaveCleared);
+  }
+
+  /** Si alguna capa de la sesión actual tiene sonido (lo que se perdería al recuperar otra). */
+  #hasContent(): boolean {
+    return (this.#latest?.layers ?? []).some((layer) => layer.hasContent);
   }
 
   // --- Intenciones ------------------------------------------------------------------------------
@@ -483,10 +541,13 @@ export class SessionStore {
     return { takeBars, countIn, metronome, fitTempo, inputGain };
   }
 
-  /** Autoguardado tras una edición (no mientras haya una sesión anterior sin recuperar). */
+  /**
+   * Autoguardado tras una edición. Mientras el panel de recuperar sigue sin contestar, va al hueco
+   * nuevo y no pisa la sesión anterior.
+   */
   #autosave(): void {
-    if (this.#recovery() !== null) return;
-    this.#engine?.scheduleAutosave(this.#tornoSettings());
+    const slot = this.#recovery() === null ? 'main' : 'pending';
+    this.#engine?.scheduleAutosave(this.#tornoSettings(), slot);
   }
 
   // --- Eventos del motor ------------------------------------------------------------------------

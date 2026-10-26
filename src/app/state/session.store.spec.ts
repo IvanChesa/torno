@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import type {
   AudioEngine,
+  AutosaveDates,
+  AutosaveSlot,
   CoreStatus,
   EngineEvent,
   EngineState,
@@ -8,7 +10,12 @@ import type {
   Notice,
   TornoSettings,
 } from '../audio/engine';
-import { AUDIO_ENGINE_API, SessionStore, STATUS_INTERVAL_MS } from './session.store';
+import {
+  AUDIO_ENGINE_API,
+  SessionStore,
+  STATUS_INTERVAL_MS,
+  type AudioEngineApi,
+} from './session.store';
 
 /** Un motor de mentira: apunta lo que se le pide y deja emitir eventos. */
 class FakeEngine {
@@ -80,8 +87,14 @@ class FakeEngine {
   async exportStems(): Promise<void> {
     this.#log('exportStems');
   }
-  scheduleAutosave(settings: unknown): void {
-    this.#log('scheduleAutosave', settings);
+  scheduleAutosave(settings: unknown, slot: unknown): void {
+    this.#log('scheduleAutosave', settings, slot);
+  }
+  cancelAutosave(): void {
+    this.#log('cancelAutosave');
+  }
+  async autosaveNow(settings: unknown, slot: unknown): Promise<void> {
+    this.#log('autosaveNow', settings, slot);
   }
   /** Lo que devuelve `openFile`: los ajustes, `null` (el motor ya ha avisado) o un fallo. */
   opened: TornoSettings | null | 'throw' = null;
@@ -92,8 +105,8 @@ class FakeEngine {
   }
   /** Lo que devuelve `recoverAutosave`: los ajustes de la sesión autoguardada. */
   recovered: TornoSettings | null = null;
-  async recoverAutosave(): Promise<TornoSettings | null> {
-    this.#log('recoverAutosave');
+  async recoverAutosave(slot: unknown): Promise<TornoSettings | null> {
+    this.#log('recoverAutosave', slot);
     return this.recovered;
   }
   sent(): unknown[] {
@@ -154,24 +167,48 @@ const notice = (change: Partial<Notice>): Notice => ({
   ...change,
 });
 
-async function setup(): Promise<{ store: SessionStore; engine: FakeEngine }> {
+/** Los dos huecos del autoguardado, de mentira: fechas y lo que se ha pedido borrar o pasar. */
+class FakeAutosave {
+  dates: AutosaveDates = { main: 1_700_000_000_000, pending: null };
+  readonly calls: unknown[][] = [];
+  readonly api: Omit<AudioEngineApi, 'load'> = {
+    autosaveDates: async () => this.dates,
+    deleteAutosave: async (slot?: AutosaveSlot) => {
+      this.calls.push(['delete', slot ?? 'both']);
+      return true;
+    },
+    promoteAutosave: async () => {
+      this.calls.push(['promote']);
+      return true;
+    },
+  };
+}
+
+async function setup(): Promise<{
+  store: SessionStore;
+  engine: FakeEngine;
+  autosave: FakeAutosave;
+}> {
   const engine = new FakeEngine();
+  const autosave = new FakeAutosave();
   TestBed.configureTestingModule({
     providers: [
       {
         provide: AUDIO_ENGINE_API,
-        useValue: {
-          load: async () => engine as unknown as AudioEngine,
-          autosavedAt: async () => 1_700_000_000_000,
-          deleteAutosave: async () => true,
-        },
+        useValue: { load: async () => engine as unknown as AudioEngine, ...autosave.api },
       },
     ],
   });
   const store = TestBed.inject(SessionStore);
   await store.start();
-  return { store, engine };
+  return { store, engine, autosave };
 }
+
+/** La sesión actual con sonido en la capa 1. */
+const withContent = (): EngineEvent => ({
+  type: 'status',
+  status: status({ layers: [layer({ hasContent: true }), layer(), layer(), layer()] }),
+});
 
 describe('SessionStore', () => {
   afterEach(() => vi.useRealTimers());
@@ -301,11 +338,91 @@ describe('SessionStore', () => {
   });
 
   it('autoguardado: ofrece recuperar y, al empezar de cero, lo borra', async () => {
-    const { store } = await setup();
+    const { store, autosave } = await setup();
     await store.checkAutosave();
-    expect(store.recovery()).toBe(1_700_000_000_000);
+    expect(store.recovery()).toEqual({ main: 1_700_000_000_000, pending: null });
     await store.discardAutosave();
     expect(store.recovery()).toBeNull();
+    expect(autosave.calls).toEqual([['delete', 'both']]);
+  });
+
+  it('con el panel sin contestar, lo nuevo va al segundo hueco y la sesión anterior no se toca', async () => {
+    const { store, engine } = await setup();
+    const lastSlot = () =>
+      engine.calls.filter((call) => call[0] === 'scheduleAutosave').at(-1)?.[2];
+    store.input({ type: 'turn', control: 'layer-0', steps: -5 });
+    expect(lastSlot()).toBe('main');
+    await store.checkAutosave();
+    store.input({ type: 'turn', control: 'layer-0', steps: -5 });
+    expect(lastSlot()).toBe('pending');
+  });
+
+  it('si hay sonido en la sesión actual, «Recuperar» pide confirmación y queda un solo hueco', async () => {
+    const { store, engine, autosave } = await setup();
+    await store.checkAutosave();
+    engine.recovered = {
+      takeBars: 1,
+      countIn: true,
+      metronome: false,
+      fitTempo: true,
+      inputGain: 1,
+    };
+    engine.emit(withContent());
+    await store.recover();
+    expect(store.confirmRecover()).toBe('main');
+    expect(engine.calls.some((call) => call[0] === 'recoverAutosave')).toBe(false);
+    // «Cancelar» vuelve al panel sin cambiar nada.
+    store.cancelRecover();
+    expect(store.confirmRecover()).toBeNull();
+    expect(store.recovery()).not.toBeNull();
+    // Confirmado (segunda pulsación): recupera la anterior y borra el hueco nuevo.
+    await store.recover();
+    await store.recover();
+    expect(engine.calls).toContainEqual(['recoverAutosave', 'main']);
+    expect(engine.calls.map((call) => call[0])).toContain('cancelAutosave');
+    expect(autosave.calls).toEqual([['delete', 'pending']]);
+    expect(store.recovery()).toBeNull();
+    expect(store.confirmRecover()).toBeNull();
+  });
+
+  it('tras recargar sin contestar se ofrecen las dos; recuperar la nueva la pasa al hueco principal', async () => {
+    const { store, engine, autosave } = await setup();
+    autosave.dates = { main: 1_700_000_000_000, pending: 1_700_000_600_000 };
+    await store.checkAutosave();
+    expect(store.recovery()).toEqual({ main: 1_700_000_000_000, pending: 1_700_000_600_000 });
+    engine.recovered = {
+      takeBars: 2,
+      countIn: true,
+      metronome: false,
+      fitTempo: true,
+      inputGain: 1,
+    };
+    // Sin sonido en la sesión actual: no hace falta confirmar.
+    await store.recover('pending');
+    expect(engine.calls).toContainEqual(['recoverAutosave', 'pending']);
+    expect(autosave.calls).toEqual([['promote']]);
+    expect(store.recovery()).toBeNull();
+    expect(store.state().settings.takeBars).toBe(2);
+  });
+
+  it('«Empezar de cero» con sonido en la sesión actual la deja como la única autoguardada', async () => {
+    const { store, engine, autosave } = await setup();
+    await store.checkAutosave();
+    engine.emit(withContent());
+    await store.discardAutosave();
+    expect(engine.calls.filter((call) => call[0] === 'autosaveNow').at(-1)?.[2]).toBe('main');
+    expect(autosave.calls).toEqual([['delete', 'pending']]);
+    // Las ediciones siguientes ya van al hueco principal.
+    store.input({ type: 'turn', control: 'layer-0', steps: -5 });
+    expect(engine.calls.filter((call) => call[0] === 'scheduleAutosave').at(-1)?.[2]).toBe('main');
+  });
+
+  it('si solo quedó el hueco nuevo, pasa a ser la sesión anterior', async () => {
+    const { store, autosave } = await setup();
+    autosave.dates = { main: null, pending: 1_700_000_600_000 };
+    await store.checkAutosave();
+    expect(autosave.calls).toEqual([['promote']]);
+    expect(store.recovery()).toEqual({ main: 1_700_000_600_000, pending: null });
   });
 
   it('recuperar tras un error del audio lo reintenta y suelta el panel solo al cargar', async () => {
@@ -337,7 +454,7 @@ describe('SessionStore', () => {
     // Sin la espera de 10 s: el error no se puede reintentar.
     await store.recover();
     expect(engine.calls.some((call) => call[0] === 'recoverAutosave')).toBe(false);
-    expect(store.recovery()).toBe(1_700_000_000_000);
+    expect(store.recovery()).toEqual({ main: 1_700_000_000_000, pending: null });
     expect(store.message()).toMatchObject({ screen: 'AÚN NO SE PUEDE RECUPERAR', tone: 'error' });
     expect(store.busy()).toBe('idle');
   });
