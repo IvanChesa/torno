@@ -44,3 +44,116 @@ La revisión del bloque B dividió la fase en dos entregas (PLAN, fase 4). Esta 
 - **La caché de los navegadores** no cubre los paquetes del sistema (`install-deps` sigue usando `apt`).
 
 **Skills consultadas:** `threejs-deployment` (la parte de cabeceras y caché de los archivos con hash, adaptada a Apache).
+
+## 1. Resumen (entrega 4.a)
+Todo lo de la fase 4 que no necesita credenciales está hecho en la rama `fase-4-staging`:
+- **CI:** caché de los navegadores de Playwright, 10 min como mucho para instalarlos, también en las ramas de fase, y el build de `main` guardado como artefacto para el despliegue.
+- **`.htaccess`:** HTTPS, URLs sin barra, 404, caché por tipo y cabeceras de seguridad. La CSP lleva los hashes de los scripts en línea, que escribe el build.
+- **Despliegue a staging** por FTPS, escrito e inactivo hasta que haya secrets.
+- **Dependabot.**
+- **Pruebas en el móvil:** la lista de `docs/PRUEBAS-MOVIL.md` y el panel `?diagnostico=1`, que mide del toque al primer sonido.
+
+Los e2e del build corren ahora bajo la CSP de producción, también en WebKit. La 4.b (desplegar, `curl` y las pruebas de Iván) espera al staging.
+
+## 2. Criterios de aceptación
+Los criterios de la fase 4 se cierran en la 4.b; esto es lo que deja la 4.a.
+
+| Criterio | Estado | Evidencia |
+|---|---|---|
+| CI verde y staging actualizado solo al hacer *push* a `main` | ⏳ (CI ✅; staging en la 4.b) | CI de la rama en verde, con y sin la caché (§6). `deploy-staging.yml` solo se dispara tras el CI en verde de un *push* a `main` (`workflow_run`, `branches: [main]`, `event == 'push'`) y, sin secrets, no despliega. |
+| Comprobaciones con `curl` en el informe | ⏳ 4.b | En local, el servidor del build aplica las cabeceras del `.htaccess`, y un e2e comprueba las cabeceras, los códigos y la caché (`e2e/headers.spec.ts`). Contra el servidor real, en la 4.b. |
+| Lista de prueba en el informe y resultados de Iván | ⏳ (lista ✅; resultados en la 4.b) | `docs/PRUEBAS-MOVIL.md`: 14 pruebas con casillas y huecos para las cifras, más el panel `?diagnostico=1` para leerlas. |
+
+Lo demostrado en esta entrega:
+- **CSP compatible con todo el instrumento:** en un recorrido completo bajo la CSP de producción (reproducir, grabar con el micrófono, guardar, exportar la mezcla y las pistas), ninguna violación. Control: un script en línea sin hash se bloquea y dispara `script-src-elem` (`e2e/headers.spec.ts`). Los 55 e2e del proyecto «estático» y el de WebKit corren con esas cabeceras.
+- **Caché:** el build comprueba que los 26 archivos caen en su regla: JS, CSS, fuentes y worklet con hash, `immutable`; HTML `no-cache`; el resto, un día.
+- **Panel de diagnóstico:** mide del toque a que el sonido sale por el altavoz. En el escritorio (Chromium, build estático, PC tranquilo): **primera reproducción en frío 157–238 ms; después, 48–54 ms** (con unos 40 ms de latencia de salida que informa Chrome en Windows).
+
+## 3. Tareas del plan
+| Tarea | Estado | Notas |
+|---|---|---|
+| 4.1 CI verde, caché de navegadores y límite de tiempo | hecha | `.github/workflows/ci.yml` (revisión del bloque B, #4) |
+| 4.2 `.htaccess` y CSP con su e2e | hecha | `public/.htaccess`, `scripts/htaccess.mjs`, `scripts/htaccess-rules.mjs`, `e2e/headers.spec.ts` |
+| 4.3 `deploy-staging.yml` | escrita | Se activa en la 4.b con los secrets |
+| 4.4 Comprobación con `curl` | 4.b | — |
+| 4.5 Dependabot | hecha | `.github/dependabot.yml` |
+| 4.6 Pruebas de Iván en Android e iPhone | 4.b | Con la lista y el panel de la tarea 7 |
+| 4.7 Página de pruebas y `?diagnostico=1` | hecha | `docs/PRUEBAS-MOVIL.md`, `features/diagnostics/`, `audio/engine/diagnostics.ts` |
+
+## 4. Desviaciones del plan y motivo
+- **El CI también corre en los *push* a `fase-*`.** El comentario del CI daba por hecho que las ramas de fase pasaban por *pull request*, pero el proyecto nunca ha usado *pull requests*. Las *pull requests* siguen disparándolo (las de Dependabot).
+- **La CSP se completa en el build** (`scripts/htaccess.mjs`), no con `security.autoCsp`. `autoCsp` pone la política en un `<meta>` con `'strict-dynamic'`. Eso no admite `frame-ancestors`, no se aplicaría al worklet ni a los workers (que se rigen por la cabecera de su propia respuesta) y obligaría a una segunda política por cabecera, compatible con la del `<meta>`. Con los hashes en la cabecera, hay una sola política para todo, y cualquier script en línea nuevo rompe el build hasta tener su hash.
+- **El despliegue sube el artefacto del CI**, no un build nuevo: lo que se despliega es exactamente lo que ha pasado los e2e.
+- **La contraseña del staging la escribe el despliegue** (`STAGING_AUTH_USER_FILE`). La «privacidad de directorios» de cPanel guarda la protección en el `.htaccess` de la carpeta, que cada despliegue sustituye.
+- **El panel mide hasta el altavoz** (con `getOutputTimestamp()`), no a la salida del motor. Es lo que se oye, y lo que importa para el criterio de 150 ms de la revisión del bloque B, #2.
+
+## 5. Decisiones técnicas nuevas
+- **Sin `<IfModule>` en las cabeceras y la reescritura:** si al servidor le faltara el módulo, mejor un error 500 visible en el staging que una web sin CSP. La compresión sí va en `<IfModule>` (es opcional; LiteSpeed comprime solo).
+- **`Header always set`** para que la 404 y las redirecciones también lleven las cabeceras.
+- **COOP y CORP, sin COEP:** no hace falta el aislamiento de origen cruzado (no hay `SharedArrayBuffer`, D7) y COEP solo complicaría.
+- **HSTS sin `includeSubDomains`:** solo afecta a este subdominio, no a ivanchesa.es.
+- **`style-src 'self' 'unsafe-inline'`:** los estilos de los componentes de Angular van en `<style>` en línea. Los scripts, nunca sin hash.
+- **Nada que empiece por punto** se sirve: el estado del despliegue por FTP (`.ftp-deploy-sync-state.json`) queda en la raíz del sitio.
+- **`DirectorySlash Off`** con `Options -Indexes`, más dos reglas: `/ruta/` redirige a `/ruta` y `/ruta` sirve `ruta/index.html`.
+- **Dependabot sin** `three`, TypeScript, `esbuild` ni las versiones mayores de Angular: el plan los fija a mano.
+- **La caché de los navegadores en el CI** lleva en la clave la versión de `@playwright/test` y los navegadores (`chromium-webkit`).
+
+## 6. Salida de los checks
+```
+npm run check   (66 s, PC de Iván)
+lint: All files pass linting.
+test:node: 442 passed · sentencias 98,4 % · ramas 94,98 %
+test:ng: 65 passed
+build + postbuild:
+✔ .htaccess: CSP con 3 hashes de scripts en línea (4 páginas); caché comprobada en 26 archivos
+check-bundles:
+✔ JS inicial de /                     302.1 kB  (antes 301,5; aviso > 330 kB)
+✔ Desbloqueo de audio en el inicial     1.9 kB  (sin cambios; error > 2 kB)
+✔ Motor de audio (engine.ts)           22.3 kB  (antes 21,0)
+✔ Worker synth.worker.ts               17.4 kB
+✔ Worker export.worker.ts              41.7 kB
+✔ Worklet                              40.8 kB
+✔ Fuentes                             144.1 kB
+npm run e2e: 96 passed (65 s): 40 con ng serve, 55 con el build estático y las cabeceras
+  del .htaccess, y 1 en WebKit (también con las cabeceras)
+```
+
+**CI de GitHub en la rama** (Ubuntu 24.04, con WebKit de Linux reproduciendo con audio bajo la CSP):
+
+| Ejecución | Navegadores | Instalación | e2e | Total |
+|---|---|---|---|---|
+| `61acc49` (primera, sin caché) | descarga completa con `--with-deps` | 37 s | 92 passed | 4 min 22 s |
+| `1e77c41` (con la caché) | caché restaurada en 3 s y solo `install-deps` (apt) | 3 s + 33 s | 96 passed en 2,7 min | 4 min 51 s |
+
+La caché apenas acorta la instalación, porque los paquetes de `apt` siguen siendo la mayor parte. Lo que quita es la descarga de los navegadores, que es donde se quedó colgado el CI de `03e20e5`. Si se colgara `apt`, el límite de 10 min lo corta a tiempo.
+
+## 7. Capturas
+`docs/informes/img/fase-4/`, escritorio y móvil, del build servido con las cabeceras del `.htaccess`:
+- `instrumento-diagnostico-*`: el panel `?diagnostico=1` antes de tocar (sin cifras, para que la captura no cambie).
+- El resto, idénticas byte a byte a las de la fase 3: la CSP no cambia nada a la vista. Solo `instrumento-recuperar-confirmar-movil` cambia, porque ya parte la línea de la pantalla detrás del «·» (revisión de la fase 3, #6, corregida después de aquellas capturas).
+
+## 8. Dependencias añadidas
+Ninguna en `package.json`. Acciones de GitHub nuevas, fijadas por SHA:
+
+| Acción | Versión | Para |
+|---|---|---|
+| `actions/cache` | v6.1.0 | Caché de los navegadores de Playwright en el CI |
+| `actions/download-artifact` | v8.0.2 | El despliegue descarga el build del CI |
+| `SamKirkland/FTP-Deploy-Action` | v4.4.0 | Subida por FTPS (la que nombra el plan) |
+
+## 9. Pendientes y `TODO(ivan)`
+Para la 4.b (también en `docs/PENDIENTES.md`):
+- **Iván:** el staging en cPanel (subdominio con AutoSSL, privacidad de directorios y cuenta FTP limitada) y los cuatro secrets (`STAGING_FTP_SERVER`, `STAGING_FTP_USERNAME`, `STAGING_FTP_PASSWORD` y `STAGING_AUTH_USER_FILE`). Después, las pruebas de `docs/PRUEBAS-MOVIL.md` en Android e iPhone.
+- **Claude Code, en la 4.b:**
+  - fusionar para activar el despliegue (el `workflow_run` solo funciona desde `main`);
+  - comprobar con `curl` los códigos, las cabeceras, el MIME y la caché del servidor real, y ver si Imunify360 deja pasar el FTP desde GitHub;
+  - si el certificado del FTP no casa, ajustar `security` en el despliegue;
+  - la revisión y la fusión.
+
+## 10. Propuestas de cambio al plan
+1. **Precargar ALFAR al acercarse al instrumento ya en la 4.b**, sin esperar a las cifras del móvil. En el escritorio, la primera reproducción en frío ya tarda 157–238 ms hasta el altavoz, por encima de los 150 ms que fijó la revisión del bloque B, y un móvil de gama media irá más lento. Preparar en silencio (cargar el motor, crear el worker y renderizar ALFAR a la caché) está permitido desde el bloque B (CLAUDE.md). Las pruebas de Iván medirían ya el resultado con la precarga.
+
+## 11. Cómo probarlo
+- `npm run build` y `node scripts/serve-static.mjs`: el build en `http://localhost:4300`, con las cabeceras del `.htaccess`. Con `curl -I http://localhost:4300/` se ven la CSP (con sus hashes), Permissions-Policy y la caché; `curl -I http://localhost:4300/sobre-el-proyecto/` da un 301 a la ruta sin barra.
+- `http://localhost:4300/?diagnostico=1`: el panel bajo el instrumento. Pulsa REPRODUCIR y verás «Del toque al primer sonido» (la primera, en frío); «Copiar el informe» lo deja en el portapapeles.
+- El `.htaccess` final está en `dist/torno/browser/.htaccess`.
