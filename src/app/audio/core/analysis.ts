@@ -48,14 +48,36 @@ export interface Spectrum {
   readonly binHz: number;
 }
 
-/** Espectro de magnitud con ventana de Hann, rellenando con ceros hasta `size` (potencia de 2). */
-export function spectrum(signal: ArrayLike<number>, sampleRate: number, size: number): Spectrum {
+/**
+ * Ventanas: Hann (lóbulo principal estrecho: para separar frecuencias cercanas) y de techo plano
+ * (pierde < 0,01 dB entre bins: para medir amplitudes).
+ */
+export type Window = 'hann' | 'flattop';
+
+const FLATTOP = [0.21557895, 0.41663158, 0.277263158, 0.083578947, 0.006947368];
+
+function windowAt(window: Window, i: number, length: number): number {
+  const x = (2 * Math.PI * i) / (length - 1);
+  if (window === 'hann') return 0.5 - 0.5 * Math.cos(x);
+  let w = 0;
+  for (let k = 0; k < FLATTOP.length; k++)
+    w += (k % 2 === 0 ? 1 : -1) * FLATTOP[k]! * Math.cos(k * x);
+  return w;
+}
+
+/** Espectro de magnitud con una ventana, rellenando con ceros hasta `size` (potencia de 2). */
+export function spectrum(
+  signal: ArrayLike<number>,
+  sampleRate: number,
+  size: number,
+  window: Window = 'hann',
+): Spectrum {
   const length = Math.min(signal.length, size);
   const re = new Float64Array(size);
   const im = new Float64Array(size);
   let windowSum = 0;
   for (let i = 0; i < length; i++) {
-    const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (length - 1));
+    const w = windowAt(window, i, length);
     re[i] = signal[i]! * w;
     windowSum += w;
   }

@@ -58,7 +58,7 @@ describe('la colección', () => {
       expect(hash(renderLibraryLoop(id, 48_000))).toBe(hash(first));
       hashes[id] = hash(first);
     }
-    console.info(`Hash del PCM a 48 kHz: ${JSON.stringify(hashes)}`);
+    console.warn(`Hash del PCM a 48 kHz: ${JSON.stringify(hashes)}`);
     if (Object.keys(GOLDEN).length > 0) expect(hashes).toEqual(GOLDEN);
   });
 
@@ -86,7 +86,7 @@ describe('la colección', () => {
       // Continua: la media de un bucle periódico, por debajo de −100 dBFS.
       expect(Math.abs(sum / pcm.length)).toBeLessThan(dbToGain(-100));
     }
-    if (rate === 48_000) console.info(rows.join('\n'));
+    if (rate === 48_000) console.warn(rows.join('\n'));
   });
 
   it('no tiene junta: el salto del final al principio es como los saltos de alrededor', () => {
@@ -128,7 +128,7 @@ describe('la colección', () => {
       }
       rows.push(`${id}: ${notes.length} notas, la más desviada a ${worst.toFixed(1)} cents`);
     }
-    console.info(rows.join('\n'));
+    console.warn(rows.join('\n'));
   });
 });
 

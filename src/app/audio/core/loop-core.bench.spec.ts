@@ -15,35 +15,56 @@ const SECONDS = 60;
 const MIN_FACTOR = Number(process.env['BENCH_MIN_FACTOR'] ?? 100);
 const SLACK = process.env['CI'] ? 3 : 1;
 
-function busyCore(): Harness {
+/**
+ * 4 capas con filtro y panorama. Con 97 BPM sobre bucles de 90, la lectura es fraccionaria (Hermite
+ * de verdad); con 240, además pasa por el filtro contra el aliasing (2,67×); y con bucles nativos de
+ * 40 BPM leídos a 240 (6×), el peor caso posible del filtro.
+ */
+function busyCore(bpm = 97, nativeBpm = 90): Harness {
   const harness = new Harness({ sampleRate: RATE });
   for (let layer = 0; layer < LAYER_COUNT; layer++) {
-    harness.send({ type: 'set-sound', layer, sound: sineSound(RATE, 101 + 37 * layer, 0.6) });
+    const sound = sineSound(RATE, 101 + 37 * layer, 0.6, 8, nativeBpm);
+    harness.send({ type: 'set-sound', layer, sound });
     harness.send({ type: 'set-filter', layer, amount: 0.3 + 0.1 * layer });
     harness.send({ type: 'set-pan', layer, pan: -0.6 + 0.4 * layer });
   }
-  // Un tempo distinto del nativo: la lectura es fraccionaria (Hermite de verdad).
-  harness.send({ type: 'set-tempo', bpm: 97 });
+  harness.send({ type: 'set-tempo', bpm });
   harness.send({ type: 'play' });
   return harness;
+}
+
+/** Veces tiempo real de `seconds` s de render, tras calentar el JIT. */
+function speedOf(harness: Harness, seconds: number): { factor: number; ms: number } {
+  const core = harness.core;
+  const outL = new Float32Array(BLOCK);
+  const outR = new Float32Array(BLOCK);
+  for (let i = 0; i < RATE / BLOCK; i++) core.process(null, outL, outR, BLOCK);
+  const blocks = Math.round((seconds * RATE) / BLOCK);
+  const start = performance.now();
+  for (let i = 0; i < blocks; i++) core.process(null, outL, outR, BLOCK);
+  const ms = performance.now() - start;
+  return { factor: (blocks * BLOCK) / RATE / (ms / 1000), ms };
 }
 
 describe('rendimiento de LoopCore', () => {
   it(`rinde ≥ ${MIN_FACTOR}× tiempo real con 4 capas, filtros y limitador (${SECONDS} s a 48 kHz)`, () => {
     const harness = busyCore();
-    const core = harness.core;
-    const outL = new Float32Array(BLOCK);
-    const outR = new Float32Array(BLOCK);
-    // Calentamiento: que el JIT compile el bucle antes de medir.
-    for (let i = 0; i < RATE / BLOCK; i++) core.process(null, outL, outR, BLOCK);
-    const blocks = Math.round((SECONDS * RATE) / BLOCK);
-    const start = performance.now();
-    for (let i = 0; i < blocks; i++) core.process(null, outL, outR, BLOCK);
-    const seconds = (performance.now() - start) / 1000;
-    const factor = (blocks * BLOCK) / RATE / seconds;
-    console.info(`LoopCore: ${factor.toFixed(0)}× tiempo real (${(seconds * 1000).toFixed(0)} ms)`);
-    expect(core.status.layers.every((layer) => layer.hasContent)).toBe(true);
+    const { factor, ms } = speedOf(harness, SECONDS);
+    console.info(`LoopCore: ${factor.toFixed(0)}× tiempo real (${ms.toFixed(0)} ms)`);
+    expect(harness.core.status.layers.every((layer) => layer.hasContent)).toBe(true);
     expect(factor).toBeGreaterThanOrEqual(MIN_FACTOR);
+  });
+
+  it('con el filtro contra el aliasing: 240 BPM sobre bucles de 90 (2,67×) y de 40 (6×)', () => {
+    // Fuera del criterio de ≥ 100× (que es a 97 BPM): se mide e imprime para el informe, con un
+    // suelo holgado que solo caza una regresión grave (tiempo real con mucho margen).
+    const library = speedOf(busyCore(240, 90), SECONDS / 2);
+    const worst = speedOf(busyCore(240, 40), SECONDS / 2);
+    console.info(
+      `LoopCore a 240 BPM: bucles de 90 BPM ${library.factor.toFixed(0)}× tiempo real; ` +
+        `de 40 BPM (peor caso) ${worst.factor.toFixed(0)}×`,
+    );
+    expect(worst.factor).toBeGreaterThanOrEqual(MIN_FACTOR / 10);
   });
 });
 

@@ -55,7 +55,7 @@ export function saturate(signal: Float64Array, drive: number): Float64Array {
 /** Quita la continua de un bucle (resta la media: en una señal periódica, la deja en 0 exacto). */
 export function removeDc(loop: Float64Array): Float64Array {
   let sum = 0;
-  for (let i = 0; i < loop.length; i++) sum += loop[i]!;
+  for (const x of loop) sum += x;
   const mean = sum / loop.length;
   for (let i = 0; i < loop.length; i++) loop[i] = loop[i]! - mean;
   return loop;
@@ -64,15 +64,15 @@ export function removeDc(loop: Float64Array): Float64Array {
 export const dbToGain = (db: number) => 10 ** (db / 20);
 export const gainToDb = (gain: number) => 20 * Math.log10(gain);
 
-export function rmsOf(signal: ArrayLike<number>): number {
+export function rmsOf(signal: Float32Array | Float64Array): number {
   let sum = 0;
-  for (let i = 0; i < signal.length; i++) sum += signal[i]! * signal[i]!;
+  for (const x of signal) sum += x * x;
   return Math.sqrt(sum / signal.length);
 }
 
-export function peakOf(signal: ArrayLike<number>): number {
+export function peakOf(signal: Float32Array | Float64Array): number {
   let peak = 0;
-  for (let i = 0; i < signal.length; i++) peak = Math.max(peak, Math.abs(signal[i]!));
+  for (const x of signal) peak = Math.max(peak, Math.abs(x));
   return peak;
 }
 

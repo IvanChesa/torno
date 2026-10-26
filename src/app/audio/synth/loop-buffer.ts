@@ -14,8 +14,8 @@ export class LoopBuffer {
   add(signal: Float64Array, start: number, gain = 1): void {
     const frames = this.frames;
     let index = ((Math.round(start) % frames) + frames) % frames;
-    for (let i = 0; i < signal.length; i++) {
-      this.data[index] = this.data[index]! + signal[i]! * gain;
+    for (const x of signal) {
+      this.data[index] = this.data[index]! + x * gain;
       index++;
       if (index === frames) index = 0;
     }

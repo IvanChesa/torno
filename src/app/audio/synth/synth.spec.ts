@@ -72,7 +72,7 @@ describe('osciladores', () => {
       const hz = midiToFrequency(note);
       const withBlep = aliasingDb(oscillator('saw', RATE, RATE, hz), hz, below);
       const without = aliasingDb(naiveSaw(hz), hz, below);
-      console.info(
+      console.warn(
         `Plegado de una sierra de ${hz.toFixed(1)} Hz: ingenua ${without.toFixed(1)} dB, PolyBLEP ${withBlep.toFixed(1)} dB`,
       );
       expect(withBlep).toBeLessThan(without - 10);
