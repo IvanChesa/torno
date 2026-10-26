@@ -34,3 +34,8 @@ Antes de empezar se aplicó la revisión del bloque A en `main` (`docs/revisione
 **Riesgos:** que los bucles no gusten (son datos: se ajustan tras la escucha de Iván); el coste del filtro a tempos muy altos con grabaciones lentas (40 → 240 BPM, 6×: se mide y se documenta); el desbloqueo inicial está a 1,9 kB de 2 (no se toca el bundle inicial).
 
 **Skills consultadas:** ninguna (no hay skill de audio; manda PLAN §4.3–§4.4).
+
+## Estado al cortar la sesión (26-10, límite de uso)
+- **Hecho y commiteado en `fase-3-sonidos`:** 3.a (colección de 12 bucles, tests, `demo:sounds`, banco de render), 3.b (antialias del *varispeed* con tests y banco), 3.c (primera reproducción, MARCAR TEMPO, e2e de la cola exacta y deshacer) y las capturas de `docs/informes/img/fase-3/`. `docs/AUDIO.md` §8 con niveles y cifras.
+- **`npm run check`:** en verde (72 s): 423 tests en Node (98,4 % de sentencias) + 48 en Angular; JS inicial de `/` 301,5 kB; desbloqueo 1,9 kB; worklet 40,6 kB; worker de exportación 41,6 kB; worker de síntesis 17,4 kB. e2e completos en verde antes de las capturas (89/89 tras ajustar la prueba del micrófono a la capa 2).
+- **Falta:** completar §1–§11 de este informe con las evidencias (las cifras están en `docs/AUDIO.md` §8 y en los commits), la revisión por subagente, la fusión en `main`, la línea del DIARIO y la fase 4 (gh ya está autenticado; comprobar los secrets del staging, `gh secret list` sale vacío).
