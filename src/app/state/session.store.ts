@@ -23,6 +23,7 @@ import {
   type AutosaveDates,
   type AutosaveSlot,
   type CoreStatus,
+  type EngineDiagnostics,
   type EngineErrorCode,
   type EngineEvent,
   type EngineState,
@@ -101,6 +102,17 @@ export interface Recovery {
   readonly pending: number | null;
 }
 
+/** Una medida del diagnóstico: del toque de «reproducir» al primer sonido. */
+export interface FirstSound {
+  /** En ms; `null` si no sonó en 5 s. */
+  readonly ms: number | null;
+  /** La primera de la página: incluye arrancar el audio, crear el worker y renderizar el sonido. */
+  readonly cold: boolean;
+}
+
+/** Medidas del primer sonido que se guardan (las últimas). */
+const FIRST_SOUNDS_KEPT = 8;
+
 export interface StoreMessage extends MessageText {
   readonly id: number;
   readonly tone: 'info' | 'error';
@@ -143,6 +155,7 @@ export class SessionStore {
   readonly #needsGesture = signal(missedAudioGesture());
   readonly #autoLatencyMs = signal(0);
   readonly #announcement = signal('');
+  readonly #firstSounds = signal<readonly FirstSound[]>([]);
 
   /** El modelo del instrumento (controles, ajustes, menú). */
   readonly state = this.#state.asReadonly();
@@ -163,6 +176,8 @@ export class SessionStore {
   );
   /** Lo que se lee en voz, con antirrebote (para la región `aria-live`). */
   readonly announcement = this.#announcement.asReadonly();
+  /** Con el diagnóstico abierto: cuánto tardó en sonar cada «reproducir». */
+  readonly firstSounds = this.#firstSounds.asReadonly();
   readonly display = computed<DisplayModel>(() => {
     const details = this.#details();
     return displayModel(this.#state(), this.#audio(), {
@@ -190,6 +205,9 @@ export class SessionStore {
    * compás después) y pausar o parar cancelan el arranque.
    */
   #startingWithSound = false;
+  /** El panel de diagnóstico está abierto (`?diagnostico=1`) y si hay una medida en marcha. */
+  #diagnosing = false;
+  #measuring = false;
 
   constructor() {
     // En cuanto un gesto activa el sonido, deja de pedirse otro toque.
@@ -212,6 +230,12 @@ export class SessionStore {
     const { state, intents } = reduce(before, input, this.#audio());
     this.#state.set(state);
     for (const intent of intents) this.#apply(intent);
+    if (this.#diagnosing && input.type === 'press' && input.at !== undefined) {
+      const starts = intents.some(
+        (intent) => intent.type === 'play' || intent.type === 'start-with-sound',
+      );
+      if (starts) void this.#measureFirstSound(input.at);
+    }
     if (state.settings !== before.settings) this.#autosave();
     // Lo que cambia al girar un control lo lee el propio control (su `aria-valuetext`): no se
     // repite en la región viva. Los avisos se anuncian igual (`#show`).
@@ -221,6 +245,32 @@ export class SessionStore {
   /** Abre el selector de archivos (lo registra el instrumento: tiene que abrirse en el gesto). */
   setFilePicker(open: (() => void) | null): void {
     this.#filePicker = open;
+  }
+
+  // --- Diagnóstico (`?diagnostico=1`) -----------------------------------------------------------
+
+  /** El panel de diagnóstico está abierto: cada «reproducir» mide cuánto tarda en sonar. */
+  enableDiagnostics(): void {
+    this.#diagnosing = true;
+  }
+
+  /** Lo que el navegador dice del audio ahora mismo, o `null` si el audio aún no ha arrancado. */
+  diagnostics(): EngineDiagnostics | null {
+    return this.#engine?.diagnostics() ?? null;
+  }
+
+  /** Mide del toque (`at`, reloj de `performance.now()`) al primer sonido; una medida a la vez. */
+  async #measureFirstSound(at: number): Promise<void> {
+    if (this.#measuring) return;
+    this.#measuring = true;
+    const cold = this.#firstSounds().length === 0;
+    try {
+      const engine = await this.start();
+      const ms = engine ? await engine.measureFirstSound(at) : null;
+      this.#firstSounds.update((list) => [...list, { ms, cold }].slice(-FIRST_SOUNDS_KEPT));
+    } finally {
+      this.#measuring = false;
+    }
   }
 
   // --- Arranque ---------------------------------------------------------------------------------

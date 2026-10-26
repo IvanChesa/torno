@@ -115,6 +115,15 @@ class FakeEngine {
   sent(): unknown[] {
     return this.calls.filter((call) => call[0] === 'send').map((call) => call[1]);
   }
+  /** Lo que tarda en sonar (ms) cada vez que se mide. */
+  soundDelays: (number | null)[] = [];
+  async measureFirstSound(since: number): Promise<number | null> {
+    this.#log('measureFirstSound', since);
+    return this.soundDelays.shift() ?? null;
+  }
+  diagnostics(): unknown {
+    return { contextState: 'running' };
+  }
 }
 
 function layer(change: Partial<LayerStatus> = {}): LayerStatus {
@@ -251,6 +260,30 @@ describe('SessionStore', () => {
     release();
     await new Promise((resolve) => setTimeout(resolve));
     expect(engine.sent()).toEqual([{ type: 'stop' }]);
+  });
+
+  it('diagnóstico: con el panel abierto, cada «reproducir» mide cuánto tarda en sonar', async () => {
+    const { store, engine } = await setup();
+    // Sin el panel, no se mide.
+    store.input({ type: 'press', control: 'play', at: 100 });
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(engine.calls.some((call) => call[0] === 'measureFirstSound')).toBe(false);
+    store.enableDiagnostics();
+    engine.soundDelays = [9.5, null];
+    // La primera reproducción ya pasó (en el primer toque): pausar no mide; reproducir, sí.
+    store.input({ type: 'press', control: 'play', at: 200 });
+    await new Promise((resolve) => setTimeout(resolve));
+    store.input({ type: 'press', control: 'play', at: 300 });
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(engine.calls.filter((call) => call[0] === 'measureFirstSound')).toEqual([
+      ['measureFirstSound', 200],
+      ['measureFirstSound', 300],
+    ]);
+    expect(store.firstSounds()).toEqual([
+      { ms: 9.5, cold: true },
+      { ms: null, cold: false },
+    ]);
+    expect(store.diagnostics()).toEqual({ contextState: 'running' });
   });
 
   it('cada pulsación lleva su momento (para el tempo por pulsaciones)', async () => {

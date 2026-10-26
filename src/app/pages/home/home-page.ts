@@ -1,6 +1,8 @@
-import { Component } from '@angular/core';
+import { afterNextRender, Component, signal } from '@angular/core';
 import { noteInstrumentTap, preloadAudioEngine } from '../../audio/engine';
+import { isDiagnosticsMode } from '../../core/diagnostics-mode';
 import { DesignSample } from '../../features/design-sample/design-sample';
+import { DiagnosticsPanel } from '../../features/diagnostics/diagnostics-panel';
 import { HtmlInstrument } from '../../features/html-instrument/html-instrument';
 import { HOME_CONTENT } from './home.content';
 
@@ -13,10 +15,13 @@ import { HOME_CONTENT } from './home.content';
  * hidratada). La página escucha los `click` (Angular los repite tras la hidratación): si un toque
  * sobre el escenario llegó antes que el JS, el instrumento pide otro («Toca para activar el
  * sonido»). Es una escucha de la página, no un control: los controles están dentro.
+ *
+ * Con `?diagnostico=1`, debajo del instrumento va el panel de diagnóstico del audio (las pruebas en
+ * los móviles, PLAN fase 4). Solo se sabe en el navegador; también va en `@defer`.
  */
 @Component({
   selector: 'trn-home-page',
-  imports: [DesignSample, HtmlInstrument],
+  imports: [DesignSample, DiagnosticsPanel, HtmlInstrument],
   host: { '(click)': 'tap($event)' },
   template: `
     <section class="hero">
@@ -42,6 +47,11 @@ import { HOME_CONTENT } from './home.content';
           </div>
         }
       </div>
+      @if (diagnostics()) {
+        @defer (on immediate) {
+          <trn-diagnostics-panel />
+        }
+      }
     </section>
 
     <section class="section" aria-labelledby="muestrario">
@@ -104,6 +114,11 @@ import { HOME_CONTENT } from './home.content';
 })
 export class HomePage {
   protected readonly text = HOME_CONTENT;
+  protected readonly diagnostics = signal(false);
+
+  constructor() {
+    afterNextRender(() => this.diagnostics.set(isDiagnosticsMode(location.search)));
+  }
 
   protected preload(): void {
     preloadAudioEngine();

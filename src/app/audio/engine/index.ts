@@ -35,6 +35,7 @@ export type {
 
 export type { TornoSettings } from '../files/torno-format';
 export type { AutosaveDates, AutosaveSlot } from './autosave';
+export type { EngineDiagnostics } from './diagnostics';
 
 let loading: Promise<AudioEngine> | undefined;
 
