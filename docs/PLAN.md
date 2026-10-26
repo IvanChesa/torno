@@ -193,7 +193,7 @@ scripts/              build-worklet, make-fake-mic, render-poster, demo-sounds, 
 - Cada capa guarda: PCM mono float32, su tempo nativo (el de su grabación o el de la biblioteca), su duración en pulsos, nivel, silencio, panorama, reverso, filtro, origen (biblioteca + id o grabación) y su pila de deshacer.
 - Posición de lectura = `(beat mod lengthInBeats) × nativeFramesPerBeat`, o su espejo en reverso. Las capas de distinta duración se repiten sobre la misma línea de tiempo.
 - ***Varispeed*:** cambiar el tempo cambia la velocidad de lectura de todas las capas (velocidad y tono a la vez). Lectura con **interpolación cúbica de Hermite**.
-- **Juntas del bucle:** fundido cruzado de ~5 ms en el punto de unión.
+- **Juntas del bucle:** fundido cruzado de 10 ms en la junta de cada toma, hecho al grabar con lo que se grabó justo después (con 5 ms, una junta de polaridad opuesta a fondo de escala superaba el criterio de clics). Los bucles de la biblioteca se sintetizan sin junta.
 
 **Suavizado y mezcla**
 - Nivel, silencio, panorama, filtro y volumen general con suavizado de un polo (~10 ms).
@@ -204,7 +204,7 @@ scripts/              build-worklet, make-fake-mic, render-poster, demo-sounds, 
 **Grabación**
 - Estados: `idle` → `countIn` → `recording` → `idle`. La toma se alinea con lo que el usuario oyó restando la **latencia** de ida y vuelta (ver «Latencia», más abajo).
 - Grabar con el transporte parado lo pone en marcha (tras la cuenta previa, si está activa).
-- **Toma libre:** la primera se cierra exactamente al pulsar (o sola a los 60 s) y fija la duración del bucle; si no hay otras capas y la opción está activa, el tempo se ajusta para que la toma dure un número entero de compases (dentro de 40–240). Las siguientes tomas libres siguen la duración existente.
+- **Toma libre:** la primera se cierra exactamente al pulsar (o sola a los 60 s) y fija la duración del bucle; si no hay otras capas y la opción está activa, el tempo se ajusta para que la toma dure un número entero de compases (dentro de 40–240). Las siguientes tomas libres siguen la duración existente. Regla exacta: la duración del bucle es la de la capa más larga; la «primera» toma libre es la de una sesión vacía; con otras capas, la toma sigue esa duración y se cierra sola.
 - **Toma fija:** 1, 2 o 4 compases; empieza en el siguiente compás (o tras la cuenta previa de al menos 4 pulsos) y se cierra sola. Si se cierra antes, el resto se rellena con silencio.
 - **Sobregrabación:** grabar en una capa ocupada suma la toma a lo que había; si era de la biblioteca, pasa a «grabación propia» (el sonido de la biblioteca sigue disponible con deshacer).
 - **Bloqueos durante una toma:** tempo, selección, reverso, disco, archivos y deshacer. Siguen libres niveles, silencio, filtro y volumen.
@@ -257,7 +257,7 @@ scripts/              build-worklet, make-fake-mic, render-poster, demo-sounds, 
 ### 4.8 Archivos y persistencia
 - **`.torno`:** firma, versión, cabecera JSON (tempo, frecuencia de muestreo, ajustes, por capa: duración, tempo nativo, origen, nivel, silencio, panorama, reverso, filtro) y PCM float32 LE por capa. **Validación completa antes de cambiar nada** (tamaños, límites, `NaN`/`Infinity`, versión). Si la frecuencia difiere, `audio/engine/` remuestrea con `OfflineAudioContext`. No se guarda el historial de deshacer.
 - **WAV:** mezcla estéreo de 24 bits con N repeticiones (1–8) y fundido final opcional, renderizada por `export.worker` con el mismo núcleo; **pistas por separado**: un WAV mono de 24 bits por capa. Sin metrónomo.
-- **Autoguardado:** IndexedDB, tras cada edición confirmada (no durante una toma), con antirrebote. Al volver: «Recuperar la sesión anterior» o «Empezar de cero». Errores de cuota controlados.
+- **Autoguardado:** IndexedDB, tras cada edición confirmada (no durante una toma), con antirrebote. Al volver: «Recuperar la sesión anterior» o «Empezar de cero». Errores de cuota controlados. **Dos huecos** (decisión de Iván, 26-10): mientras el panel de recuperar sigue sin contestar, lo nuevo se autoguarda en un segundo hueco y la sesión anterior se conserva intacta. «Recuperar» pide confirmación si ya se ha tocado algo, y «Empezar de cero» borra la anterior. Al contestar, queda un solo hueco.
 
 ### 4.9 Prerenderizado y carga
 - `/` se prerenderiza con el texto y un **póster** del instrumento (render del propio motor, fase 7). El LCP es el H1 o el póster, **nunca el canvas**.
@@ -272,22 +272,22 @@ scripts/              build-worklet, make-fake-mic, render-poster, demo-sounds, 
 
 | Área | Objetivo |
 |---|---|
-| JS de la primera visita a cada ruta | `main` + chunks iniciales + `modulepreload` de la ruta (lo que mide `check-bundles`): aviso > 330 kB · error > 400 kB, en bruto. Angular solo ya ocupa ~280 kB: lo que no se ve en la primera pantalla va en `@defer` y el motor y el 3D, con `import()` |
+| JS de la primera visita a cada ruta | `main` + chunks iniciales + `modulepreload` de la ruta (lo que mide `check-bundles`): aviso > 330 kB · error > 400 kB, en bruto. Angular solo ya ocupa ~280 kB, y usar `@defer` añade ~10 kB fijos al `main`: lo que no se ve en la primera pantalla va en `@defer` y el motor y el 3D, con `import()` |
 | Chunk 3D (three + escena) | Aviso > 800 kB en bruto; tamaño en cada informe |
-| Motor de audio · worklet · workers | ≤ 60 kB · ≤ 40 kB · ≤ 40 kB cada uno, en bruto |
+| Motor de audio · worklet · workers | ≤ 60 kB cada uno, en bruto (el worklet y el worker de exportación llevan el núcleo entero) |
 | Fuentes | ≤ 150 kB en total, con subconjunto latino |
 | Peso de la primera visita | ≤ 600 kB sin el 3D · ≤ 1,5 MB con el 3D (no hay texturas que descargar) |
 | Arranque del 3D | Generación del modelo y texturas ≤ 150 ms en escritorio; sin tareas largas > 200 ms |
 | VRAM estimada | ≤ 96 MB (alto) · ≤ 48 MB (bajo) |
 | FPS | ≥ 55 en escritorio (alto) · ≥ 30 en móvil de gama media (bajo), tocando |
 | Reposo | 0 fps en pausa y sin interacción (y con movimiento reducido) |
-| **CPU del audio** | `LoopCore` con 4 capas, filtros y limitador ≥ 100× tiempo real en Node (escritorio); 0 cortes (*underruns*) en 5 min tocando en el móvil de gama media |
+| **CPU del audio** | `LoopCore` con 4 capas, filtros y limitador ≥ 100× tiempo real en Node, en un PC sin otra carga (`npm run test:bench`, **fuera de `check`**; en el CI, suelo de regresión ≥ 50×); 0 cortes (*underruns*) en 5 min tocando en el móvil de gama media |
 | **Exactitud** | Cola y tomas fijas exactas a la muestra en el límite de compás · *varispeed* ±1 muestra por bucle · deriva 0 en 10 min |
 | **Sin clics** | Salto máximo entre muestras consecutivas en juntas, cambios, fundidos y al soltar el disco ≤ el mayor salto de la propia señal + 0,01 (escala ±1) |
 | **Arranque del audio** | Primer sonido ≤ 100 ms tras pulsar (motor ya cargado); con el worklet retrasado 1,5 s, el contexto está en `running` dentro del gesto |
 | **Respuesta** | De un gesto al cambio de parámetro en el audio ≤ 20 ms (medido) |
 | **Latencia de grabación** | Tras calibrar, toma alineada ±5 ms (prueba de Iván en el móvil) |
-| Memoria de audio | ≤ 64 MB en una sesión típica (4 capas de 2 compases) · peor caso documentado y ≤ 220 MB |
+| Memoria de audio | ≤ 64 MB en una sesión típica (4 capas de 2 compases) · peor caso documentado y ≤ 220 MB en régimen permanente; pico transitorio ≤ 250 MB durante < 1 s (una copia de la sesión que coincide con el inicio de una toma), documentado |
 | Memoria 3D | 10 cambios de vista y de nivel de calidad sin crecimiento de `renderer.info.memory` |
 | Lighthouse móvil `/` | Rendimiento ≥ 90 · accesibilidad y buenas prácticas ≥ 95 (el SEO no es criterio) |
 | Lighthouse móvil `/sobre-el-proyecto` | ≥ 95 en rendimiento, accesibilidad y buenas prácticas |
@@ -411,7 +411,8 @@ Tareas:
 4. **Renderizado en `synth.worker`** a la frecuencia del contexto, con caché en memoria.
 5. **Menú SONIDO** completo: recorrer sin cambiar el audio, confirmar, EN COLA con la capa destino, APAGADO, confirmación al sustituir una grabación («Cancelar» primero), deshacer que cancela la cola. Primera reproducción: batería en la capa 1 y capa 2 seleccionada.
 6. **Tempo por pulsaciones** (menú BUCLE).
-7. **`npm run demo:sounds`:** exporta cada bucle y 3 combinaciones a WAV en una carpeta ignorada, para que Iván los escuche.
+7. **Sin *aliasing* al acelerar:** a tempos por encima del nativo, el *varispeed* lee más rápido y puede plegar frecuencias (revisión de la fase 1, #14). Filtrar antes de leer (o equivalente) y test a 240 BPM con un tono alto: sin imágenes por encima de −60 dB. Los 12 bucles, sin junta, con un test.
+8. **`npm run demo:sounds`:** exporta cada bucle y 3 combinaciones a WAV en una carpeta ignorada, para que Iván los escuche.
 
 Criterios de aceptación:
 - [ ] Tests: determinismo (hash del PCM), duración exacta (2 compases a 90 BPM), picos y RMS en rango, sin continua (DC), notas fundamentales de los bajos en la tonalidad (FFT) y render ≤ 50 ms por bucle en escritorio.
@@ -429,7 +430,7 @@ Tareas:
    - URLs sin barra final, `ErrorDocument 404`, `Options -Indexes`;
    - caché larga e `immutable` para los archivos con hash (también el worklet); corta para el HTML;
    - tipos MIME correctos para los módulos JS;
-   - cabeceras de seguridad, `Permissions-Policy: microphone=(self)` y una CSP con `script-src 'self'` y `worker-src 'self'`, compatible con el worklet, los workers y el CSS crítico de Angular (valorar `security.autoCsp`).
+   - cabeceras de seguridad, `Permissions-Policy: microphone=(self)` y una CSP con `script-src 'self'` y `worker-src 'self'`, compatible con el worklet, los dos workers, las descargas por `blob:` y el CSS crítico de Angular (valorar `security.autoCsp`). Un e2e contra el build servido con esas cabeceras.
 3. **`deploy-staging.yml`:** push a `main` + CI verde → build → FTPS (`SamKirkland/FTP-Deploy-Action` fijado por SHA), con `X-Robots-Tag: noindex`.
 4. **Verificación con `curl`:** códigos, cabeceras, MIME y caché. Comprobar que Imunify360 no bloquea el despliegue.
 5. **Dependabot.**
@@ -446,7 +447,8 @@ Criterios de aceptación:
 1. Medidas y distribución propias del aparato (en mm), coherentes con `DISENO.md` y **distintas del original** (que es un cuerpo casi cuadrado marfil, disco grande a la izquierda, brazo plateado arriba a la derecha, columna de teclas azules y dial a la derecha y 4 diales delante).
 2. Modelo de bloques con materiales provisionales y **3 variantes de color** dentro de la dirección elegida; capturas de 4 ángulos en escritorio y móvil.
 3. Prueba de *tone mapping* (Neutral frente a AgX) con capturas.
-4. **PARA** y espera la aprobación de Iván (parada prevista).
+4. Propuesta de cómo queda el **instrumento HTML** (la alternativa sin WebGL) con la distribución nueva: hoy pone el dial principal y el brazo arriba a la derecha, como el original (revisión de la fase 2, #20).
+5. **PARA** y espera la aprobación de Iván (parada prevista).
 
 **5.b: Modelo definitivo.**
 1. Todas las piezas de §4.6 con detalle (biseles, moleteado, rótulos, tornillos, LED).
