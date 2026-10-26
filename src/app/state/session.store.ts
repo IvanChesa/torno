@@ -56,6 +56,8 @@ const RECOVER_WAIT_MS = 10_000;
 /** Espera a que el motor esté listo (o falla: error, o `ms` sin conseguirlo). */
 function whenReady(engine: AudioEngine, ms: number): Promise<boolean> {
   if (engine.state === 'ready') return Promise.resolve(true);
+  // Un error que no se ha podido reintentar (sin Web Audio): no hay nada que esperar.
+  if (engine.state === 'error') return Promise.resolve(false);
   return new Promise((resolve) => {
     const done = (ready: boolean) => {
       clearTimeout(timer);
@@ -268,12 +270,14 @@ export class SessionStore {
 
   /**
    * «Recuperar la sesión anterior» (desde un gesto). Espera a que el audio esté listo (sale del
-   * reposo si hace falta, dentro del gesto) y no suelta la sesión guardada hasta haberla cargado:
-   * mientras tanto, el autoguardado no la pisa. Si el audio no arranca, el panel sigue y se avisa.
+   * reposo dentro del gesto, o reintenta la carga si el audio no cargó a tiempo) y no suelta la
+   * sesión guardada hasta haberla cargado: mientras tanto, el autoguardado no la pisa. Si el audio
+   * no arranca, el panel sigue y se avisa.
    */
   async recover(): Promise<void> {
     if (this.#busy() === 'recovering') return;
     if (this.#engine?.state === 'standby') this.#engine.wake();
+    else if (this.#engine?.state === 'error') this.retry();
     this.#busy.set('recovering');
     try {
       const engine = await this.start();

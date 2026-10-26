@@ -314,6 +314,39 @@ test.describe('archivos', () => {
     expect(Buffer.from(standby.bytes).equals(Buffer.from(before.bytes))).toBe(true);
   });
 
+  test('recuperar con el audio en error lo reintenta y recupera la misma sesión', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await instrumentAudio(page);
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    await twoLayers(driver);
+    const before = await saveSession(driver);
+    await page.waitForTimeout(2500);
+
+    // Otra página en la que el módulo tarda 7 s la primera vez: a los 5 s, el error.
+    const other = await page.context().newPage();
+    await instrumentAudio(other, { moduleDelayMs: 7000, moduleDelayOnce: true });
+    const second = new InstrumentDriver(other);
+    await second.open();
+    const recover = other.getByRole('button', { name: 'Recuperar la sesión anterior' });
+    // Primer toque: el audio no llega a tiempo. Se avisa y la sesión anterior sigue ofrecida.
+    await recover.click();
+    await expect(other.getByText('El audio no ha cargado en 5 segundos.')).toBeVisible({
+      timeout: 8000,
+    });
+    await expect(other.getByRole('alert')).toContainText('la sesión anterior sigue guardada');
+    await expect(recover).toBeVisible();
+    // Segundo toque: reintenta la carga y recupera.
+    await recover.click();
+    await expect(second.screen).toContainText('SESIÓN RECUPERADA', { timeout: 10_000 });
+    await expect(other.getByRole('button', { name: 'Reintentar' })).toBeHidden();
+    await expect(recover).toBeHidden();
+    const after = await saveSession(second);
+    expect(Buffer.from(after.bytes).equals(Buffer.from(before.bytes))).toBe(true);
+  });
+
   test('privacidad: grabar, guardar y exportar no hacen ninguna petición de red', async ({
     page,
   }) => {

@@ -17,14 +17,14 @@ class FakeEngine {
   latency = { mode: 'auto' as const, ms: 0 };
   autoLatencyMs = 31;
   readonly calls: unknown[][] = [];
-  #listener: ((event: EngineEvent) => void) | null = null;
+  readonly #listeners = new Set<(event: EngineEvent) => void>();
 
   subscribe(listener: (event: EngineEvent) => void): () => void {
-    this.#listener = listener;
-    return () => (this.#listener = null);
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
   }
   emit(event: EngineEvent): void {
-    this.#listener?.(event);
+    for (const listener of this.#listeners) listener(event);
   }
   #log(name: string, ...args: unknown[]): void {
     this.calls.push([name, ...args]);
@@ -32,8 +32,17 @@ class FakeEngine {
   async start(): Promise<void> {
     this.#log('start');
   }
+  /** Si `retry` vuelve a cargar el audio (sin Web Audio no se puede). */
+  retryable = true;
   async retry(): Promise<void> {
     this.#log('retry');
+    if (!this.retryable) return;
+    // Como el motor: vuelve a cargar el módulo y, un poco después, queda listo.
+    this.state = 'loading';
+    setTimeout(() => {
+      this.state = 'ready';
+      this.emit({ type: 'state', state: 'ready', error: null });
+    });
   }
   send(command: unknown): void {
     this.#log('send', command);
@@ -80,6 +89,12 @@ class FakeEngine {
     this.#log('openFile', file.size);
     if (this.opened === 'throw') throw new Error('inesperado');
     return this.opened;
+  }
+  /** Lo que devuelve `recoverAutosave`: los ajustes de la sesión autoguardada. */
+  recovered: TornoSettings | null = null;
+  async recoverAutosave(): Promise<TornoSettings | null> {
+    this.#log('recoverAutosave');
+    return this.recovered;
   }
   sent(): unknown[] {
     return this.calls.filter((call) => call[0] === 'send').map((call) => call[1]);
@@ -291,6 +306,40 @@ describe('SessionStore', () => {
     expect(store.recovery()).toBe(1_700_000_000_000);
     await store.discardAutosave();
     expect(store.recovery()).toBeNull();
+  });
+
+  it('recuperar tras un error del audio lo reintenta y suelta el panel solo al cargar', async () => {
+    const { store, engine } = await setup();
+    await store.checkAutosave();
+    engine.state = 'error';
+    engine.recovered = {
+      takeBars: 2,
+      countIn: false,
+      metronome: true,
+      fitTempo: false,
+      inputGain: 1,
+    };
+    await store.recover();
+    expect(engine.calls.map((call) => call[0])).toEqual(
+      expect.arrayContaining(['retry', 'recoverAutosave']),
+    );
+    expect(store.recovery()).toBeNull();
+    expect(store.message()?.screen).toBe('SESIÓN RECUPERADA');
+    expect(store.state().settings.takeBars).toBe(2);
+    expect(store.busy()).toBe('idle');
+  });
+
+  it('si el audio no puede arrancar, recuperar avisa al momento y el panel sigue', async () => {
+    const { store, engine } = await setup();
+    await store.checkAutosave();
+    engine.state = 'error';
+    engine.retryable = false;
+    // Sin la espera de 10 s: el error no se puede reintentar.
+    await store.recover();
+    expect(engine.calls.some((call) => call[0] === 'recoverAutosave')).toBe(false);
+    expect(store.recovery()).toBe(1_700_000_000_000);
+    expect(store.message()).toMatchObject({ screen: 'AÚN NO SE PUEDE RECUPERAR', tone: 'error' });
+    expect(store.busy()).toBe('idle');
   });
 
   it('el resumen en voz se emite con antirrebote y en frases', async () => {
