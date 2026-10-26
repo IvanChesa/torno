@@ -131,7 +131,7 @@ Se demuestra con 393 tests en Node, 36 en Angular y 62 e2e con audio real: sonid
 Además:
 - **Primer sonido tras pulsar** (§5: ≤ 100 ms con el motor cargado): **10–15 ms** en 20 medidas (de `pointerdown` a la primera muestra en el analizador de la salida; Chromium sin interfaz, sin la latencia del dispositivo).
 - **Errores visibles** (`errors.spec.ts`): si el módulo no carga en 5 s, el aviso y «Reintentar» lo arreglan; con el micrófono denegado, se explica y no se graba nada.
-- **WebKit de escritorio** (`webkit.spec.ts`): el menú funciona y, como el WebKit de Playwright para Windows no tiene Web Audio, el instrumento lo dice con un aviso visible. Reproducir y pausar con audio corren donde WebKit trae Web Audio (desviación 2).
+- **WebKit de escritorio** (`webkit.spec.ts`): el menú funciona y, como el WebKit de Playwright para Windows no tiene Web Audio, el instrumento lo dice con un aviso visible. Reproducir y pausar con audio corren donde WebKit trae Web Audio: en el CI de Linux, en verde tras la fusión (desviación 2 y respuesta a la revisión, #14).
 
 ## 3. Tareas del plan
 
@@ -151,7 +151,7 @@ Además:
 ## 4. Desviaciones del plan y motivo
 
 1. **La prueba de ±2 ms usa un retorno determinista** (la salida retrasada 20 ms con un `DelayNode`, inyectada en lugar del nodo del micrófono), no el micrófono sintético de Chromium: con un archivo no se sabe cuándo suena cada ataque. Antes se probó un retorno por `MediaStream`, y su latencia **cambia en cada apertura de la pista**: 20,7, 20,7, 21,3 y 12,0 ms en cuatro calibraciones seguidas. Así no sirve de referencia, y además es un riesgo para el producto (§10, propuesta 1). El micrófono sintético se usa para comprobar el contenido de la toma.
-2. **WebKit en Windows sin Web Audio.** El WebKit de Playwright para Windows no trae `AudioContext`. Allí la prueba comprueba el menú y el aviso «Este navegador no tiene Web Audio»; reproducir y pausar con audio quedan para el WebKit de Linux del CI, que lo instala desde esta fase (`ci.yml`). Aún no se ha visto en el CI: la rama no tiene PR.
+2. **WebKit en Windows sin Web Audio.** El WebKit de Playwright para Windows no trae `AudioContext`. Allí la prueba comprueba el menú y el aviso «Este navegador no tiene Web Audio»; reproducir y pausar con audio quedan para el WebKit de Linux del CI, que lo instala desde esta fase (`ci.yml`). Tras la fusión, el CI de `main` lo demuestra (respuesta a la revisión, #14).
 3. **El worker de exportación se crea al arrancar el motor** (38,8 kB) y se reutiliza, en lugar de crearlo al exportar: así exportar no hace ninguna petición de red (criterio de privacidad). Si nunca se exporta, se descarga igual.
 4. **Un sonido de prueba por categoría** (4 bucles de 2 compases en Re menor, `audio/synth/test-loop.ts`), en lugar de uno solo, para que el menú SONIDO tenga su forma definitiva.
 5. **`@defer` cuesta unos 10 kB en el `main`** (el código de Angular para los bloques diferidos): el JS de la primera visita a `/` pasa de 293,5 a 301,3 kB (aviso a 330). A cambio, los 58 kB del instrumento no entran en la primera visita.
@@ -251,7 +251,7 @@ Para las fases siguientes:
   - **Ojo al peso:** el worker de exportación lleva el núcleo entero y está a 38,8 kB de 40.
 - **Fase 4:**
   - la CSP y el `.htaccess` tienen que permitir el worklet, los dos workers y `blob:` para las descargas;
-  - el CI corre ya los e2e de WebKit (Linux): reproducir y pausar con audio (resultado del primer CI de `main`, en la respuesta a la revisión, #14);
+  - el CI de `main` ya está en verde, con WebKit reproduciendo y pausando con audio en Linux (#14): la fase 4 parte de ahí;
   - en la lista de pruebas en móviles, una de 5 min con 4 capas largas (tomas de 30–60 s) y el autoguardado activo, girando diales: 0 cortes (revisión, #6).
 - **Fase 5.a:** la maqueta 2D del instrumento HTML pone el dial principal y el brazo arriba a la derecha, como el original; se alinea con la distribución del aparato que apruebe Iván, porque seguirá siendo la alternativa sin WebGL (revisión, #20).
 
@@ -307,7 +307,7 @@ Revisión: `docs/revisiones/fase-2.md` (CAMBIOS NECESARIOS: 0 Bloqueantes, 6 Imp
 | 11 | Menor | La zona de toque es el control entero, y la ranura que se ve es su `::before`. | e2e: los 12 controles miden al menos 44 × 44 px, a 412 y a 1440 px de ancho. | `8b958d3` |
 | 12 | Menor | Girar un dial, el brazo, la rueda o el disco no se anuncia en la región viva, porque ya lo lee el control (los avisos sí se anuncian). El resumen hablado no lleva la flecha de los submenús y cambia la marca de lo elegido por «en uso». | Tests del store: girar no cambia el anuncio; el menú se lee «Menú. Sonido. Toma libre.» y «Batería. Prueba: en uso. Toma libre.». | `9238e24` |
 | 13 | Menor | Borrados `stageTapped` (y con él el uso de `isAudioUnlocked` fuera del desbloqueo), `Microphone.isOpen`, los getters `status`, `sampleRate` y `mic` del motor, los textos `hint*` del menú y `layerState`. | Ninguno aparece ya en `src/`; `npm run check` en verde. | `c42dfa4` |
-| 14 | Menor | Se comprueba en el primer CI de `main` tras la fusión, antes de la fase 3. | Pendiente: se apunta aquí en cuanto termine. | — |
+| 14 | Menor | Comprobado en el CI de `main` tras la fusión. La prueba de WebKit se ha endurecido: sin `AudioContext`, pasaba por la rama del aviso sin probar el audio; ahora solo el WebKit de Windows puede venir sin Web Audio. Al vigilar el CI salieron dos fallos más, arreglados en `main`: (1) un test del DSP que con la cobertura tarda 19 s se pasó de 30 s en un runner lento, y el límite pasa a 120 s; (2) una carrera del e2e del autoguardado, que recargaba antes de que terminara el borrado asíncrono de IndexedDB: ahora el test espera al borrado. Los fallos de los e2e salen ya como anotaciones del commit (reporter `github`). | CI de `main` en verde (`40ae336`): lint, tests, build, presupuestos y 81 e2e en 2,4 min, sin reintentos, con WebKit de Linux reproduciendo y pausando con audio. La carrera, reproducida en local frenando la CPU de la página (4× y 10×): 6 de 6 fallos; con la espera, 6 de 6 bien (el borrado tarda 3–18 ms). No es un fallo del flujo: con el panel abierto no se autoguarda nada, y una persona no recarga tan rápido. | `d97d858`, `0ca8a0e`, `fad8a33`, `40ae336` |
 | 15 | Menor | Sin reescribir el historial. Los arreglos de esta revisión ya van cada uno con su test; en la fase 3, un commit por pieza con su test. | — | — |
 | 16 | Sugerencia | Los controles que no giran (las teclas) no pasan a «girar» al moverse: un temblor del dedo ya no cancela pulsar ni mantener. | Test de la máquina de gestos y e2e: un arrastre de 12 px sobre «Reproducir» reproduce (falla sin el cambio). | `e721ecc` |
 | 17 | Sugerencia | Vacías, las regiones vivas de los avisos se ocultan a la vista (1 px recortado y fuera de la rejilla), no con `display: none`. | El e2e de axe comprueba que las dos regiones (`alert` y `status`) están en el árbol, vacías (falla sin el cambio). | `3145520` |
@@ -335,7 +335,8 @@ Revisión: `docs/revisiones/fase-2.md` (CAMBIOS NECESARIOS: 0 Bloqueantes, 6 Imp
 - **`npm run e2e`:** 81 de 81 en 57 s (dev 34, estático 46 y WebKit 1).
   - Primer sonido tras pulsar: 14, 14, 11, 9 y 9 ms (dev); 8, 9, 13, 7 y 11 ms (estático).
   - Pico de la salida con el sonido de prueba: −9,6 y −9,0 dBFS.
-  - En una ejecución anterior, con el PC muy cargado por otras aplicaciones (CPU al 83 %), falló una vez «una toma con el micrófono sintético… cada 500 ms»: un hueco entre ataques salió de 510 ms. La desviación fue de 480 muestras justas (10 ms), que es el bloque de captura del micrófono sintético de Chromium; el worklet trabaja en bloques de 128. Repetido 8 veces seguidas, 8 en verde. El CI tiene un reintento.
+  - En una ejecución anterior, con el PC muy cargado por otras aplicaciones (CPU al 83 %), falló una vez «una toma con el micrófono sintético… cada 500 ms»: un hueco entre ataques se desvió de los 500 ms en 480 muestras justas (10 ms). Es el bloque de captura del micrófono sintético de Chromium; el worklet trabaja en bloques de 128. Repetido 8 veces seguidas, 8 en verde. El CI tiene un reintento.
+- **CI de `main`** (GitHub Actions, tras la fusión y los arreglos del #14): en verde, con 81 e2e en 2,4 min.
 - **Banco** (`npm run test:bench`): `LoopCore` a 233×, 221× y 204× tiempo real en tres ejecuciones. Con el PC muy cargado bajó a 27–50× y no llegó a los 100× del test. Es la máquina, no el código: los arreglos de la revisión no tocan `LoopCore.process()`.
 
 **Propuesta nueva** (§10, 4): el pico de memoria de una copia de la sesión que coincide con el principio de una toma.
