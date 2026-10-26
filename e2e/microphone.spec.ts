@@ -35,11 +35,19 @@ test.describe('micrófono', () => {
     expect(pcm.length).toBeGreaterThan(1.5 * rate);
     // Las ráfagas del micrófono sintético: 500 ms entre ataques (±2 ms).
     // (Los primeros 10 ms son la junta: el final de la toma cruzado con su principio.)
+    // Con la máquina muy cargada, la captura falsa de Chromium pierde o repite a veces un bloque
+    // de 10 ms antes de llegar al worklet: visto en local (480 muestras a 48 kHz) y en el CI (441 a
+    // 44,1 kHz). Se admite como mucho un salto así, de 10 ms justos. El worklet y el núcleo van en
+    // bloques de 128 muestras: si perdieran algo, no saldrían 10 ms.
     const found = onsets(pcm, rate, { floor: 0.05 }).filter((onset) => onset > 0.02 * rate);
     expect(found.length).toBeGreaterThanOrEqual(3);
-    for (let i = 1; i < found.length; i++) {
-      expect(Math.abs(found[i]! - found[i - 1]! - 0.5 * rate)).toBeLessThanOrEqual(0.002 * rate);
-    }
+    const errors = found.slice(1).map((onset, i) => Math.abs(onset - found[i]! - 0.5 * rate));
+    const exact = errors.filter((error) => error <= 0.002 * rate).length;
+    const slips = errors.filter((error) => Math.abs(error - 0.01 * rate) <= 0.002 * rate).length;
+    if (slips > 0)
+      console.info(`Captura de Chromium: ${slips} salto de 10 ms (${errors.join(', ')})`);
+    expect(slips).toBeLessThanOrEqual(1);
+    expect(exact + slips, `desviaciones en muestras: ${errors.join(', ')}`).toBe(errors.length);
   });
 
   test('reproducir y grabar con el audio aún cargando: la toma espera al audio y no se pierde', async ({
