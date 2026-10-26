@@ -41,7 +41,7 @@ export default defineConfig({
     {
       name: 'dev',
       use: { ...chromium, baseURL: `http://localhost:${DEV_PORT}` },
-      testIgnore: /(static|hydration|webkit)\.spec\.ts$/,
+      testIgnore: /(static|hydration|webkit|headers)\.spec\.ts$/,
     },
     {
       name: 'estatico',
