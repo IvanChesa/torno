@@ -13,7 +13,7 @@
     "prebuild": "node scripts/build-worklet.mjs",
     "postbuild": "node scripts/publish-licenses.mjs",
     "watch": "ng build --watch --configuration development",
-    "test": "npm run test:node && npm run test:bench && npm run test:ng",
+    "test": "npm run test:node && npm run test:ng",
     "pretest": "node scripts/build-worklet.mjs",
     "test:node": "vitest run --config vitest.node.config.mts --coverage --exclude \"**/*.bench.spec.ts\"",
     "test:bench": "vitest run --config vitest.node.config.mts bench.spec",

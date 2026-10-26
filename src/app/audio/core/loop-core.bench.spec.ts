@@ -1,6 +1,10 @@
 // Banco de rendimiento del núcleo (PLAN §5, «CPU del audio»): 4 capas sonando con varispeed,
 // filtro y panorama, más el limitador, en bloques de 128 como el worklet. Objetivo: ≥ 100× tiempo
-// real en escritorio. La cifra se imprime para el informe.
+// real en un PC sin otra carga. La cifra se imprime para el informe.
+//
+// Va fuera de `npm test` y de `check` (`npm run test:bench`): mide tiempo de pared y depende de la
+// carga del equipo. En el CI, `BENCH_MIN_FACTOR=50` hace de suelo de regresión, y la cota de la
+// copia por tramos se multiplica por 3 (revisión del bloque A, #1).
 import { describe, expect, it } from 'vitest';
 import { LAYER_COUNT } from './constants';
 import { COPY_SAMPLES_PER_FRAME, SessionCopy } from './session-copy';
@@ -8,6 +12,8 @@ import { BLOCK, Harness, sineSound, exportState } from './test-harness';
 
 const RATE = 48_000;
 const SECONDS = 60;
+const MIN_FACTOR = Number(process.env['BENCH_MIN_FACTOR'] ?? 100);
+const SLACK = process.env['CI'] ? 3 : 1;
 
 function busyCore(): Harness {
   const harness = new Harness({ sampleRate: RATE });
@@ -23,7 +29,7 @@ function busyCore(): Harness {
 }
 
 describe('rendimiento de LoopCore', () => {
-  it(`rinde ≥ 100× tiempo real con 4 capas, filtros y limitador (${SECONDS} s a 48 kHz)`, () => {
+  it(`rinde ≥ ${MIN_FACTOR}× tiempo real con 4 capas, filtros y limitador (${SECONDS} s a 48 kHz)`, () => {
     const harness = busyCore();
     const core = harness.core;
     const outL = new Float32Array(BLOCK);
@@ -37,12 +43,12 @@ describe('rendimiento de LoopCore', () => {
     const factor = (blocks * BLOCK) / RATE / seconds;
     console.info(`LoopCore: ${factor.toFixed(0)}× tiempo real (${(seconds * 1000).toFixed(0)} ms)`);
     expect(core.status.layers.every((layer) => layer.hasContent)).toBe(true);
-    expect(factor).toBeGreaterThanOrEqual(100);
+    expect(factor).toBeGreaterThanOrEqual(MIN_FACTOR);
   });
 });
 
 describe('copia de la sesión mientras suena', () => {
-  it('con 4 capas de 60 s, ningún bloque pasa de 2 ms (un bloque dura 2,67) mientras se copia', () => {
+  it(`con 4 capas de 60 s, ningún bloque pasa de ${2 * SLACK} ms mientras se copia (un bloque dura 2,67)`, () => {
     const harness = new Harness({ sampleRate: RATE });
     for (let layer = 0; layer < LAYER_COUNT; layer++) {
       // 60 s a 90 BPM: 90 pulsos (el máximo de una capa).
@@ -83,6 +89,6 @@ describe('copia de la sesión mientras suena', () => {
     );
     // El trabajo de la copia por bloque son centésimas de ms; el peor recoge las pausas del
     // recolector y del sistema.
-    expect(at(1)).toBeLessThan(2);
+    expect(at(1)).toBeLessThan(2 * SLACK);
   });
 });

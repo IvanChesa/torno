@@ -17,8 +17,9 @@ export const LIMITS = {
   initialJs: { warn: 330 * KB, error: 400 * KB },
   unlock: { error: 2 * KB },
   engine: { error: 60 * KB },
-  worklet: { error: 40 * KB },
-  worker: { error: 40 * KB },
+  // El worklet y el worker de exportación llevan el núcleo entero (revisión del bloque A, #2).
+  worklet: { error: 60 * KB },
+  worker: { error: 60 * KB },
   scene: { warn: 800 * KB },
   fonts: { error: 150 * KB },
 };

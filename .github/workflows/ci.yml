@@ -17,7 +17,8 @@ concurrency:
 jobs:
   check:
     name: Lint, tests, build, presupuestos y e2e
-    runs-on: ubuntu-latest
+    # Imagen fijada: el audio de WebKit depende de los paquetes del sistema; se cambia a propósito.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       # Acciones fijadas por SHA de commit (la versión va en el comentario).
@@ -34,6 +35,10 @@ jobs:
       # Los pasos pre* regeneran el worklet (scripts/build-worklet.mjs) antes de cada uno.
       - run: npm run lint
       - run: npm test
+      # Banco del núcleo (PLAN §5): fuera de `check`; aquí, suelo de regresión de 50×.
+      - run: npm run test:bench
+        env:
+          BENCH_MIN_FACTOR: '50'
       - run: npm run build
       - run: node scripts/check-bundles.mjs
 

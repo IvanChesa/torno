@@ -108,14 +108,14 @@ describe('check-bundles', () => {
 
   it('falla si el worklet, un worker, el motor o las fuentes se pasan de su límite', () => {
     const outputs = healthy();
-    outputs['worker-ABCD1234.js'] = { ...outputs['worker-ABCD1234.js']!, bytes: 40_001 };
+    outputs['worker-ABCD1234.js'] = { ...outputs['worker-ABCD1234.js']!, bytes: 60_001 };
     outputs['chunk-PROBE.js'] = { ...outputs['chunk-PROBE.js']!, bytes: 60_001 };
     outputs['media/font-BBBB.woff2'] = { bytes: 50_001, inputs: {} };
     const { errors } = checkBundles(
       metafile(outputs),
       { '/': PAGE },
       {
-        worklet: [{ file: 'audio/processor.ABC.js', bytes: 40_001 }],
+        worklet: [{ file: 'audio/processor.ABC.js', bytes: 60_001 }],
       },
     );
     expect(errors).toHaveLength(4);
