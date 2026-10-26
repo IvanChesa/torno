@@ -103,7 +103,10 @@ export function hat(sampleRate: number, random: Random, options: HatOptions): Fl
   for (let i = 0; i < length; i++) out[i] = 0.7 * out[i]! + 0.45 * noise(random);
   filter(out, sampleRate, 'bandpass', options.tone, 1.1);
   filter(out, sampleRate, 'highpass', options.tone * 0.7);
-  return applyEnvelope(out, percussive(0.0005, options.decay, options.length, sampleRate));
+  applyEnvelope(out, percussive(0.0005, options.decay, options.length, sampleRate));
+  // Los filtros se quedan con una parte pequeña del racimo: de vuelta a un pico de ≈ 0,75.
+  for (let i = 0; i < length; i++) out[i] = out[i]! * 2.5;
+  return out;
 }
 
 /** Palmas: tres golpes de ruido muy seguidos y una cola corta, por un paso banda. */

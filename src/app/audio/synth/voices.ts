@@ -138,22 +138,30 @@ export interface PadOptions {
   readonly q: number;
 }
 
-/** Pad de dos sierras desafinadas (−7 y +6 cents) por un paso bajo que se abre al atacar. */
+/**
+ * Pad de un acorde: dos sierras desafinadas (−7 y +6 cents) por nota, y todas juntas por un mismo
+ * paso bajo que se abre al atacar (las notas comparten envolvente: filtrar la suma es lo mismo que
+ * filtrar cada una, y cuesta una vez). `gains`: el nivel de cada nota.
+ */
 export function pad(
   sampleRate: number,
-  hz: number,
+  notes: readonly number[],
+  gains: readonly number[],
   gate: number,
   options: PadOptions,
 ): Float64Array {
   const length = adsrLength(options.envelope, gate, sampleRate);
   const out = new Float64Array(length);
-  for (const [cents, phase] of [
-    [-7, 0.13],
-    [6, 0.61],
-  ] as const) {
-    const saw = oscillator('saw', length, sampleRate, detuned(hz, cents), { phase });
-    for (let i = 0; i < length; i++) out[i] = out[i]! + saw[i]! / 2;
-  }
+  notes.forEach((hz, note) => {
+    const gain = (gains[note] ?? 1) / 2;
+    for (const [cents, phase] of [
+      [-7, 0.13 + 0.17 * note],
+      [6, 0.61 + 0.29 * note],
+    ] as const) {
+      const saw = oscillator('saw', length, sampleRate, detuned(hz, cents), { phase: phase % 1 });
+      for (let i = 0; i < length; i++) out[i] = out[i]! + gain * saw[i]!;
+    }
+  });
   const envelope = adsr(options.envelope, gate, sampleRate);
   const cutoff = new Float64Array(length);
   for (let i = 0; i < length; i++) {

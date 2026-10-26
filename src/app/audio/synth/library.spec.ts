@@ -38,7 +38,20 @@ const render = (id: string, rate: number) => {
  * Hash del PCM de cada bucle a 48 kHz. Si cambia una receta, cambia su hash: se actualiza aquí a
  * propósito (y Iván vuelve a escuchar ese bucle).
  */
-const GOLDEN: Readonly<Record<string, string>> = {};
+const GOLDEN: Readonly<Record<string, string>> = {
+  alfar: 'eeea43e2',
+  horno: '4aa83394',
+  adobe: '883bd0db',
+  raiz: 'c342c230',
+  cinca: 'b6ec9101',
+  surco: '55274ade',
+  olivo: '5ed765ea',
+  vega: 'a0eba3f2',
+  almendro: '382c9f64',
+  cierzo: '69b997d8',
+  acequia: '36e5a41f',
+  brasa: '66f31c91',
+};
 
 describe('la colección', () => {
   it('tiene 12 bucles, 3 por papel', () => {
@@ -59,7 +72,7 @@ describe('la colección', () => {
       hashes[id] = hash(first);
     }
     console.warn(`Hash del PCM a 48 kHz: ${JSON.stringify(hashes)}`);
-    if (Object.keys(GOLDEN).length > 0) expect(hashes).toEqual(GOLDEN);
+    expect(hashes).toEqual(GOLDEN);
   });
 
   it.each(RATES)('dura exactamente 2 compases a 90 BPM (%i Hz)', (rate) => {

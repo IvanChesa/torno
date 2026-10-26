@@ -491,21 +491,15 @@ function vega(ctx: Context): Float64Array {
     const gate = ctx.seconds(next - chord.beat - 0.08);
     // El cambio de La7sus4 a La7 solo mueve una voz: el pad ataca más suave.
     const soft = chord.beat === 7 ? 0.6 : 1;
-    strum(
-      ctx,
-      out,
-      chord.voicing,
-      chord.beat,
-      0.004,
-      (hz) =>
-        pad(ctx.sampleRate, hz, gate, {
-          envelope: { attack: 0.09 * (2 - soft), decay: 0.5, sustain: 0.75, release: 0.4 },
-          cutoff: 650,
-          cutoffPeak: 650 + 1700 * soft,
-          q: 0.9,
-        }),
-      0.35 * soft,
-    );
+    const notes = chord.voicing.map(midiToFrequency);
+    const gains = chord.voicing.map(() => ctx.velocity(1, 0.08));
+    const sound = pad(ctx.sampleRate, notes, gains, gate, {
+      envelope: { attack: 0.09 * (2 - soft), decay: 0.5, sustain: 0.75, release: 0.4 },
+      cutoff: 650,
+      cutoffPeak: 650 + 1700 * soft,
+      q: 0.9,
+    });
+    out.add(sound, ctx.frame(chord.beat, 0.003), 0.35 * soft);
   });
   return loopEcho(out.data, ctx.sampleRate, {
     delay: ctx.seconds(0.75),

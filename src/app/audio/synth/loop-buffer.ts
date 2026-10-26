@@ -13,11 +13,15 @@ export class LoopBuffer {
   /** Suma `signal × gain` empezando en la muestra `start` (con vuelta al principio). */
   add(signal: Float64Array, start: number, gain = 1): void {
     const frames = this.frames;
+    const data = this.data;
     let index = ((Math.round(start) % frames) + frames) % frames;
-    for (const x of signal) {
-      this.data[index] = this.data[index]! + x * gain;
-      index++;
-      if (index === frames) index = 0;
+    // Por tramos hasta el final del bucle (sin comprobar la vuelta en cada muestra).
+    let done = 0;
+    while (done < signal.length) {
+      const count = Math.min(signal.length - done, frames - index);
+      for (let i = 0; i < count; i++) data[index + i] = data[index + i]! + signal[done + i]! * gain;
+      done += count;
+      index = 0;
     }
   }
 

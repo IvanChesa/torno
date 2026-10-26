@@ -12,6 +12,7 @@ import {
   removeDc,
   rmsOf,
   saturate,
+  softClip,
 } from './effects';
 import { adsr, adsrLength, percussive } from './envelope';
 import { filter } from './filter';
@@ -186,10 +187,17 @@ describe('búfer circular y efectos en bucle', () => {
   });
 
   it('saturación, continua y nivel', () => {
-    const x = Float64Array.from([0, 0.5, 1, -1]);
+    const x = Float64Array.from([0, 0.5, 1, -1, 4]);
     saturate(x, 2);
     expect(x[2]).toBeCloseTo(1, 12);
     expect(x[1]).toBeGreaterThan(0.5);
+    // Por encima de la saturación, el techo: 1 / softClip(drive).
+    expect(x[4]).toBeCloseTo(1 / softClip(2), 12);
+    // La curva se parece a tanh (≤ 2,5 % de diferencia) y es continua en ±3.
+    for (let v = -4; v <= 4; v += 0.01) {
+      expect(Math.abs(softClip(v) - Math.tanh(v))).toBeLessThan(0.025);
+    }
+    expect(softClip(-3)).toBe(-1);
     const dc = removeDc(Float64Array.from([1, 2, 3]));
     expect([...dc]).toEqual([-1, 0, 1]);
     // Nivel: el RMS objetivo salvo que el pico pase del techo.
@@ -240,7 +248,7 @@ describe('batería y voces', () => {
       ['madera', woodTone(RATE, 220)],
       [
         'pad',
-        pad(RATE, 220, 0.5, {
+        pad(RATE, [220, 277], [1, 0.8], 0.5, {
           envelope: { attack: 0.1, decay: 0.5, sustain: 0.7, release: 0.4 },
           cutoff: 600,
           cutoffPeak: 2000,

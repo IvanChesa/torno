@@ -45,17 +45,30 @@ export function loopEcho(
   );
 }
 
-/** Saturación suave (tanh) con ganancia `drive`, normalizada para que 1 siga dando 1. */
+/**
+ * Curva de saturación suave: aproximación de Padé de tanh, x·(27 + x²) / (27 + 9·x²), que llega a
+ * ±1 en ±3 con pendiente 0 y se queda ahí. Varias veces más rápida que `Math.tanh`.
+ */
+export function softClip(x: number): number {
+  if (x >= 3) return 1;
+  if (x <= -3) return -1;
+  const x2 = x * x;
+  return (x * (27 + x2)) / (27 + 9 * x2);
+}
+
+/** Saturación suave con ganancia `drive`, normalizada para que 1 siga dando 1. */
 export function saturate(signal: Float64Array, drive: number): Float64Array {
-  const norm = 1 / Math.tanh(drive);
-  for (let i = 0; i < signal.length; i++) signal[i] = Math.tanh(drive * signal[i]!) * norm;
+  const norm = 1 / softClip(drive);
+  for (let i = 0; i < signal.length; i++) signal[i] = softClip(drive * signal[i]!) * norm;
   return signal;
 }
 
 /** Quita la continua de un bucle (resta la media: en una señal periódica, la deja en 0 exacto). */
 export function removeDc(loop: Float64Array): Float64Array {
   let sum = 0;
-  for (const x of loop) sum += x;
+  // Con índice: `for…of` sobre un array tipado es varias veces más lento en V8.
+  // eslint-disable-next-line @typescript-eslint/prefer-for-of
+  for (let i = 0; i < loop.length; i++) sum += loop[i]!;
   const mean = sum / loop.length;
   for (let i = 0; i < loop.length; i++) loop[i] = loop[i]! - mean;
   return loop;
@@ -66,13 +79,15 @@ export const gainToDb = (gain: number) => 20 * Math.log10(gain);
 
 export function rmsOf(signal: Float32Array | Float64Array): number {
   let sum = 0;
-  for (const x of signal) sum += x * x;
+  // eslint-disable-next-line @typescript-eslint/prefer-for-of
+  for (let i = 0; i < signal.length; i++) sum += signal[i]! * signal[i]!;
   return Math.sqrt(sum / signal.length);
 }
 
 export function peakOf(signal: Float32Array | Float64Array): number {
   let peak = 0;
-  for (const x of signal) peak = Math.max(peak, Math.abs(x));
+  // eslint-disable-next-line @typescript-eslint/prefer-for-of
+  for (let i = 0; i < signal.length; i++) peak = Math.max(peak, Math.abs(signal[i]!));
   return peak;
 }
 
