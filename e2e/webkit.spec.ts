@@ -10,6 +10,9 @@ test.describe('WebKit', () => {
     const driver = new InstrumentDriver(page);
     await driver.open();
     const webAudio = await page.evaluate(() => typeof AudioContext !== 'undefined');
+    // Solo el de Windows viene sin Web Audio: en Linux (el CI) y en macOS, la prueba tiene que sonar
+    // (si no, pasaría por la rama del aviso sin haber probado el audio).
+    if (process.platform !== 'win32') expect(webAudio).toBe(true);
 
     // El menú: BUCLE, su primera opción y volver (no necesita audio).
     await driver.menu(MENU.loop);
