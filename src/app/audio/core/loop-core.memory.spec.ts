@@ -145,13 +145,16 @@ describe('process() no reserva memoria', () => {
     const command = (body: object) => ({ v: PROTOCOL_VERSION, ...body }) as CoreCommand;
     const hold = command({ type: 'disc-hold', layer: 2 });
     const release = command({ type: 'disc-release' });
+    // Del 20 al 30, a 240 BPM: el filtro contra el aliasing se enciende, se rediseña y se apaga.
+    const fast = [200, 220, 240].map((bpm) => command({ type: 'set-tempo', bpm }));
+    const back = command({ type: 'set-tempo', bpm: 101 });
     const moves = Array.from({ length: 40 }, (_, i) =>
       command({ type: 'disc-move', turns: Math.sin(i / 3) }),
     );
     /**
      * Un minuto de sesión: una sobregrabación que se confirma, un cambio en cola que entra en un
-     * compás, una copia de la sesión por tramos, el metrónomo, cuatro capas con filtro y varispeed,
-     * y el disco de otra capa agarrado y movido a saltos entre los segundos 10 y 50. Lo que reserva
+     * compás, una copia de la sesión por tramos, el metrónomo, cuatro capas con filtro y varispeed
+     * (diez segundos a 200–240 BPM, con el filtro contra el aliasing), y el disco de otra capa agarrado y movido a saltos entre los segundos 10 y 50. Lo que reserva
      * (la toma, el sonido y la copia) se pide antes de cada pasada, como en el worklet (en el
      * manejador de mensajes, no en `process()`).
      */
@@ -163,6 +166,10 @@ describe('process() no reserva memoria', () => {
           core.handle(moves[(b / second) % moves.length]!);
         }
         if (b === 50 * second) core.handle(release);
+        if (b === 20 * second) core.handle(fast[0]!);
+        if (b === 22 * second) core.handle(fast[1]!);
+        if (b === 24 * second) core.handle(fast[2]!);
+        if (b === 30 * second) core.handle(back);
         core.process(input, outL, outR, BLOCK);
         core.statusReady = false;
         // Lo que hace el worklet tras cada bloque mientras hay una copia de la sesión pedida.

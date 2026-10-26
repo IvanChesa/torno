@@ -95,7 +95,9 @@ export class LayerChannel {
     this.#discFollow = onePoleCoefficient(DISC_FOLLOW_SECONDS, sampleRate);
     const dcBlock = Math.exp((-2 * Math.PI * DISC_DC_BLOCK_HZ) / sampleRate);
     for (let i = 0; i < VOICES_PER_LAYER; i++) {
-      this.voices.push(new Voice(this.changeFade, this.#discFollow, dcBlock));
+      this.voices.push(
+        new Voice(this.changeFade, this.#discFollow, dcBlock, sampleRate, maxFrames),
+      );
     }
     this.#smoothing = onePoleCoefficient(SMOOTHING_SECONDS, sampleRate);
     this.#amountStep = 1 - Math.exp(-FILTER_BLOCK / (SMOOTHING_SECONDS * sampleRate));

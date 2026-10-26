@@ -5,7 +5,9 @@
 //      → docs/informes/img/fase-2/<página>-<escritorio|movil>.png
 //        y, desde la fase 2, el instrumento HTML de cerca, con sus avisos: en reposo, con el menú
 //        abierto, con la chuleta de atajos, cargando el audio, con el error de «Reintentar» y
-//        ofreciendo recuperar la sesión anterior.
+//        ofreciendo recuperar la sesión anterior; desde la fase 3, el menú SONIDO con la colección,
+//        MARCAR TEMPO, un cambio EN COLA y el panel de recuperar con los dos huecos y su
+//        confirmación.
 /* global document, AudioWorklet -- se usan dentro de page.evaluate() y addInitScript(), en la página */
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -92,6 +94,22 @@ try {
     await page.getByRole('heading', { name: 'Atajos de teclado' }).waitFor();
     await shootInstrument(page, 'atajos', viewport.name);
 
+    // SONIDO → BATERÍA: los tres bucles y APAGADO.
+    main = await openHome(page, home);
+    await main.focus();
+    for (let i = 0; i < 3; i++) await main.press('Enter');
+    await page.locator('trn-instrument-screen').getByText('HORNO').waitFor();
+    await shootInstrument(page, 'sonido', viewport.name);
+    // BUCLE → MARCAR TEMPO.
+    main = await openHome(page, home);
+    await main.focus();
+    await main.press('Enter');
+    await main.press('ArrowDown');
+    await main.press('Enter');
+    for (let i = 0; i < 5; i++) await main.press('ArrowDown');
+    await page.locator('trn-instrument-screen').getByText('MARCAR TEMPO').waitFor();
+    await shootInstrument(page, 'marcar-tempo', viewport.name);
+
     // El módulo de audio que no llega: «Preparando el audio…» y, a los 5 s, el error.
     const stuck = await context.newPage();
     await stuck.addInitScript(() => {
@@ -108,16 +126,47 @@ try {
     // Una sesión autoguardada (con la fecha fija) que se ofrece recuperar al volver.
     await page.clock.setFixedTime(new Date('2026-10-24T19:30:00+02:00'));
     main = await openHome(page, home);
-    // SONIDO → BATERÍA → PRUEBA, y fuera del menú.
+    // SONIDO → BATERÍA → ALFAR, y fuera del menú.
     await main.focus();
     for (let i = 0; i < 4; i++) await main.press('Enter');
     for (let i = 0; i < 5; i++) await main.press('Escape');
-    await page.locator('trn-instrument-screen').getByText('BATERÍA · PRUEBA').waitFor();
+    await page.locator('trn-instrument-screen').getByText('BATERÍA · ALFAR').waitFor();
     // El autoguardado espera 1,5 s tras la última edición.
     await page.waitForTimeout(2500);
     await openHome(page, home);
     await page.getByRole('button', { name: 'Recuperar la sesión anterior' }).waitFor();
     await shootInstrument(page, 'recuperar', viewport.name);
+
+    // Sin contestar, un cambio en marcha: ALFAR suena y el bajo de la capa 2 espera EN COLA.
+    main = page.locator('[data-control="main"]');
+    await page.locator('[data-control="play"]').click();
+    await page.locator('trn-instrument-screen').getByText('EN MARCHA').waitFor();
+    await main.focus();
+    await main.press('2');
+    await main.press('Enter');
+    await main.press('Enter');
+    await main.press('ArrowDown');
+    await main.press('Enter');
+    await main.press('Enter');
+    for (let i = 0; i < 5; i++) await main.press('Escape');
+    await page.locator('trn-instrument-screen').getByText('EN COLA').waitFor();
+    await shootInstrument(page, 'en-cola', viewport.name);
+    // Lo tocado va al segundo hueco: al volver, el panel ofrece las dos sesiones.
+    await page.locator('[data-control="play"]').click();
+    await page.waitForTimeout(4000);
+    await openHome(page, home);
+    await page.getByRole('button', { name: 'Recuperar lo que tocaste después' }).waitFor();
+    await shootInstrument(page, 'recuperar-dos', viewport.name);
+    // Con sonido en la sesión actual, «Recuperar» pide confirmación («Cancelar» primero).
+    main = page.locator('[data-control="main"]');
+    await main.focus();
+    for (let i = 0; i < 4; i++) await main.press('Enter');
+    for (let i = 0; i < 5; i++) await main.press('Escape');
+    await page.locator('trn-instrument-screen').getByText('BATERÍA · ALFAR').waitFor();
+    await page.waitForTimeout(500);
+    await page.getByRole('button', { name: 'Recuperar la sesión anterior' }).click();
+    await page.getByRole('button', { name: 'Cancelar' }).waitFor();
+    await shootInstrument(page, 'recuperar-confirmar', viewport.name);
     await context.close();
   }
 } finally {

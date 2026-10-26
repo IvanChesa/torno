@@ -65,3 +65,6 @@ Thumbs.db
 AGENTS.md
 .agents/
 .codex/
+
+# Escucha de la colección (npm run demo:sounds)
+/demo-sounds/

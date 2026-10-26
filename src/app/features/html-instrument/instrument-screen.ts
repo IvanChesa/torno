@@ -8,6 +8,9 @@ const VISIBLE_ROWS = 4;
  * La pantalla del aparato (fósforo sobre negro): pinta el modelo de pantalla del instrumento. No es
  * una región viva: el resumen para los lectores de pantalla va aparte, con antirrebote.
  */
+/** Espacio sin ruptura delante de cada separador «·». */
+const keepSeparator = (text: string) => text.replaceAll(' · ', '\u00a0· ');
+
 @Component({
   selector: 'trn-instrument-screen',
   template: `
@@ -15,7 +18,7 @@ const VISIBLE_ROWS = 4;
       @if (display().title) {
         <p class="screen__title">{{ display().title }}</p>
       }
-      @for (line of display().lines; track $index) {
+      @for (line of lines(); track $index) {
         <p class="screen__line">{{ line }}</p>
       }
       @if (rows().length > 0) {
@@ -37,7 +40,7 @@ const VISIBLE_ROWS = 4;
           }
         </ul>
       }
-      <p class="screen__status">{{ display().status }}</p>
+      <p class="screen__status">{{ status() }}</p>
     </div>
   `,
   styles: `
@@ -98,6 +101,9 @@ const VISIBLE_ROWS = 4;
 })
 export class InstrumentScreen {
   readonly display = input.required<DisplayModel>();
+  /** Las líneas parten detrás del «·», nunca delante («CAPA 1 · BATERÍA ·» / «ALFAR»). */
+  protected readonly lines = computed(() => this.display().lines.map(keepSeparator));
+  protected readonly status = computed(() => keepSeparator(this.display().status));
 
   /** Las filas visibles: una ventana alrededor de la elegida. */
   protected readonly rows = computed(() => {

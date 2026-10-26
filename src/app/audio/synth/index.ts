@@ -1,8 +1,7 @@
 /**
  * audio/synth: síntesis propia y determinista en TS puro (PLAN §4.1, D8): osciladores, envolventes,
- * batería sintética, efectos y los 12 bucles. La renderiza el worker de síntesis.
- *
- * Fase 2: el tono y los sonidos de prueba del menú. La colección llega en la fase 3.
+ * filtros, batería sintética, voces, efectos y los 12 bucles de la colección. La renderiza el worker
+ * de síntesis.
  */
-export * from './test-loop';
-export * from './tone';
+export * from './library';
+export * from './music';

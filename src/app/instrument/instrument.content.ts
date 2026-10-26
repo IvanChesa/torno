@@ -58,6 +58,7 @@ export const INSTRUMENT_CONTENT = {
     metronome: 'METRÓNOMO',
     reverse: 'REVERSO',
     pan: 'PANORAMA',
+    tapTempo: 'MARCAR TEMPO',
     fitTempo: 'AJUSTAR TEMPO',
     yes: 'SÍ',
     no: 'NO',
@@ -100,6 +101,22 @@ export const INSTRUMENT_CONTENT = {
         lines: ['TOCA Y ESPERA', 'MEDIO SEGUNDO (MAYÚS + INTRO)'],
       },
     },
+  },
+
+  /** Nombres de los 12 bucles de la colección (pantalla, en mayúsculas). */
+  sounds: {
+    alfar: 'ALFAR',
+    horno: 'HORNO',
+    adobe: 'ADOBE',
+    raiz: 'RAÍZ',
+    cinca: 'CINCA',
+    surco: 'SURCO',
+    olivo: 'OLIVO',
+    vega: 'VEGA',
+    almendro: 'ALMENDRO',
+    cierzo: 'CIERZO',
+    acequia: 'ACEQUIA',
+    brasa: 'BRASA',
   },
 
   display: {

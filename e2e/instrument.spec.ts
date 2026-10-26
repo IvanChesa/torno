@@ -61,13 +61,13 @@ test.describe('instrumento HTML', () => {
     const driver = new InstrumentDriver(page);
     await driver.open();
     await driver.chooseSound(MENU.categories.chords);
-    await driver.expectScreen('CAPA 1 · ACORDES · PRUEBA');
+    await driver.expectScreen('CAPA 1 · ACORDES · OLIVO');
     // Antes de reproducir, nada suena.
     expect(await outputPeak(page, 300)).toBe(0);
     await driver.control('play').click();
     await driver.expectScreen('EN MARCHA');
     await expect(driver.control('play')).toHaveAttribute('aria-pressed', 'true');
-    // El bucle de prueba tiene su pico a −6 dBFS; centrado, sale a −9 dBFS.
+    // OLIVO tiene su pico a unos −7 dBFS; centrado, sale a unos −10 dBFS.
     const peak = await outputPeak(page, 1500);
     console.info(`Pico de la salida: ${(20 * Math.log10(peak)).toFixed(1)} dBFS`);
     expect(20 * Math.log10(peak)).toBeGreaterThan(-12);
@@ -94,7 +94,7 @@ test.describe('instrumento HTML', () => {
     const driver = new InstrumentDriver(page);
     await driver.open();
     await driver.chooseSound(MENU.categories.drums);
-    await driver.expectScreen('CAPA 1 · BATERÍA · PRUEBA');
+    await driver.expectScreen('CAPA 1 · BATERÍA · ALFAR');
     // En la página: se mide desde el `pointerdown` de la tecla hasta la primera muestra que suena
     // en el analizador de la salida (5 ms de resolución). Cinco veces, parando entre medias.
     const times: number[] = [];

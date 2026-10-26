@@ -38,7 +38,7 @@ function healthy(): Record<string, Output> {
     'worker-ABCD1234.js': {
       bytes: 1_300,
       entryPoint: 'src/app/audio/workers/synth.worker.ts',
-      inputs: { 'src/app/audio/synth/tone.ts': { bytesInOutput: 900 } },
+      inputs: { 'src/app/audio/synth/library.ts': { bytesInOutput: 900 } },
     },
     'media/font-AAAA.woff2': { bytes: 100_000, inputs: {} },
   };
@@ -54,7 +54,7 @@ describe('check-bundles', () => {
   it.each([
     ['node_modules/three/build/three.module.js', 'three'],
     ['src/app/audio/core/loop-core.ts', 'audio'],
-    ['src/app/audio/synth/tone.ts', 'audio'],
+    ['src/app/audio/synth/library.ts', 'audio'],
     ['src/app/audio/worklet/processor.ts', 'audio'],
     ['src/app/audio/engine/probe.ts', 'motor'],
     ['src/app/scene/engine.ts', 'escena'],

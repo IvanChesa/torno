@@ -135,3 +135,37 @@ El núcleo corre en el AudioWorklet; alrededor, el motor del hilo principal (`au
 | Peticiones de red al grabar, guardar y exportar | 0 | e2e `files.spec.ts` |
 | La mezcla exportada frente al render del núcleo | ≤ 1 LSB de 24 bits | e2e `files.spec.ts` |
 | Remuestreo de 44,1 a 48 kHz, tono de 15 kHz a −6 dBFS | 0,00 dB; imágenes a 18,9 y 11,1 kHz: −87,8 y −105,4 dB (con la interpolación lineal de antes: −3,44 dB; −15,0 y −27,3 dB) | e2e `files.spec.ts` en Chromium (DFT de la vuelta, que es periódica) |
+
+## 8. La colección y el *varispeed* rápido (fase 3)
+
+### Síntesis (`audio/synth/`)
+- **Piezas:** azar con semilla (mulberry32), osciladores PolyBLEP (sierra, pulso y triángulo integrado; seno por tabla de 8192 puntos con error < 10⁻⁷), ADSR y envolvente percusiva que acaban en 0 exacto, SVF con el corte modulable cada 16 muestras, FM de dos operadores, batería sintética (bombo con barrido, caja, charles de 6 cuadradas inarmónicas, palmas, aro, tom afinado y maraca), eco con realimentación amortiguada y saturación suave (Padé de tanh).
+- **Sin junta:** todo se suma en un búfer circular del tamaño del bucle (las colas que pasan del final entran por el principio). Los efectos con memoria (eco, filtros continuos de las texturas) dan dos vueltas y se quedan con la segunda; los ciclos lentos dan un número entero de vueltas por bucle.
+- **Nivel por papel** (RMS del bucle entero; manda el pico si pasaría de −1,05 dBFS): batería −16, bajo −17, acordes −19 y textura −23 dBFS. Las cuatro capas a tope suman unos −11 dBFS de RMS. Sin continua: se resta la media del bucle (en una señal periódica la deja en 0).
+- **Determinismo:** la misma receta y la misma frecuencia dan los mismos bytes en el mismo motor de JavaScript (los hashes del test son los de V8). Otro motor (Safari) puede redondear `Math.sin` o `Math.exp` distinto en el último bit; no afecta a nada, porque el `.torno` guarda el PCM.
+- **Tonalidad:** Re menor, 90 BPM, 2 compases. Progresión propia, un acorde cada dos pulsos: Rem9 · Si♭maj9 · Solm9 · La7sus4 → La7.
+
+| Papel | Bucles | Cómo están hechos |
+|---|---|---|
+| BATERÍA | ALFAR · HORNO · ADOBE | *boom bap* con *swing* · medio tiempo pesado con palmas y redoble de toms afinados · percusión de manos con congas de madera (FM) |
+| BAJO | RAÍZ · CINCA · SURCO | sub-bajo de seno con un poco de 2.º armónico · sierra pulsada con filtro resonante y saltos de octava · pulso estrecho con portamento, funk de semicorcheas |
+| ACORDES | OLIVO · VEGA · ALMENDRO | piano eléctrico FM con acompañamiento sincopado · pad de sierras que se abre en cada acorde, con eco · arpegio de campanas FM 1:3,5 con eco |
+| TEXTURA | CIERZO · ACEQUIA · BRASA | viento: ruido por dos pasos banda que barren y un silbido · gotas en la pentatónica con eco sobre un hilo de agua · zumbido grave en Re, chasquidos y siseo |
+
+Cifras (48 kHz, PC de Iván, `npm run demo:sounds` y `node scripts/bench-synth.mjs`): picos de −1,1 a −14,1 dBFS; render de cada bucle en caliente entre 6 y 33 ms (en frío, hasta 43 ms), empaquetado con esbuild como el worker.
+
+### Sin *aliasing* al acelerar (`audio/core/antialias.ts`)
+- Leer un bucle `s` veces más deprisa lleva cada frecuencia `f` del PCM a `f·s`. Si `f·s` está entre `sr − 20 kHz` y `sr + 20 kHz`, su imagen cae en la banda audible. Eso solo puede pasar por encima de `s = (sr − 20 kHz)/(sr/2)`: 1,167 a 48 kHz (105 BPM para un bucle de 90) y 1,1 a 44,1 kHz.
+- Por encima de ese umbral (+2 % de histéresis), la voz pasa el PCM, **en el sentido de lectura y antes de interpolar**, por un Chebyshev II de orden 10 con 68 dB de banda eliminada que empieza en `(sr − 20 kHz)/s`. Banda pasante plana hasta −1 dB en esa frecuencia / 1,45 (19,3 kHz a la salida).
+- **Secciones TPT:** cada sección de 2.º orden es un SVF de topología preservada con salida de muesca. Con secciones en forma directa, girar el tempo cerca del umbral dejaba saltos de hasta 2× el de la propia señal (se rediseñan los coeficientes en cada cambio de tempo); con TPT, 1,02×.
+- **Alineación:** el filtro retrasa los graves su retardo de grupo en continua (de 0,1 muestras del PCM al encenderse a 10,4 a 6×); la voz lee lo filtrado adelantado en ese retardo. A 240 BPM, un tono de 800 Hz sigue en fase con la línea de tiempo (error < 0,002).
+- **Saltos de tempo:** el diseño sigue a la velocidad como mucho un 2 % por bloque de 128 muestras, con el retardo interpolado dentro del bloque. Rediseñado de golpe, un salto de 240 a 110 BPM dejaba un transitorio (0,191 frente a 0,144 de límite); a pasos, ninguno de los saltos probados pasa del criterio de §5.
+- Encender o apagar el filtro es un fundido de 10 ms entre las dos lecturas. El disco no se filtra. Sin reservas en `process()`: 0,0 KiB en 60 s simulados con 10 s a 200–240 BPM.
+
+| Medida | Resultado |
+|---|---|
+| Tono de 12 kHz a 240 BPM (sin filtro plegaría a 16 kHz / 12,1 kHz) | lo más alto, −68,7 dB (48 kHz) y −72,9 dB (44,1 kHz) |
+| Control sin filtro (Hermite directa) | la imagen, por encima de −20 dB |
+| Grabación de 60 BPM leída a 240 (4×), tono de 9 kHz | < −60 dB; uno de 1 kHz, ±0,5 dB |
+| CPU del núcleo a 240 BPM, 4 capas | 65× tiempo real con bucles de 90 BPM; 36× en el peor caso (bucles de 40 BPM, 6×) |
+| CPU a 97 BPM (criterio de §5, sin filtro) | 237× |

@@ -38,7 +38,7 @@ function session(): SessionState {
         pcm: ramp,
         lengthBeats: 4,
         offsetBeats: 0,
-        source: { kind: 'library', id: 'prueba-bajo' },
+        source: { kind: 'library', id: 'raiz' },
         level: 1,
         muted: true,
         pan: 1,
@@ -273,7 +273,7 @@ describe('lo que sobra en un archivo no llega a nadie', () => {
   it('las claves de más de los ajustes y del origen se descartan', () => {
     const extra = withHeader((h) => {
       h['settings'] = { ...(h['settings'] as object), latency: null, repeats: 999 };
-      layerOf(h, 2)['source'] = { kind: 'library', id: 'prueba-bajo', volumen: 11 };
+      layerOf(h, 2)['source'] = { kind: 'library', id: 'raiz', volumen: 11 };
       h['comentario'] = 'hola';
       return h;
     });
@@ -283,7 +283,7 @@ describe('lo que sobra en un archivo no llega a nadie', () => {
     expect(Object.keys(read.settings).sort()).toEqual(
       ['countIn', 'fitTempo', 'inputGain', 'metronome', 'takeBars'].sort(),
     );
-    expect(read.session.layers[2]!.source).toEqual({ kind: 'library', id: 'prueba-bajo' });
+    expect(read.session.layers[2]!.source).toEqual({ kind: 'library', id: 'raiz' });
   });
 });
 

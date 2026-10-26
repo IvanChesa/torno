@@ -184,6 +184,12 @@ export class SessionStore {
   #lastLocalChange = -Infinity;
   #nextMessageId = 1;
   #filePicker: (() => void) | null = null;
+  /**
+   * La primera reproducción está esperando a que su sonido llegue a la capa. Mientras, otro
+   * «reproducir» no hace nada (si no, el transporte arrancaría vacío y el sonido entraría en cola un
+   * compás después) y pausar o parar cancelan el arranque.
+   */
+  #startingWithSound = false;
 
   constructor() {
     // En cuanto un gesto activa el sonido, deja de pedirse otro toque.
@@ -199,6 +205,9 @@ export class SessionStore {
 
   /** Un gesto o una tecla sobre el instrumento. Se llama dentro del propio evento. */
   input(input: InstrumentInput): void {
+    // Cada pulsación lleva su momento (el tempo por pulsaciones lo necesita).
+    if (input.type === 'press' && input.at === undefined)
+      input = { ...input, at: performance.now() };
     const before = this.#state();
     const { state, intents } = reduce(before, input, this.#audio());
     this.#state.set(state);
@@ -400,8 +409,14 @@ export class SessionStore {
   #run(engine: AudioEngine, intent: InstrumentIntent): void {
     switch (intent.type) {
       case 'play':
+        if (this.#startingWithSound) return;
+        engine.send({ type: 'play' });
+        return;
       case 'pause':
       case 'stop':
+        this.#startingWithSound = false;
+        engine.send({ type: intent.type });
+        return;
       case 'disc-release':
         engine.send({ type: intent.type });
         return;
@@ -456,6 +471,14 @@ export class SessionStore {
         return;
       case 'set-sound':
         void engine.setSound(intent.layer, intent.sound);
+        return;
+      case 'start-with-sound':
+        // Reproducir cuando el sonido ya está en la capa: sin un compás vacío al empezar.
+        this.#startingWithSound = true;
+        void engine.setSound(intent.layer, intent.sound).then(() => {
+          if (this.#startingWithSound) engine.send({ type: 'play' });
+          this.#startingWithSound = false;
+        });
         return;
       case 'set-latency':
         engine.setLatency({ mode: intent.mode, ms: intent.ms });
@@ -528,6 +551,8 @@ export class SessionStore {
     const { takeBars, countIn, metronome, fitTempo, inputGain } = settings;
     this.#state.update((state) => ({
       ...state,
+      // Con una sesión cargada, reproducir ya no pone la batería de la primera vez.
+      firstPlay: false,
       settings: { ...state.settings, takeBars, countIn, metronome, fitTempo, inputGain },
     }));
     this.#engine?.send({ type: 'set-metronome', enabled: settings.metronome });

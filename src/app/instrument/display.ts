@@ -191,6 +191,7 @@ function itemValue(
       if (item.action === 'calibrate') {
         return latency.mode === 'calibrated' ? `${decimal(latency.ms, 1)} MS •` : '';
       }
+      if (item.action === 'tapTempo') return d.bpm(decimal(state.controls.bpm));
       return '';
     case 'text':
       return '';

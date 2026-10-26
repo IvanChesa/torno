@@ -19,6 +19,12 @@ import {
   type TakeBars,
 } from './constants';
 import { listAt, type ActionId, type MenuItem, type SettingId } from './menu';
+import { FIRST_PLAY_SOUND } from './sounds';
+
+/** Tempo por pulsaciones: tras este tiempo sin pulsar, se empieza a contar de nuevo. */
+export const TAP_RESET_MS = 2000;
+/** Se promedian como mucho los últimos 4 intervalos. */
+const TAP_INTERVALS = 4;
 
 // --- Estado ------------------------------------------------------------------------------------
 
@@ -86,6 +92,13 @@ export interface InstrumentState {
   readonly discHeld: boolean;
   /** Chuleta de atajos abierta. */
   readonly help: boolean;
+  /**
+   * Aún no se ha pulsado reproducir: la primera vez, con la sesión vacía, la capa 1 arranca con la
+   * batería y queda elegida la capa 2 (PLAN §0.1).
+   */
+  readonly firstPlay: boolean;
+  /** Cuándo se pulsó «MARCAR TEMPO» (ms, del reloj de la interfaz), los últimos 5. */
+  readonly taps: readonly number[];
 }
 
 export const CLOSED_MENU: MenuState = {
@@ -129,6 +142,8 @@ export function initialState(): InstrumentState {
     discTurns: 0,
     discHeld: false,
     help: false,
+    firstPlay: true,
+    taps: [],
   };
 }
 
@@ -156,7 +171,8 @@ export interface InstrumentStatus {
 // --- Entradas e intenciones -----------------------------------------------------------------------
 
 export type InstrumentInput =
-  | { readonly type: 'press'; readonly control: ControlId }
+  /** `at`: cuándo (ms, reloj de la interfaz), para el tempo por pulsaciones. */
+  | { readonly type: 'press'; readonly control: ControlId; readonly at?: number }
   | { readonly type: 'hold'; readonly control: ControlId }
   /** Pasos de un dial, del brazo o de la rueda (negativo = hacia atrás). */
   | { readonly type: 'turn'; readonly control: ControlId; readonly steps: number }
@@ -192,6 +208,8 @@ export type InstrumentIntent =
   | { readonly type: 'set-tempo'; readonly bpm: number }
   | { readonly type: 'set-volume'; readonly volume: number }
   | { readonly type: 'set-sound'; readonly layer: number; readonly sound: string | null }
+  /** Primera reproducción: poner el sonido en la capa y, cuando esté, reproducir. */
+  | { readonly type: 'start-with-sound'; readonly layer: number; readonly sound: string }
   | { readonly type: 'disc-hold'; readonly layer: number }
   | { readonly type: 'disc-move'; readonly turns: number }
   | { readonly type: 'disc-release' }
@@ -233,6 +251,22 @@ export function reduce(
   input: InstrumentInput,
   status: InstrumentStatus,
 ): Reduction {
+  const result = reduceInput(state, input, status);
+  // Poner un sonido o grabar también cuenta como empezar: la primera reproducción ya no pone la
+  // batería (aunque el estado del audio, que llega con retraso, aún diga que todo está vacío).
+  const started = result.intents.some(
+    (intent) => intent.type === 'set-sound' || intent.type === 'record',
+  );
+  return started && result.state.firstPlay
+    ? { state: { ...result.state, firstPlay: false }, intents: result.intents }
+    : result;
+}
+
+function reduceInput(
+  state: InstrumentState,
+  input: InstrumentInput,
+  status: InstrumentStatus,
+): Reduction {
   const taking = status.recording !== 'idle';
   switch (input.type) {
     case 'toggle-help':
@@ -255,7 +289,7 @@ export function reduce(
       if (!state.discHeld) return done(state);
       return done({ ...state, discHeld: false, discTurns: 0 }, { type: 'disc-release' });
     case 'press':
-      return press(state, input.control, status);
+      return press(state, input.control, status, input.at);
     case 'hold':
       return hold(state, input.control, status);
     case 'turn':
@@ -272,13 +306,28 @@ function select(state: InstrumentState, layer: number, taking: boolean): Reducti
   return done({ ...state, selected: layer });
 }
 
-function press(state: InstrumentState, control: ControlId, status: InstrumentStatus): Reduction {
+function press(
+  state: InstrumentState,
+  control: ControlId,
+  status: InstrumentStatus,
+  at = NaN,
+): Reduction {
   const layer = controlLayer(control);
   if (layer >= 0) return select(state, layer, status.recording !== 'idle');
   const { settings } = state;
   switch (control) {
-    case 'play':
-      return done(state, { type: status.transport === 'playing' ? 'pause' : 'play' });
+    case 'play': {
+      if (status.transport === 'playing') return done(state, { type: 'pause' });
+      const started = state.firstPlay ? { ...state, firstPlay: false } : state;
+      const empty = status.layers.every((layer) => !layer.hasContent);
+      if (state.firstPlay && empty && status.recording === 'idle') {
+        return done(
+          { ...started, selected: 1 },
+          { type: 'start-with-sound', layer: 0, sound: FIRST_PLAY_SOUND },
+        );
+      }
+      return done(started, { type: 'play' });
+    }
     case 'record':
       return done(state, {
         type: 'record',
@@ -294,7 +343,7 @@ function press(state: InstrumentState, control: ControlId, status: InstrumentSta
     case 'standby':
       return done(state, { type: status.standby ? 'wake' : 'standby' });
     case 'main':
-      return menuPress(state, status);
+      return menuPress(state, status, at);
     default:
       return done(state);
   }
@@ -414,7 +463,7 @@ export function menuItem(menu: MenuState): MenuItem | undefined {
   return listAt(menu.path).items[menu.cursor];
 }
 
-function menuPress(state: InstrumentState, status: InstrumentStatus): Reduction {
+function menuPress(state: InstrumentState, status: InstrumentStatus, at: number): Reduction {
   const menu = state.menu;
   if (!menu.open) return done({ ...state, menu: { ...CLOSED_MENU, open: true } });
   if (menu.confirm) {
@@ -441,8 +490,29 @@ function menuPress(state: InstrumentState, status: InstrumentStatus): Reduction 
     case 'sound':
       return chooseSound(state, item.sound, status);
     case 'action':
-      return menuAction(state, item.action, status);
+      return item.action === 'tapTempo'
+        ? tapTempo(state, status, at)
+        : menuAction(state, item.action, status);
   }
+}
+
+/**
+ * Tempo por pulsaciones (PLAN fase 3, tarea 6): cada pulsación del dial sobre «MARCAR TEMPO» marca
+ * un pulso; con dos o más, el tempo es la media de los últimos intervalos (hasta 4). Tras 2 s sin
+ * pulsar, se empieza de nuevo.
+ */
+function tapTempo(state: InstrumentState, status: InstrumentStatus, at: number): Reduction {
+  if (!Number.isFinite(at)) return done(state);
+  if (status.recording !== 'idle') return done(state, { type: 'locked' });
+  const last = state.taps[state.taps.length - 1];
+  const fresh = last === undefined || at - last > TAP_RESET_MS || at <= last;
+  const taps = fresh ? [at] : [...state.taps, at].slice(-(TAP_INTERVALS + 1));
+  const tapped = { ...state, taps };
+  if (taps.length < 2) return done(tapped);
+  const interval = (taps[taps.length - 1]! - taps[0]!) / (taps.length - 1);
+  const bpm = clamp(Math.round(60_000 / interval), MIN_BPM, MAX_BPM);
+  if (bpm === state.controls.bpm) return done(tapped);
+  return done({ ...tapped, controls: { ...tapped.controls, bpm } }, { type: 'set-tempo', bpm });
 }
 
 function menuBack(state: InstrumentState): Reduction {
@@ -593,6 +663,9 @@ function menuAction(state: InstrumentState, action: ActionId, status: Instrument
   const ask = (confirm: ConfirmAction) =>
     done({ ...state, menu: { ...state.menu, confirm: { action: confirm, yes: false } } });
   switch (action) {
+    case 'tapTempo':
+      // Lo lleva `tapTempo` (necesita el momento de la pulsación).
+      return done(state);
     case 'latencyAuto':
       return done(
         { ...state, settings: { ...state.settings, latency: { mode: 'auto', ms: 0 } } },

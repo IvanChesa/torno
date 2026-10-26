@@ -5,10 +5,30 @@
  *
  * Cada capa tiene varias voces para que todos los cambios sean fundidos cruzados: la voz anterior
  * se apaga mientras la nueva entra.
+ *
+ * Por encima del tempo nativo, si las imágenes del *varispeed* pudieran caer en la banda audible, la
+ * línea de tiempo lee el PCM pasado antes por un paso bajo que sigue a la velocidad
+ * (`antialias.ts`). Encenderlo o apagarlo es un fundido de 10 ms entre las dos lecturas. El disco
+ * no se filtra.
  */
+import { AntialiasFilter, antialiasThreshold } from './antialias';
 import type { LayerContent } from './content';
 import { Ramp, wrap } from './dsp';
 import type { Clock } from './transport';
+
+/** Muestras del PCM que se filtran antes de la posición de lectura al encender el filtro. */
+const ANTIALIAS_PREROLL = 512;
+/** Histéresis: se enciende un 2 % por encima del umbral y se apaga en el umbral. */
+const ANTIALIAS_HYSTERESIS = 1.02;
+/**
+ * El diseño del filtro sigue a la velocidad de lectura como mucho un 2 % por bloque: un salto de
+ * tempo grande (MARCAR TEMPO, por ejemplo) rediseñado de golpe deja un transitorio que se oye; a
+ * pasos pequeños, el TPT no lo deja. De 240 a 110 BPM tarda ≈ 0,1 s.
+ */
+const DESIGN_GLIDE = 1.02;
+/** Saltos de la posición (en muestras) que el filtro sigue sin volver a empezar. */
+const MAX_BACKWARD_JUMP = 3;
+const MAX_FORWARD_JUMP = 512;
 
 export class Voice {
   content: LayerContent | null = null;
@@ -33,10 +53,42 @@ export class Voice {
   #dcIn = 0;
   #dcOut = 0;
 
-  constructor(fade: Float32Array, discFollow = 1, dcBlock = 0) {
+  // Contra el aliasing del varispeed.
+  readonly #antialias: AntialiasFilter;
+  readonly #antialiasOn: number;
+  readonly #antialiasOff: number;
+  /** Proporción de la lectura filtrada (0–1), con fundido al encender y al apagar. */
+  readonly #antialiasMix: Ramp;
+  readonly #mixGains: Float32Array;
+  #antialiasActive = false;
+  /** Las últimas 8 muestras filtradas (anillo) y la casilla de la última. */
+  readonly #ring = new Float64Array(8);
+  #ringSlot = 0;
+  /** Índice de la última muestra filtrada, en la vuelta de `position` (puede salirse de [0, frames)). */
+  #fed = 0;
+  /** Retardo de grupo con el que acabó el bloque anterior (se interpola hasta el nuevo). */
+  #delay = 0;
+
+  constructor(
+    fade: Float32Array,
+    discFollow = 1,
+    dcBlock = 0,
+    sampleRate = 48_000,
+    maxFrames = 128,
+  ) {
     this.#discFollow = discFollow;
     this.#dcBlock = dcBlock;
     this.gain = new Ramp(0, fade);
+    this.#antialias = new AntialiasFilter(sampleRate);
+    this.#antialiasOff = antialiasThreshold(sampleRate);
+    this.#antialiasOn = this.#antialiasOff * ANTIALIAS_HYSTERESIS;
+    this.#antialiasMix = new Ramp(0, fade);
+    this.#mixGains = new Float32Array(maxFrames);
+  }
+
+  /** La lectura de la línea de tiempo pasa ahora por el filtro contra el aliasing. */
+  get antialiased(): boolean {
+    return this.#antialiasActive;
   }
 
   get active(): boolean {
@@ -67,6 +119,10 @@ export class Voice {
     this.#speed = beatsPerFrame * this.#framesPerBeat;
     this.gain.set(0);
     this.gain.start(1, fade);
+    // La voz entra con su propio fundido: el filtro, si hace falta, ya está puesto desde el principio.
+    this.#antialiasActive = false;
+    this.#antialiasMix.set(0);
+    if (!disc) this.#updateAntialias(false);
   }
 
   /** Recalcula la posición exacta para el pulso del reloj (sin errores acumulados) y la velocidad. */
@@ -76,8 +132,60 @@ export class Voice {
     let position =
       wrap(clock.beat - content.offsetBeats, content.lengthBeats) * this.#framesPerBeat;
     if (position >= this.#frames) position -= this.#frames;
+    if (this.#antialiasActive) {
+      // El filtro sigue a la lectura: el índice de lo ya filtrado pasa a la vuelta de la posición
+      // nueva, y un salto grande (o hacia atrás) lo hace empezar de nuevo.
+      const n = this.#frames;
+      let delta = position - this.position;
+      if (delta > n / 2) delta -= n;
+      else if (delta < -n / 2) delta += n;
+      this.#fed -= this.position + delta - position;
+      if (delta < -MAX_BACKWARD_JUMP || delta > MAX_FORWARD_JUMP) {
+        this.position = position;
+        this.#restartAntialias();
+      }
+    }
     this.position = position;
     this.#speed = clock.beatsPerFrame * this.#framesPerBeat;
+    this.#updateAntialias(true);
+  }
+
+  /**
+   * Enciende, ajusta o apaga el filtro según la velocidad (con histéresis). `fade`: con fundido
+   * entre las dos lecturas (si no, al momento).
+   */
+  #updateAntialias(fade: boolean): void {
+    const speed = this.#speed;
+    const on = this.#antialiasActive && this.#antialiasMix.target === 1;
+    const wanted = on ? speed > this.#antialiasOff : speed > this.#antialiasOn;
+    const mix = this.#antialiasMix;
+    if (wanted) {
+      if (!this.#antialiasActive) {
+        // Al encenderse empieza vacío: se diseña ya para la velocidad de lectura. Después, el
+        // diseño la sigue a pasos (`DESIGN_GLIDE`, en el render).
+        this.#antialias.design(speed);
+        this.#delay = this.#antialias.delay;
+        this.#antialiasActive = true;
+        this.#restartAntialias();
+      }
+      if (mix.target !== 1) {
+        if (fade) mix.start(1);
+        else mix.set(1);
+      }
+    } else if (this.#antialiasActive && mix.target !== 0) {
+      if (fade) {
+        mix.start(0);
+      } else {
+        mix.set(0);
+        this.#antialiasActive = false;
+      }
+    }
+  }
+
+  /** Vacía el filtro y lo pone a filtrar desde `ANTIALIAS_PREROLL` muestras antes de la lectura. */
+  #restartAntialias(): void {
+    this.#antialias.reset();
+    this.#fed = Math.floor(this.position) + 2 - ANTIALIAS_PREROLL;
   }
 
   fadeOut(fade: Float32Array): void {
@@ -110,6 +218,10 @@ export class Voice {
     gains: Float32Array,
     transport: Float32Array | null,
   ): void {
+    if (this.#antialiasActive) {
+      this.#renderAntialiasedAdd(out, frames, gains, transport);
+      return;
+    }
     const content = this.content;
     if (!content) return;
     const ramping = this.gain.ramping || transport !== null;
@@ -144,6 +256,105 @@ export class Voice {
       if (p >= n) p -= n;
     }
     this.position = p;
+    if (!this.gain.ramping && this.gain.target === 0) this.release();
+  }
+
+  /**
+   * Como `renderTimelineAdd`, leyendo el PCM filtrado contra el aliasing (y, mientras se enciende o
+   * se apaga, el fundido entre esa lectura y la directa).
+   */
+  #renderAntialiasedAdd(
+    out: Float32Array,
+    frames: number,
+    gains: Float32Array,
+    transport: Float32Array | null,
+  ): void {
+    const content = this.content;
+    if (!content) return;
+    const ramping = this.gain.ramping || transport !== null;
+    const constant = this.gain.current;
+    if (ramping) {
+      this.gain.renderInto(gains, frames);
+      if (transport) for (let i = 0; i < frames; i++) gains[i] = gains[i]! * transport[i]!;
+    }
+    const mixRamp = this.#antialiasMix;
+    const blend = mixRamp.ramping || mixRamp.current !== 1;
+    const mix = this.#mixGains;
+    if (blend) mixRamp.renderInto(mix, frames);
+    const filter = this.#antialias;
+    const speed = this.#speed;
+    const designed = filter.speed;
+    if (Math.abs(speed - designed) > 1e-4 * speed) {
+      filter.design(
+        speed > designed
+          ? Math.min(speed, designed * DESIGN_GLIDE)
+          : Math.max(speed, designed / DESIGN_GLIDE),
+      );
+    }
+    const ring = this.#ring;
+    const data = content.data;
+    const n = this.#frames;
+    const reversed = this.reversed;
+    // Se lee lo filtrado adelantado en su retardo de grupo (ver `AntialiasFilter.delay`), que pasa
+    // poco a poco del que había al del diseño nuevo.
+    const delayFrom = this.#delay;
+    const delayStep = (filter.delay - delayFrom) / frames;
+    let slot = this.#ringSlot;
+    let fed = this.#fed;
+    let p = this.position;
+    for (let i = 0; i < frames; i++) {
+      const pf = p + delayFrom + delayStep * (i + 1);
+      const i1 = pf | 0;
+      // Filtra el PCM (en el sentido de lectura) hasta la muestra que pide la interpolación.
+      while (fed < i1 + 2) {
+        fed++;
+        let k = fed;
+        while (k < 0) k += n;
+        while (k >= n) k -= n;
+        slot = (slot + 1) & 7;
+        ring[slot] = filter.process(reversed ? data[n - 1 - k]! : data[k]!);
+      }
+      const t = pf - i1;
+      // Casilla de la muestra `i1`: la última filtrada es `fed`.
+      const base = slot - (fed - i1);
+      const ym1 = ring[(base - 1) & 7]!;
+      const y0 = ring[base & 7]!;
+      const y1 = ring[(base + 1) & 7]!;
+      const y2 = ring[(base + 2) & 7]!;
+      const d1 = 0.5 * (y1 - ym1);
+      const d2 = ym1 - 2.5 * y0 + 2 * y1 - 0.5 * y2;
+      const d3 = 0.5 * (y2 - ym1) + 1.5 * (y0 - y1);
+      let sample = ((d3 * t + d2) * t + d1) * t + y0;
+      if (blend) {
+        let q = reversed ? n - 1 - p : p;
+        if (q < 0) q += n;
+        const j1 = q | 0;
+        const u = q - j1;
+        const j0 = j1 === 0 ? n - 1 : j1 - 1;
+        const j2 = j1 + 1 >= n ? j1 + 1 - n : j1 + 1;
+        const j3 = j2 + 1 >= n ? j2 + 1 - n : j2 + 1;
+        const xm1 = data[j0]!;
+        const x0 = data[j1]!;
+        const x1 = data[j2]!;
+        const x2 = data[j3]!;
+        const c1 = 0.5 * (x1 - xm1);
+        const c2 = xm1 - 2.5 * x0 + 2 * x1 - 0.5 * x2;
+        const c3 = 0.5 * (x2 - xm1) + 1.5 * (x0 - x1);
+        const direct = ((c3 * u + c2) * u + c1) * u + x0;
+        sample = direct + (sample - direct) * mix[i]!;
+      }
+      out[i] = out[i]! + sample * (ramping ? gains[i]! : constant);
+      p += speed;
+      if (p >= n) {
+        p -= n;
+        fed -= n;
+      }
+    }
+    this.position = p;
+    this.#fed = fed;
+    this.#ringSlot = slot;
+    this.#delay = filter.delay;
+    if (!mixRamp.ramping && mixRamp.target === 0) this.#antialiasActive = false;
     if (!this.gain.ramping && this.gain.target === 0) this.release();
   }
 

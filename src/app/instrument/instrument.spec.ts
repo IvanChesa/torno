@@ -29,7 +29,7 @@ const LIBRARY: InstrumentLayerStatus = {
   ...EMPTY,
   hasContent: true,
   source: 'library',
-  soundId: 'prueba-bajo',
+  soundId: 'raiz',
   lengthBeats: 8,
 };
 const RECORDING: InstrumentLayerStatus = { ...LIBRARY, source: 'recording', soundId: '' };
@@ -235,9 +235,9 @@ describe('menú', () => {
   });
 
   it('elegir un sonido: en una capa de la biblioteca o vacía, directo; sobre una grabación, pide confirmación con «Cancelar» primero', () => {
-    // SONIDO (0) → BAJO (1) → PRUEBA (0).
+    // SONIDO (0) → BAJO (1) → RAÍZ (0).
     const choose = [open, press('main'), turn('main', 1), press('main'), press('main')];
-    expect(play(choose).intents).toEqual([{ type: 'set-sound', layer: 0, sound: 'prueba-bajo' }]);
+    expect(play(choose).intents).toEqual([{ type: 'set-sound', layer: 0, sound: 'raiz' }]);
     const onRecording = [{ type: 'select', layer: 2 } as const, ...choose];
     const asked = play(onRecording);
     expect(asked.intents).toEqual([]);
@@ -245,7 +245,7 @@ describe('menú', () => {
     // Pulsar sin girar = «Cancelar».
     expect(play([...onRecording, press('main')]).intents).toEqual([]);
     expect(play([...onRecording, turn('main', 1), press('main')]).intents).toEqual([
-      { type: 'set-sound', layer: 2, sound: 'prueba-bajo' },
+      { type: 'set-sound', layer: 2, sound: 'raiz' },
     ]);
     // APAGADO (el último de la lista).
     expect(
@@ -336,10 +336,10 @@ describe('pantalla', () => {
   it('principal: tempo, transporte, capa elegida y su contenido', () => {
     const view = displayModel(initialState(), status({ transport: 'playing' }), CONTEXT);
     expect(view.mode).toBe('main');
-    expect(view.lines).toEqual(['90 BPM · EN MARCHA', 'CAPA 1 · BAJO · PRUEBA']);
+    expect(view.lines).toEqual(['90 BPM · EN MARCHA', 'CAPA 1 · BAJO · RAÍZ']);
     expect(view.status).toBe('TOMA LIBRE');
     expect(view.pilots.map((p) => p.hasContent)).toEqual([true, false, true, false]);
-    expect(view.summary).toBe('90 bpm, en marcha. Capa 1, bajo, prueba. Toma libre.');
+    expect(view.summary).toBe('90 bpm, en marcha. Capa 1, bajo, raíz. Toma libre.');
   });
 
   it('la línea de estado: aviso, micrófono, cuenta previa, grabación, disco y cola', () => {
@@ -373,7 +373,15 @@ describe('pantalla', () => {
       selected: true,
       editing: true,
     });
-    expect(view.rows.map((row) => row.value)).toEqual(['LIBRE', 'SÍ', 'NO', 'NO', 'C', 'SÍ']);
+    expect(view.rows.map((row) => row.value)).toEqual([
+      'LIBRE',
+      'SÍ',
+      'NO',
+      'NO',
+      'C',
+      '90 BPM',
+      'SÍ',
+    ]);
     expect(view.summary).toContain('Duración: libre.');
   });
 

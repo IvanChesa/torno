@@ -16,7 +16,7 @@
     "test": "npm run test:node && npm run test:ng",
     "pretest": "node scripts/build-worklet.mjs",
     "test:node": "vitest run --config vitest.node.config.mts --coverage --exclude \"**/*.bench.spec.ts\"",
-    "test:bench": "vitest run --config vitest.node.config.mts bench.spec",
+    "test:bench": "vitest run --config vitest.node.config.mts bench.spec && node scripts/bench-synth.mjs",
     "test:ng": "ng test --watch=false",
     "typecheck": "tsc -p tsconfig.pure.json && tsc -p tsconfig.worklet.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.node.json",
     "lint": "npm run typecheck && ng lint && prettier --check .",
@@ -25,6 +25,7 @@
     "e2e": "playwright test",
     "pree2e": "node scripts/build-worklet.mjs && node scripts/make-fake-mic.mjs",
     "capturas": "node scripts/capture.mjs",
+    "demo:sounds": "node scripts/demo-sounds.mjs",
     "check": "npm run lint && npm test && npm run build && node scripts/check-bundles.mjs"
   },
   "dependencies": {
