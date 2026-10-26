@@ -11,7 +11,17 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 ## Antes del bloque B (fase 4)
 - [x] Repo en GitHub: `IvanChesa/torno`, público; se conecta en el bloque A (24-10).
 - [x] GitHub CLI instalado y `gh auth login` hecho (comprobado el 26-10).
-- [ ] Staging en cPanel: `staging-torno.ivanchesa.es` con AutoSSL, protección con contraseña, cuenta FTP limitada y secrets con `gh secret set`. **Sin hacer el 26-10** (el subdominio no resuelve y el repo no tiene secrets): la fase 4 queda aplazada.
+- [ ] **Staging en cPanel** (para la entrega 4.b; la 4.a, sin credenciales, ya está en la rama `fase-4-staging`):
+  1. Subdominio `staging-torno.ivanchesa.es` con AutoSSL (HTTPS).
+  2. Protección con contraseña de su carpeta («Privacidad de directorios»). Apunta la ruta del archivo de contraseñas que enseña cPanel (algo como `/home/USUARIO/.htpasswds/…/passwd`): cada despliegue sustituye el `.htaccess` de la carpeta, donde cPanel escribe la protección, y el despliegue la vuelve a poner con esa ruta.
+  3. Una cuenta FTP limitada a la carpeta del subdominio.
+  4. Los secrets, desde la carpeta del proyecto (cada orden pide el valor, que no se ve ni queda en el historial):
+     - `gh secret set STAGING_FTP_SERVER` (el servidor FTP, por ejemplo el que da cPanel en «Cuentas FTP»);
+     - `gh secret set STAGING_FTP_USERNAME`;
+     - `gh secret set STAGING_FTP_PASSWORD`;
+     - `gh secret set STAGING_AUTH_USER_FILE` (la ruta del paso 2).
+
+  Con eso, cada push a `main` con el CI en verde despliega solo (`.github/workflows/deploy-staging.yml`, cuando la 4.b llegue a `main`). El 26-10, el subdominio no resolvía y el repo no tenía secrets.
 - [ ] Conseguir un iPhone para probar (aunque sea prestado) y tener a mano unos auriculares, mejor con cable.
 
 ## Decisiones
@@ -26,7 +36,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 ## Revisiones y pruebas de Iván
 - [ ] Ver `docs/DISENO.md` y las capturas de la fase 0 (`docs/informes/img/fase-0/`): paleta «Barro», Fraunces con el eje SOFT y Geist Mono (revisión del bloque 0).
 - [x] **Escuchar los 12 sonidos y 3 combinaciones** (`npm run demo:sounds`): Iván los ha escuchado y «suenan bien», sin cambios (26-10).
-- [ ] Pruebas en Android e iPhone por el staging (fase 4; necesarias antes del bloque C).
+- [ ] Pruebas en Android e iPhone por el staging (fase 4; necesarias antes del bloque C), con la lista de **`docs/PRUEBAS-MOVIL.md`** y el panel de diagnóstico (`?diagnostico=1`).
   - `TODO(ivan)`: en esas pruebas, calibrar la latencia y grabar varias tomas seguidas con auriculares, para ver si quedan alineadas entre sí. En Chromium, la latencia del camino del micrófono cambia en cada apertura de la pista (12–21 ms medidos en un retorno; informe de la fase 2, §10, propuesta 1).
   - `TODO(ivan)`: y una de 5 min con las 4 capas largas (tomas de 30–60 s) y el autoguardado activo, girando diales: sin cortes en el audio (revisión de la fase 2, #6).
 - [ ] Aprobar el diseño del instrumento (parada de la fase 5.a).
