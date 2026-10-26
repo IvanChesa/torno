@@ -10,8 +10,8 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 
 ## Antes del bloque B (fase 4)
 - [x] Repo en GitHub: `IvanChesa/torno`, público; se conecta en el bloque A (24-10).
-- [ ] Instalar GitHub CLI (`winget install --id GitHub.cli`) y `gh auth login`, para los secrets del staging.
-- [ ] Staging en cPanel: `staging-torno.ivanchesa.es` con AutoSSL, protección con contraseña, cuenta FTP limitada y secrets con `gh secret set`.
+- [x] GitHub CLI instalado y `gh auth login` hecho (comprobado el 26-10).
+- [ ] Staging en cPanel: `staging-torno.ivanchesa.es` con AutoSSL, protección con contraseña, cuenta FTP limitada y secrets con `gh secret set`. **Sin hacer el 26-10** (el subdominio no resuelve y el repo no tiene secrets): la fase 4 queda aplazada.
 - [ ] Conseguir un iPhone para probar (aunque sea prestado) y tener a mano unos auriculares, mejor con cable.
 
 ## Decisiones
@@ -25,7 +25,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 
 ## Revisiones y pruebas de Iván
 - [ ] Ver `docs/DISENO.md` y las capturas de la fase 0 (`docs/informes/img/fase-0/`): paleta «Barro», Fraunces con el eje SOFT y Geist Mono (revisión del bloque 0).
-- [ ] Escuchar los 12 sonidos y 3 combinaciones (`npm run demo:sounds`, final del bloque B).
+- [ ] **Escuchar los 12 sonidos y 3 combinaciones** (`npm run demo:sounds` → `demo-sounds/`; listos desde el bloque B). Los ajustes son datos de `src/app/audio/synth/library.ts`.
 - [ ] Pruebas en Android e iPhone por el staging (fase 4; necesarias antes del bloque C).
   - `TODO(ivan)`: en esas pruebas, calibrar la latencia y grabar varias tomas seguidas con auriculares, para ver si quedan alineadas entre sí. En Chromium, la latencia del camino del micrófono cambia en cada apertura de la pista (12–21 ms medidos en un retorno; informe de la fase 2, §10, propuesta 1).
   - `TODO(ivan)`: y una de 5 min con las 4 capas largas (tomas de 30–60 s) y el autoguardado activo, girando diales: sin cortes en el audio (revisión de la fase 2, #6).

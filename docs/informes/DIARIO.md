@@ -12,6 +12,7 @@ Lo escribe Claude Code (CLAUDE.md, «Ciclo de cada fase» y «Paradas»):
 | 0 · Cimientos y pruebas técnicas (`fase-0-cimientos`, fusión `1924d2a`) | 2026-10-24 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 2 Importantes y los 8 Menores, corregidos ([revisión](../revisiones/fase-0.md), [informe](fase-0.md)) | JS inicial de `/` 293,5 kB (aviso a 300) · desbloqueo de audio 0,7 kB · worklet 1,9 kB · worker 1,3 kB · fuentes 144,1 kB · pitido por el worklet −12,0 dBFS y 24.000/24.000 muestras · tono del worker 48.000/48.000 en 5,2 ms · 122 tests en Node (100 % de líneas en el TS puro) + 31 en Angular + 31 e2e · axe: 0 violaciones |
 | 1 · Núcleo de audio en TS puro (`fase-1-nucleo-audio`, fusión `e170652`) | 2026-10-24 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 2 Importantes, los 10 Menores y 3 de las 4 Sugerencias, corregidos (la #14 queda para la fase 3) ([revisión](../revisiones/fase-1.md), [informe](fase-1.md)) | `LoopCore` a 240–242× tiempo real · 0,0 KiB reservados por `process()` en 60 s · peor caso de memoria 195,84 MB a 48 kHz (≤ 220) · limitador −0,342 dBFS · cola y tomas exactas a la muestra, deriva 0 en 10 min · `LoopCore` minificado 34,1 kB · 314 tests en Node (98,35 % de sentencias y 94,38 % de ramas en el TS puro) + 31 en Angular + 31 e2e |
 | 2 · Motor en el navegador, archivos e instrumento HTML (`fase-2-motor-navegador`, fusión `40d75e5`) | 2026-10-26 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 6 Importantes, los 8 Menores de código y las 6 Sugerencias, corregidos o anotados (la #20, para la fase 5.a; la mitad de la #21, decisión de Iván) ([revisión](../revisiones/fase-2.md), [informe](fase-2.md)) | primer sonido tras pulsar 7–14 ms · toma alineada a −2 muestras (0,04 ms) tras calibrar · mezcla exportada = render del núcleo (≤ 1 LSB de 24 bits) · remuestreo: 15 kHz a 0,00 dB, imágenes < −87 dB · copia de la sesión por tramos: peor bloque 0,26 ms (de golpe, 7,8 ms) · 1000 `.torno` malformados rechazados · 0 peticiones de red al grabar, guardar y exportar · CI de `main` en verde, con WebKit y audio en Linux · JS de `/` 301,4 kB · desbloqueo 1,8 kB · worklet 37,7 kB · worker de exportación 38,6 kB · `LoopCore` a 204–233× · 398 tests en Node (98,23 % de sentencias y 94,65 % de ramas en el TS puro) + 41 en Angular + 81 e2e · axe: 0 violaciones |
+| 3 · Biblioteca de sonidos y menú completo (`fase-3-sonidos`, fusión `acef572`) | 2026-10-26 | CAMBIOS NECESARIOS: 0 Bloqueantes; el Importante (clic con saltos de tempo grandes y el filtro antialias encendido), los 6 Menores y 1 de las 2 Sugerencias, corregidos; la #9, razonada ([revisión](../revisiones/fase-3.md), [informe](fase-3.md)) | 12 bucles propios en Re menor a 90 BPM, deterministas (hash fijado) y sin junta · picos −1,1 a −14,1 dBFS, RMS en su objetivo por papel · fundamentales de los bajos, nota a nota, a ≤ 15 cents · render ≤ 32 ms en caliente a 48 kHz (en frío, hasta 43–61 ms; a 96 kHz, hasta 93) · tono de 12 kHz a 240 BPM: imagen a −68,7 dB · LoopCore 237× (97 BPM), 65× a 240 BPM, 36× en el peor caso · la cola entra en la muestra 128 000 (el compás siguiente) · JS de `/` 301,5 kB · worklet 40,8 kB · worker de exportación 41,7 kB · worker de síntesis 17,4 kB · 430 tests en Node (98,4 % de sentencias) + 50 en Angular + 89 e2e |
 
 ## Bloques
 
@@ -145,3 +146,47 @@ Lo escribe Claude Code (CLAUDE.md, «Ciclo de cada fase» y «Paradas»):
   - tras la fase 4, el micrófono entre tomas.
 
 **Siguiente.** Revisión del bloque A por la sesión de plan (`docs/revisiones/bloque-A.md`). Después, el bloque B (fases 3 y 4) con el prompt de `docs/prompts/PROMPTS.md`.
+
+### Bloque B · 2026-10-26 · terminado con la fase 4 aplazada (parada de fin de bloque)
+
+**Hecho.**
+- **Revisión del bloque A**, aplicada en `main` (respuesta al final de `docs/revisiones/bloque-A.md`):
+  - el banco de rendimiento fuera de `check`, y en el CI con un suelo de 50×;
+  - worklet y workers a 60 kB;
+  - CI en `ubuntu-24.04`;
+  - autoguardado con dos huecos (decisión de Iván): mientras el panel de recuperar sigue sin contestar, lo nuevo va al segundo hueco; «Recuperar» pide confirmación si la sesión actual tiene sonido.
+- **Fase 3, fusionada:**
+  - síntesis propia en TS puro y la colección de 12 bucles (BATERÍA ALFAR, HORNO y ADOBE; BAJO RAÍZ, CINCA y SURCO; ACORDES OLIVO, VEGA y ALMENDRO; TEXTURA CIERZO, ACEQUIA y BRASA);
+  - el *varispeed* ya no pliega frecuencias al acelerar (Chebyshev II en secciones TPT antes de interpolar);
+  - la primera reproducción arranca con ALFAR y deja elegida la capa 2;
+  - BUCLE → MARCAR TEMPO;
+  - `npm run demo:sounds` para escuchar la colección.
+- **Fase 4, aplazada** (CLAUDE.md, «Decisiones ya tomadas»): el repo no tiene secrets (`gh secret list` vacío) y `staging-torno.ivanchesa.es` no resuelve. No he tocado nada de la fase 4.
+
+**Métricas.** Las de la fila de la fase 3. Además: `npm run check` en 72 s y `npm run e2e` 89/89 en 1,1 min (PC de Iván).
+
+**Desviaciones** (detalle en el informe de la fase 3, §4):
+- ids nuevos para la colección (la misma estructura por categoría);
+- «MARCAR TEMPO» como nombre del tempo por pulsaciones;
+- el banco de la síntesis empaquetado como el worker (script, no Vitest), con el criterio medido en caliente.
+
+**Para la sesión de revisión del bloque** (informe de la fase 3, §9 y §10):
+- **Propuestas de cambio al plan:**
+  - anotar en §5 la CPU a 240 BPM con el filtro (65×; peor caso 36×);
+  - el criterio de −60 dB se refiere a las imágenes del plegado, no a las de la interpolación de Hermite;
+  - el render ≤ 50 ms, medido en caliente y a 48 kHz (en frío llega a 43–61 ms; a 96 kHz, a 93).
+- **Riesgos:**
+  - el filtro en el peor caso (grabaciones de 40 BPM a 240, 4 capas) puede pesar en un móvil de gama media: entra en la prueba de 5 min de la fase 4;
+  - la primera reproducción en frío (crear el worker y renderizar ALFAR) no está medida en un móvil;
+  - el desbloqueo del bundle inicial está en 1,9 kB de 2.
+- **Fase 4:** sigue todo pendiente (CSP, `.htaccess`, despliegue, Dependabot y móviles). Las partes que no necesitan credenciales (`.htaccess`, CSP con su e2e, Dependabot) se podrían adelantar si Iván quiere, aunque el staging no esté.
+
+**Pendientes para Iván** (`docs/PENDIENTES.md`):
+- **Ahora:** escuchar la colección con `npm run demo:sounds` (12 bucles y 3 combinaciones en `demo-sounds/`) y decir qué cambiar; mirar las capturas de `docs/informes/img/fase-3/`.
+- **Para la fase 4 (y antes del bloque C):**
+  - staging en cPanel: `staging-torno.ivanchesa.es` con AutoSSL, contraseña y FTP limitado;
+  - los secrets con `gh secret set` (GitHub CLI ya está autenticado);
+  - un iPhone y unos auriculares con cable.
+- **Decisiones abiertas:** subdominio definitivo, licencia, `@lhci/cli` (fase 8), indexación al lanzar (fase 9) y el micrófono entre tomas (tras la fase 4).
+
+**Siguiente.** Revisión del bloque B por la sesión de plan. Después, la fase 4 en cuanto estén el staging y los secrets. El bloque C no puede empezar sin las pruebas de la fase 4 en móviles.
