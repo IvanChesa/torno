@@ -373,7 +373,15 @@ describe('pantalla', () => {
       selected: true,
       editing: true,
     });
-    expect(view.rows.map((row) => row.value)).toEqual(['LIBRE', 'SÍ', 'NO', 'NO', 'C', 'SÍ']);
+    expect(view.rows.map((row) => row.value)).toEqual([
+      'LIBRE',
+      'SÍ',
+      'NO',
+      'NO',
+      'C',
+      '90 BPM',
+      'SÍ',
+    ]);
     expect(view.summary).toContain('Duración: libre.');
   });
 

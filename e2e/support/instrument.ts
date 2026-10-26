@@ -8,7 +8,15 @@ export const MENU = {
   session: 3,
   help: 4,
   categories: { drums: 0, bass: 1, chords: 2, texture: 3 },
-  loopItems: { takeLength: 0, countIn: 1, metronome: 2, reverse: 3, pan: 4, fitTempo: 5 },
+  loopItems: {
+    takeLength: 0,
+    countIn: 1,
+    metronome: 2,
+    reverse: 3,
+    pan: 4,
+    tapTempo: 5,
+    fitTempo: 6,
+  },
   inputItems: { gain: 0, latency: 1 },
   latencyItems: { auto: 0, calibrate: 1, manual: 2 },
   sessionItems: {

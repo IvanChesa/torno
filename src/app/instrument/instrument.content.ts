@@ -58,6 +58,7 @@ export const INSTRUMENT_CONTENT = {
     metronome: 'METRÓNOMO',
     reverse: 'REVERSO',
     pan: 'PANORAMA',
+    tapTempo: 'MARCAR TEMPO',
     fitTempo: 'AJUSTAR TEMPO',
     yes: 'SÍ',
     no: 'NO',

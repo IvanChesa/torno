@@ -30,6 +30,8 @@ export interface AudioLog {
   unlockReady: boolean;
   /** El tipo de cada mensaje enviado por un `MessagePort` (los comandos al worklet). */
   commands: string[];
+  /** Los avisos del núcleo que llegan del worklet (en sus estados agrupados). */
+  notices: { code: string; layer: number; value: number }[];
 }
 
 declare global {
@@ -71,6 +73,7 @@ export async function instrumentAudio(page: Page, options: InstrumentOptions = {
         analysers: [],
         unlockReady: false,
         commands: [],
+        notices: [],
       };
       window.__torno = log;
       const currentEvent = () => window.event?.type ?? 'ninguno';
@@ -130,6 +133,31 @@ export async function instrumentAudio(page: Page, options: InstrumentOptions = {
         return (post as (...a: unknown[]) => void).apply(this, args);
       } as typeof MessagePort.prototype.postMessage;
 
+      // Los avisos del núcleo: una escucha más en el puerto del nodo del worklet (el motor pone la
+      // suya con `onmessage`, que arranca el puerto).
+      const NativeWorkletNode = window.AudioWorkletNode;
+      window.AudioWorkletNode = class extends NativeWorkletNode {
+        constructor(
+          context: BaseAudioContext,
+          name: string,
+          nodeOptions?: AudioWorkletNodeOptions,
+        ) {
+          super(context, name, nodeOptions);
+          this.port.addEventListener('message', (event: MessageEvent) => {
+            const data = event.data as {
+              type?: string;
+              noticeCount?: number;
+              notices?: { code: string; layer: number; value: number }[];
+            };
+            if (data?.type !== 'status' || !data.notices) return;
+            for (let i = 0; i < (data.noticeCount ?? 0); i++) {
+              const { code, layer, value } = data.notices[i]!;
+              log.notices.push({ code, layer, value });
+            }
+          });
+        }
+      };
+
       const addModule = AudioWorklet.prototype.addModule;
       AudioWorklet.prototype.addModule = async function (url, moduleOptions) {
         log.modules.push(String(url));
@@ -171,6 +199,8 @@ export const contextStates = (page: Page) =>
 export const audioCalls = (page: Page) => page.evaluate(() => window.__torno?.calls ?? []);
 export const loadedModules = (page: Page) => page.evaluate(() => window.__torno?.modules ?? []);
 export const workletCommands = (page: Page) => page.evaluate(() => window.__torno?.commands ?? []);
+export const coreNotices = (page: Page, code: string) =>
+  page.evaluate((wanted) => (window.__torno?.notices ?? []).filter((n) => n.code === wanted), code);
 export const streamCount = (page: Page) => page.evaluate(() => window.__torno?.streams.length ?? 0);
 /** ¿Todas las pistas de micrófono que se han abierto están paradas? */
 export const tracksEnded = (page: Page) =>

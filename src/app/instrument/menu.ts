@@ -22,6 +22,7 @@ export type SettingId =
 
 /** Acciones del menú. */
 export type ActionId =
+  | 'tapTempo'
   | 'latencyAuto'
   | 'calibrate'
   | 'save'
@@ -94,6 +95,7 @@ export const MENU: MenuList = {
         { kind: 'choice', label: m.metronome, setting: 'metronome', options: yesNo },
         { kind: 'choice', label: m.reverse, setting: 'reverse', options: yesNo },
         { kind: 'number', label: m.pan, setting: 'pan', min: -100, max: 100, step: 5 },
+        { kind: 'action', label: m.tapTempo, action: 'tapTempo' },
         { kind: 'choice', label: m.fitTempo, setting: 'fitTempo', options: yesNo },
       ],
     },

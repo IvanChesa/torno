@@ -56,12 +56,13 @@ test.describe('micrófono', () => {
     await instrumentAudio(page, { moduleDelayMs: 2000 });
     const driver = new InstrumentDriver(page);
     await driver.open();
+    // La primera reproducción pone la batería en la capa 1 y elige la 2: se graba encima.
     await driver.control('play').click();
     await driver.control('record').click();
     await expect(driver.screen).toContainText('GRABANDO', { timeout: 10_000 });
     await page.waitForTimeout(1000);
     await driver.control('record').click();
-    await driver.expectScreen('CAPA 1 · GRABACIÓN');
+    await driver.expectScreen('CAPA 2 · GRABACIÓN');
     expect(await streamCount(page)).toBe(1);
   });
 

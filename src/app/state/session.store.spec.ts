@@ -213,8 +213,40 @@ const withContent = (): EngineEvent => ({
 describe('SessionStore', () => {
   afterEach(() => vi.useRealTimers());
 
+  it('primera reproducción: pone ALFAR en la capa 1 y reproduce cuando ya está', async () => {
+    const { store, engine } = await setup();
+    store.input({ type: 'press', control: 'play' });
+    expect(engine.calls).toContainEqual(['setSound', 0, 'alfar']);
+    await Promise.resolve();
+    await Promise.resolve();
+    const order = engine.calls.map((call) =>
+      call[0] === 'send' ? (call[1] as { type: string }).type : call[0],
+    );
+    expect(order.indexOf('play')).toBeGreaterThan(order.indexOf('setSound'));
+    expect(store.state().selected).toBe(1);
+  });
+
+  it('cada pulsación lleva su momento (para el tempo por pulsaciones)', async () => {
+    const { store, engine } = await setup();
+    // BUCLE → MARCAR TEMPO y dos pulsaciones a 500 ms: 120 BPM.
+    store.input({ type: 'press', control: 'main' });
+    store.input({ type: 'turn', control: 'main', steps: 1 });
+    store.input({ type: 'press', control: 'main' });
+    store.input({ type: 'turn', control: 'main', steps: 5 });
+    store.input({ type: 'press', control: 'main', at: 1000 });
+    store.input({ type: 'press', control: 'main', at: 1500 });
+    expect(engine.sent()).toContainEqual({ type: 'set-tempo', bpm: 120 });
+    // Sin `at`, el store pone el del reloj.
+    store.input({ type: 'press', control: 'main' });
+    const last = store.state().taps.at(-1);
+    expect(Number.isFinite(last)).toBe(true);
+    expect(last).not.toBe(1500);
+  });
+
   it('traduce las intenciones del modelo a llamadas del motor', async () => {
     const { store, engine } = await setup();
+    // La primera reproducción (ALFAR en la capa 1 y la capa 2 elegida) ya está hecha.
+    store.input({ type: 'press', control: 'play' });
     store.input({ type: 'turn', control: 'layer-1', steps: -30 });
     store.input({ type: 'hold', control: 'layer-1' });
     store.input({ type: 'press', control: 'play' });
@@ -226,7 +258,7 @@ describe('SessionStore', () => {
     ]);
     expect(engine.calls).toContainEqual([
       'record',
-      { type: 'record', layer: 0, bars: 0, countIn: true, fitTempo: true },
+      { type: 'record', layer: 1, bars: 0, countIn: true, fitTempo: true },
     ]);
     // Cada edición pide un autoguardado (con sus ajustes; el motor pone el antirrebote).
     expect(engine.calls.filter((call) => call[0] === 'scheduleAutosave')).toHaveLength(2);
