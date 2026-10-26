@@ -8,8 +8,10 @@ const PURE_LAYERS = ['audio/core', 'audio/synth', 'audio/files', 'instrument'];
 export default defineConfig({
   test: {
     environment: 'node',
-    // Los tests del DSP renderizan minutos de audio; con la cobertura instrumentada tardan más.
-    testTimeout: 30_000,
+    // Los tests del DSP renderizan minutos de audio y, con la cobertura instrumentada, tardan unas
+    // 3 veces más: el más pesado, 19 s en el PC de Iván. En un runner compartido del CI pueden ir
+    // el doble de lentos (con 30 s, uno se pasó). El límite solo está para cazar un test colgado.
+    testTimeout: 120_000,
     include: [
       ...PURE_LAYERS.map((layer) => `src/app/${layer}/**/*.spec.ts`),
       // El adaptador del worklet, con el AudioWorkletGlobalScope simulado.

@@ -487,7 +487,7 @@ describe('deriva y determinismo', () => {
     expect(script(1)).toEqual(reference);
     expect(script(77)).toEqual(reference);
     expect(script(1 << 20)).toEqual(reference);
-  }, 30_000);
+  });
 
   it('grabando, la misma entrada da los mismos bytes en la capa y en la salida', () => {
     const take = (block: number) => {
@@ -514,5 +514,5 @@ describe('deriva y determinismo', () => {
     const reference = take(128);
     expect(take(1)).toEqual(reference);
     expect(take(1000)).toEqual(reference);
-  }, 30_000);
+  });
 });
