@@ -482,7 +482,7 @@ describe('SessionStore', () => {
     const drums = layer({
       hasContent: true,
       sourceKind: 'library',
-      sourceId: 'prueba-bateria',
+      sourceId: 'alfar',
       lengthBeats: 8,
     });
     engine.emit({ type: 'status', status: status({ layers: [drums, layer(), layer(), layer()] }) });
@@ -494,6 +494,6 @@ describe('SessionStore', () => {
     store.input({ type: 'press', control: 'main' });
     store.input({ type: 'press', control: 'main' });
     vi.advanceTimersByTime(700);
-    expect(store.announcement()).toBe('Batería. Prueba: en uso. Toma libre.');
+    expect(store.announcement()).toBe('Batería. Alfar: en uso. Toma libre.');
   });
 });

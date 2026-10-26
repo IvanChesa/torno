@@ -65,7 +65,7 @@ export class InstrumentDriver {
     for (let i = 0; i < 5; i++) await main.press('Escape');
   }
 
-  /** Elige un sonido de prueba para la capa elegida (SONIDO → categoría → PRUEBA). */
+  /** Elige el primer sonido de una categoría para la capa elegida (SONIDO → categoría → el primero). */
   async chooseSound(category = 0): Promise<void> {
     await this.menu(MENU.sound, category, 0);
     await this.closeMenu();

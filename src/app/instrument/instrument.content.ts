@@ -102,6 +102,22 @@ export const INSTRUMENT_CONTENT = {
     },
   },
 
+  /** Nombres de los 12 bucles de la colección (pantalla, en mayúsculas). */
+  sounds: {
+    alfar: 'ALFAR',
+    horno: 'HORNO',
+    adobe: 'ADOBE',
+    raiz: 'RAÍZ',
+    cinca: 'CINCA',
+    surco: 'SURCO',
+    olivo: 'OLIVO',
+    vega: 'VEGA',
+    almendro: 'ALMENDRO',
+    cierzo: 'CIERZO',
+    acequia: 'ACEQUIA',
+    brasa: 'BRASA',
+  },
+
   display: {
     bpm: (bpm: string) => `${bpm} BPM`,
     layer: (n: number) => `CAPA ${n}`,

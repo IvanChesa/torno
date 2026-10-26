@@ -33,7 +33,7 @@ const LIBRARY: InstrumentLayerStatus = {
   ...EMPTY,
   hasContent: true,
   source: 'library',
-  soundId: 'prueba-bateria',
+  soundId: 'alfar',
   lengthBeats: 8,
 };
 const RECORDING: InstrumentLayerStatus = {
@@ -218,13 +218,25 @@ describe('pantalla', () => {
   it('los sonidos marcan el que suena en la capa (o APAGADO si está vacía)', () => {
     const drums = play(into(0, 0)).state;
     expect(displayModel(drums, IDLE_AUDIO, CONTEXT).rows).toEqual([
-      { label: 'PRUEBA', value: '•', selected: true, editing: false },
+      { label: 'ALFAR', value: '•', selected: true, editing: false },
+      { label: 'HORNO', value: '', selected: false, editing: false },
+      { label: 'ADOBE', value: '', selected: false, editing: false },
       { label: 'APAGADO', value: '', selected: false, editing: false },
     ]);
     const empty = { ...drums, selected: 1 };
-    expect(displayModel(empty, IDLE_AUDIO, CONTEXT).rows.map((r) => r.value)).toEqual(['', '•']);
+    expect(displayModel(empty, IDLE_AUDIO, CONTEXT).rows.map((r) => r.value)).toEqual([
+      '',
+      '',
+      '',
+      '•',
+    ]);
     const recorded = { ...drums, selected: 2 };
-    expect(displayModel(recorded, IDLE_AUDIO, CONTEXT).rows.map((r) => r.value)).toEqual(['', '']);
+    expect(displayModel(recorded, IDLE_AUDIO, CONTEXT).rows.map((r) => r.value)).toEqual([
+      '',
+      '',
+      '',
+      '',
+    ]);
   });
 
   it('el panorama, la ganancia y las listas', () => {

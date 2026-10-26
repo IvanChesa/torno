@@ -28,7 +28,7 @@ test.describe('WebKit', () => {
       await expect(page.getByText('Este navegador no tiene Web Audio')).toBeVisible();
       return;
     }
-    await driver.expectScreen('CAPA 1 · BATERÍA · PRUEBA');
+    await driver.expectScreen('CAPA 1 · BATERÍA · ALFAR');
     await driver.control('play').click();
     await driver.expectScreen('EN MARCHA');
     await expect(driver.control('play')).toHaveAttribute('aria-pressed', 'true');

@@ -19,7 +19,7 @@ async function twoLayers(driver: InstrumentDriver): Promise<void> {
   await driver.key('main', '2');
   await driver.chooseSound(MENU.categories.bass);
   await driver.adjust([MENU.loop, MENU.loopItems.pan], -8);
-  await driver.expectScreen('CAPA 2 · BAJO · PRUEBA');
+  await driver.expectScreen('CAPA 2 · BAJO · RAÍZ');
 }
 
 /** Abre un archivo con SESIÓN → CARGAR. */
@@ -68,8 +68,8 @@ test.describe('archivos', () => {
     await twoLayers(driver);
     const first = await saveSession(driver);
     expect(first.file.session.layers.map((layer) => layer.source)).toEqual([
-      { kind: 'library', id: 'prueba-bateria' },
-      { kind: 'library', id: 'prueba-bajo' },
+      { kind: 'library', id: 'alfar' },
+      { kind: 'library', id: 'raiz' },
       null,
       null,
     ]);
@@ -82,7 +82,7 @@ test.describe('archivos', () => {
     await second.chooseSound(MENU.categories.texture);
     await openFile(second, 'sesion.torno', first.bytes);
     await second.expectScreen('SESIÓN CARGADA');
-    await second.expectScreen('CAPA 1 · BATERÍA · PRUEBA');
+    await second.expectScreen('CAPA 1 · BATERÍA · ALFAR');
     const again = await saveSession(second);
     expect(Buffer.from(again.bytes).equals(Buffer.from(first.bytes))).toBe(true);
   });
@@ -270,7 +270,7 @@ test.describe('archivos', () => {
     await recover.focus();
     await page.keyboard.press('Space');
     await driver.expectScreen('SESIÓN RECUPERADA');
-    await driver.expectScreen('CAPA 1 · BATERÍA · PRUEBA');
+    await driver.expectScreen('CAPA 1 · BATERÍA · ALFAR');
     const after = await saveSession(driver);
     expect(Buffer.from(after.bytes).equals(Buffer.from(before.bytes))).toBe(true);
     // Empezar de cero borra el autoguardado: al recargar ya no se ofrece.
@@ -354,7 +354,7 @@ test.describe('archivos', () => {
     await driver.key('layer-0', 'ArrowDown');
     await recover.click();
     await expect(driver.screen).toContainText('SESIÓN RECUPERADA', { timeout: 10_000 });
-    await driver.expectScreen('CAPA 1 · BATERÍA · PRUEBA');
+    await driver.expectScreen('CAPA 1 · BATERÍA · ALFAR');
     const loading = await saveSession(driver);
     expect(Buffer.from(loading.bytes).equals(Buffer.from(before.bytes))).toBe(true);
     await page.waitForTimeout(2500);

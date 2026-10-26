@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import * as core from '../src/app/audio/core/constants';
 import { MAX_REPEATS as EXPORT_MAX_REPEATS } from '../src/app/audio/files/export';
 import { MAX_MANUAL_LATENCY_MS as ENGINE_MAX_LATENCY } from '../src/app/audio/engine/latency';
-import { TEST_SOUND_IDS } from '../src/app/audio/synth/test-loop';
+import { LIBRARY_IDS, libraryCategory } from '../src/app/audio/synth/library';
 import * as instrument from '../src/app/instrument/constants';
 import { SOUNDS } from '../src/app/instrument/sounds';
 
@@ -22,7 +22,8 @@ describe('el instrumento y el audio usan los mismos límites', () => {
     expect(instrument.BEATS_PER_TURN).toBe(core.DISC_BEATS_PER_TURN);
   });
 
-  it('cada sonido del menú lo sabe renderizar el worker de síntesis', () => {
-    expect(SOUNDS.map((sound) => sound.id).sort()).toEqual([...TEST_SOUND_IDS].sort());
+  it('los sonidos del menú son los de la colección, en el mismo orden y con su categoría', () => {
+    expect(SOUNDS.map((sound) => sound.id)).toEqual([...LIBRARY_IDS]);
+    for (const sound of SOUNDS) expect(libraryCategory(sound.id)).toBe(sound.category);
   });
 });

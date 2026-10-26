@@ -108,11 +108,11 @@ try {
     // Una sesión autoguardada (con la fecha fija) que se ofrece recuperar al volver.
     await page.clock.setFixedTime(new Date('2026-10-24T19:30:00+02:00'));
     main = await openHome(page, home);
-    // SONIDO → BATERÍA → PRUEBA, y fuera del menú.
+    // SONIDO → BATERÍA → ALFAR, y fuera del menú.
     await main.focus();
     for (let i = 0; i < 4; i++) await main.press('Enter');
     for (let i = 0; i < 5; i++) await main.press('Escape');
-    await page.locator('trn-instrument-screen').getByText('BATERÍA · PRUEBA').waitFor();
+    await page.locator('trn-instrument-screen').getByText('BATERÍA · ALFAR').waitFor();
     // El autoguardado espera 1,5 s tras la última edición.
     await page.waitForTimeout(2500);
     await openHome(page, home);

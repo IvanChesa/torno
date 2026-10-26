@@ -2,7 +2,8 @@
  * Worker de síntesis (PLAN §4.3): renderiza los sonidos de la biblioteca fuera del hilo principal,
  * a la frecuencia del contexto, y devuelve el PCM como `Transferable` (sin copia).
  *
- * Fase 2: los sonidos de prueba del menú. Los 12 bucles llegan en la fase 3.
+ * Los 12 bucles de la colección (`audio/synth/library.ts`). El motor guarda lo renderizado en su
+ * caché: cada sonido se renderiza una vez por frecuencia de muestreo.
  */
 import {
   PROTOCOL_VERSION,
@@ -10,7 +11,7 @@ import {
   type SynthWorkerRequest,
   type SynthWorkerResponse,
 } from '../core/protocol';
-import { LIBRARY_LOOP_BEATS, renderTestLoop } from '../synth/test-loop';
+import { LIBRARY_LOOP_BEATS, renderLibraryLoop } from '../synth/library';
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -25,7 +26,7 @@ scope.onmessage = (event: MessageEvent<unknown>) => {
     switch (request.type) {
       case 'render-sound': {
         const start = performance.now();
-        const pcm = renderTestLoop(request.sound, request.sampleRate);
+        const pcm = renderLibraryLoop(request.sound, request.sampleRate);
         const renderMs = performance.now() - start;
         reply(
           {
