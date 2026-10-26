@@ -6,7 +6,7 @@ import { readWav } from '../src/app/audio/files/wav';
 import { readZip } from '../src/app/audio/files/zip';
 import { downloadBytes, instrumentAudio } from './support/audio';
 import { InstrumentDriver, MENU } from './support/instrument';
-import { saveSession } from './support/torno';
+import { autosavedAt, saveSession } from './support/torno';
 
 // Archivos y persistencia (PLAN §4.8, fase 2): .torno de ida y vuelta, archivos que no valen,
 // remuestreo, WAV de la mezcla y de las pistas con el mismo núcleo, autoguardado y privacidad.
@@ -275,7 +275,11 @@ test.describe('archivos', () => {
     expect(Buffer.from(after.bytes).equals(Buffer.from(before.bytes))).toBe(true);
     // Empezar de cero borra el autoguardado: al recargar ya no se ofrece.
     await driver.open();
+    expect(await autosavedAt(page)).not.toBeNull();
     await page.getByRole('button', { name: 'Empezar de cero' }).click();
+    // Borrar en IndexedDB es asíncrono: si se recarga al momento, la página puede irse antes de
+    // borrar (pasaba en el CI). Se espera a que termine.
+    await expect.poll(() => autosavedAt(page)).toBeNull();
     await driver.open();
     await expect(page.getByRole('button', { name: 'Recuperar la sesión anterior' })).toBeHidden();
   });

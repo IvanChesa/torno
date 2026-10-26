@@ -64,6 +64,37 @@ export function clickOnsetOffset(sampleRate: number, frequency: number, gain: nu
   return table.findIndex((x) => Math.abs(x) >= 0.3 * peak);
 }
 
+/**
+ * La fecha del autoguardado de la página (o `null`), leída de IndexedDB con los nombres de
+ * `src/app/audio/engine/autosave.ts`. Si la base no existe, no la crea. Borrar es asíncrono:
+ * los tests esperan con esto a que termine antes de recargar.
+ */
+export function autosavedAt(page: Page): Promise<number | null> {
+  return page.evaluate(
+    () =>
+      new Promise<number | null>((resolve) => {
+        const request = indexedDB.open('torno');
+        request.onupgradeneeded = () => request.transaction?.abort();
+        request.onerror = () => resolve(null);
+        request.onsuccess = () => {
+          const database = request.result;
+          try {
+            const get = database
+              .transaction('autoguardado')
+              .objectStore('autoguardado')
+              .get('fecha');
+            get.onsuccess = () => resolve(typeof get.result === 'number' ? get.result : null);
+            get.onerror = () => resolve(null);
+          } catch {
+            resolve(null);
+          } finally {
+            database.close();
+          }
+        };
+      }),
+  );
+}
+
 /** Simula que la pestaña se oculta (Playwright no puede ocultarla de verdad). */
 export function hideTab(page: Page): Promise<void> {
   return page.evaluate(() => {
