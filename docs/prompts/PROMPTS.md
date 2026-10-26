@@ -23,6 +23,14 @@ Lee CLAUDE.md y docs/PLAN.md entero y ejecuta el BLOQUE 0 en modo autónomo.
 Aplica docs/revisiones/bloque-<X>.md (decisiones de Iván: <… o «ninguna»>) y ejecuta el BLOQUE <Y> en modo autónomo.
 ```
 
+## Fase 4 en dos entregas (aplazada en el bloque B)
+```
+Aplica docs/revisiones/bloque-B.md y ejecuta la entrega 4.a (sin credenciales) en modo autónomo; para al terminarla.
+```
+```
+El staging y los secrets están listos. Ejecuta la entrega 4.b en modo autónomo y cierra la fase 4.
+```
+
 ## Tras la parada de la fase 5.a
 ```
 Diseño <aprobado | aprobado con estos cambios: …>. Sigue con la 5.b y el resto del bloque C.

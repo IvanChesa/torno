@@ -73,7 +73,7 @@ Buenas prácticas oficiales de Angular: @docs/angular-buenas-practicas.md
   - Todo parámetro que cambie en directo se suaviza: ni clics ni chasquidos.
   - Mensajes tipados (`audio/core/protocol.ts`). Eventos hacia el hilo principal ≤ 30/s, agrupados.
 - **Audio y micrófono:**
-  - Nada suena y no se pide el micrófono **antes de una acción del usuario**.
+  - Nada suena y no se pide el micrófono **antes de una acción del usuario**. Preparar en silencio (cargar el motor, renderizar en un worker) sí se puede antes, por ejemplo al acercarse al instrumento.
   - El `AudioContext` se crea y se reanuda **dentro del propio gesto**, antes de cualquier `await`.
   - El micrófono se libera al terminar o cancelar una toma, en reposo y al ocultar la pestaña.
   - **El audio del usuario nunca sale del dispositivo.**

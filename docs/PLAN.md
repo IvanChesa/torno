@@ -281,7 +281,8 @@ scripts/              build-worklet, make-fake-mic, render-poster, demo-sounds, 
 | VRAM estimada | ≤ 96 MB (alto) · ≤ 48 MB (bajo) |
 | FPS | ≥ 55 en escritorio (alto) · ≥ 30 en móvil de gama media (bajo), tocando |
 | Reposo | 0 fps en pausa y sin interacción (y con movimiento reducido) |
-| **CPU del audio** | `LoopCore` con 4 capas, filtros y limitador ≥ 100× tiempo real en Node, en un PC sin otra carga (`npm run test:bench`, **fuera de `check`**; en el CI, suelo de regresión ≥ 50×); 0 cortes (*underruns*) en 5 min tocando en el móvil de gama media |
+| **CPU del audio** | `LoopCore` con 4 capas, filtros y limitador ≥ 100× tiempo real en Node, en un PC sin otra carga (`npm run test:bench`, **fuera de `check`**; en el CI, suelo de regresión ≥ 50×). Con el filtro antialias a 240 BPM, ≥ 30× (medido: 65×, y 36× en el peor caso, con grabaciones de 40 BPM). 0 cortes (*underruns*) en 5 min tocando en el móvil de gama media |
+| **Síntesis** | Cada bucle ≤ 50 ms en caliente a 48 kHz (en frío y a 96 kHz, cifras documentadas). **Primera reproducción en frío en el móvil** (worker + ALFAR) medida en la fase 4: si el toque tarda más de 150 ms en sonar, se precarga ALFAR al acercarse al instrumento (renderizar sin sonar no es «sonar antes de una acción», §4.9) |
 | **Exactitud** | Cola y tomas fijas exactas a la muestra en el límite de compás · *varispeed* ±1 muestra por bucle · deriva 0 en 10 min |
 | **Sin clics** | Salto máximo entre muestras consecutivas en juntas, cambios, fundidos y al soltar el disco ≤ el mayor salto de la propia señal + 0,01 (escala ±1) |
 | **Arranque del audio** | Primer sonido ≤ 100 ms tras pulsar (motor ya cargado); con el worklet retrasado 1,5 s, el contexto está en `running` dentro del gesto |
@@ -411,7 +412,7 @@ Tareas:
 4. **Renderizado en `synth.worker`** a la frecuencia del contexto, con caché en memoria.
 5. **Menú SONIDO** completo: recorrer sin cambiar el audio, confirmar, EN COLA con la capa destino, APAGADO, confirmación al sustituir una grabación («Cancelar» primero), deshacer que cancela la cola. Primera reproducción: batería en la capa 1 y capa 2 seleccionada.
 6. **Tempo por pulsaciones** (menú BUCLE).
-7. **Sin *aliasing* al acelerar:** a tempos por encima del nativo, el *varispeed* lee más rápido y puede plegar frecuencias (revisión de la fase 1, #14). Filtrar antes de leer (o equivalente) y test a 240 BPM con un tono alto: sin imágenes por encima de −60 dB. Los 12 bucles, sin junta, con un test.
+7. **Sin *aliasing* al acelerar:** a tempos por encima del nativo, el *varispeed* lee más rápido y puede plegar frecuencias (revisión de la fase 1, #14). Filtrar antes de leer (o equivalente) y test a 240 BPM con un tono alto: sin imágenes por encima de −60 dB. Los 12 bucles, sin junta, con un test. (El −60 dB se refiere a las imágenes del plegado, no a las de la interpolación de Hermite.)
 8. **`npm run demo:sounds`:** exporta cada bucle y 3 combinaciones a WAV en una carpeta ignorada, para que Iván los escuche.
 
 Criterios de aceptación:
@@ -421,10 +422,12 @@ Criterios de aceptación:
 
 ### Fase 4: Staging, entrega continua y móviles reales
 
-**Requisitos de Iván** (§3): GitHub CLI, subdominio de staging protegido, cuenta FTP y secrets. **Si no están, se aplaza.**
+**Dos entregas** (revisión del bloque B):
+- **4.a, sin credenciales:** se puede hacer ya. Tareas 1, 2, 3 (el flujo escrito, que no se activa sin secrets), 5 y 7. Termina con informe «en curso» y **para**.
+- **4.b, con el staging:** necesita a Iván (§3): subdominio de staging protegido, cuenta FTP y secrets. Tareas 3 (activarlo), 4 y 6, criterios, revisión y fusión.
 
 Tareas:
-1. **CI verde en GitHub** (lint, test, build y e2e con Chromium). El remoto está conectado desde el bloque A.
+1. **CI verde en GitHub** (lint, test, build y e2e con Chromium y WebKit). El remoto está conectado desde el bloque A. Caché de los navegadores de Playwright y tiempo límite en su instalación (revisión del bloque B, #4).
 2. **`public/.htaccess`:**
    - HTTPS obligatorio (el micrófono y el AudioWorklet lo exigen);
    - URLs sin barra final, `ErrorDocument 404`, `Options -Indexes`;
@@ -434,7 +437,12 @@ Tareas:
 3. **`deploy-staging.yml`:** push a `main` + CI verde → build → FTPS (`SamKirkland/FTP-Deploy-Action` fijado por SHA), con `X-Robots-Tag: noindex`.
 4. **Verificación con `curl`:** códigos, cabeceras, MIME y caché. Comprobar que Imunify360 no bloquea el despliegue.
 5. **Dependabot.**
-6. **Prueba de Iván en Android e iPhone** con el instrumento HTML, siguiendo una lista en el informe: reproducir, grabar con auriculares, sobregrabar, cambiar de app y volver, calibrar la latencia, guardar y exportar.
+6. **Prueba de Iván en Android e iPhone** con el instrumento HTML, siguiendo una lista en el informe: reproducir, grabar con auriculares, sobregrabar, cambiar de app y volver, calibrar la latencia, guardar y exportar. También:
+   - varias tomas seguidas tras calibrar, para ver si quedan alineadas entre sí;
+   - 5 min con 4 capas largas y el autoguardado activo, girando diales: sin cortes;
+   - el tempo a 240 BPM con las 4 capas sonando (el peor caso del filtro antialias);
+   - **la primera reproducción en frío** (crear el worker y renderizar ALFAR): el tiempo del toque al primer sonido.
+7. **Página de pruebas para Iván** (`docs/PRUEBAS-MOVIL.md`): la lista de la tarea 6, con casillas y huecos para las cifras, y cómo leer la latencia y el tiempo del primer sonido en la propia web (un panel de diagnóstico con `?diagnostico=1`, sin datos personales ni red).
 
 Criterios de aceptación:
 - [ ] CI verde y staging actualizado solo al hacer push a `main`.
@@ -497,7 +505,11 @@ Tareas:
    - **ficha técnica con valores medidos** (frecuencia de muestreo, capas, latencia, CPU del audio, FPS, peso) y cómo se midió cada uno;
    - preguntas frecuentes (acordeón accesible);
    - cierre: tocar, caso de estudio, contacto en ivanchesa.es y el código en GitHub (cuando sea público).
-4. **`/sobre-el-proyecto`:** caso de estudio (arquitectura y diagrama de hilos, decisiones, mediciones, accesibilidad y autor).
+4. **`/sobre-el-proyecto`:** caso de estudio (arquitectura y diagrama de hilos, decisiones, mediciones, accesibilidad y autor), con un apartado de **créditos**:
+   - **sonidos:** síntesis propia en código, sin muestras ni audio de terceros ni generado por IA (no hay nada que atribuir; se explica cómo se hacen);
+   - **tipografías:** Fraunces y Geist Mono, con enlace a sus licencias OFL (`licencias/`);
+   - **librerías:** Angular, RxJS, tslib y three.js, con enlace a `licencias/terceros.txt`;
+   - **inspiración:** «Inspirado en TAPE, de Ethan», con enlace. Es cortesía, no obligación: no se ha copiado nada.
 5. **Póster e imagen Open Graph** renderizados con el propio motor (`scripts/render-poster.mjs`: Playwright + `?captura=1` + sharp).
 6. **Compartir (D18)**, pie con los enlaces legales de ivanchesa.es y la nota «Sin cookies, sin analítica y sin peticiones a terceros. Tu audio no sale de tu navegador.»
 7. Lista de textos para la revisión de Iván.
