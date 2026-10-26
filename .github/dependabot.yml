@@ -1,0 +1,53 @@
+# Dependabot (PLAN fase 4, tarea 5): propone actualizaciones de las dependencias que ya hay (la
+# lista cerrada de PLAN §1 no cambia) y de las acciones de GitHub, una vez por semana y agrupadas.
+# Cada propuesta pasa el CI (sus pull requests lo disparan).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+    groups:
+      angular:
+        patterns: ['@angular/*', '@angular-devkit/*', 'angular-eslint']
+        update-types: [minor, patch]
+      desarrollo:
+        dependency-type: development
+        update-types: [minor, patch]
+    ignore:
+      # Fijadas a mano por el plan:
+      # - three 0.186 (D3); en 0.x, una versión «menor» rompe la API;
+      - dependency-name: three
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: '@types/three'
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      # - TypeScript, la que pide Angular, y esbuild, la que usa @angular/build;
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: esbuild
+      # - las versiones mayores de Angular, con su migración (`ng update`).
+      - dependency-name: '@angular/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@angular-devkit/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: angular-eslint
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Madrid
+    commit-message:
+      prefix: chore
+    groups:
+      acciones:
+        patterns: ['*']
