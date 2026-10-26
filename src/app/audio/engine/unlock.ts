@@ -1,33 +1,123 @@
 /**
- * Desbloqueo del audio (PLAN §4.9). Va en el bundle inicial y tiene que ser diminuto.
+ * Desbloqueo del audio (PLAN §4.9). Va en el bundle inicial y tiene que ser diminuto (< 2 kB).
  *
- * Se llama DENTRO del gesto del usuario y antes de cualquier `await`: crea el `AudioContext` (o
- * reutiliza el que hay), lo reanuda y reproduce un búfer silencioso de una muestra, que es lo que
- * Safari en iOS necesita para dejar sonar el contexto. El resto del motor, que se carga después,
- * adopta este mismo contexto.
+ * Es una escucha **nativa** en fase de captura sobre el documento, registrada en `main.ts` antes de
+ * arrancar Angular: así actúa en el gesto real aunque la página aún no esté hidratada (con la
+ * repetición de eventos, un toque anterior a la hidratación llega a Angular después, fuera del
+ * gesto). Reacciona a cada `click`, `pointerup`, `touchend` o `keydown` sobre un elemento marcado
+ * con `data-audio-unlock` (el instrumento y los botones «Tocar») mientras el contexto no suena (no
+ * todos los navegadores toman todos esos eventos como gesto) y, en ese gesto y antes de cualquier
+ * `await`:
+ * 1. pone `navigator.audioSession.type` (`playback`; en iOS, suena con el interruptor de silencio);
+ * 2. crea y reanuda el `AudioContext` (o reanuda el que hay, tras una interrupción);
+ * 3. reproduce un búfer silencioso de una muestra, que es lo que Safari en iOS necesita.
+ *
+ * El `AudioEngine`, que se carga después con `import()`, adopta este mismo contexto: nunca crea uno.
  */
 
-let context: AudioContext | undefined;
+type AudioSessionType = 'playback' | 'play-and-record';
 
+interface AudioSessionNavigator {
+  readonly audioSession?: { type: string };
+}
+
+const SELECTOR = '[data-audio-unlock]';
+/** Teclas que no son un gesto de tocar el instrumento (navegar, salir, modificadores). */
+const IGNORED_KEYS = new Set(['Tab', 'Escape', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock']);
+const GESTURES = ['click', 'pointerup', 'touchend', 'keydown'] as const;
+
+let context: AudioContext | undefined;
+/** En reposo, los gestos no reanudan el contexto: solo lo hace «salir del reposo». */
+let held = false;
+let sessionType: AudioSessionType = 'playback';
+const listeners = new Set<() => void>();
+/** Un toque sobre el instrumento llegó cuando aún no se podía desbloquear (antes del JS). */
+let missed = false;
+
+/** Registra la escucha del desbloqueo (una vez, al arrancar). */
+export function installAudioUnlock(target: Document): void {
+  for (const type of GESTURES) target.addEventListener(type, onGesture, { capture: true });
+}
+
+function onGesture(event: Event): void {
+  if (event.type === 'keydown' && IGNORED_KEYS.has((event as KeyboardEvent).key)) return;
+  const element = event.target;
+  if (held || !(element instanceof Element) || !element.closest(SELECTOR)) return;
+  unlockAudio();
+}
+
+/**
+ * Crea o reanuda el contexto y lo desbloquea. Solo tiene efecto dentro de un gesto del usuario; la
+ * escucha lo llama sola, y «salir del reposo» lo llama desde su propio gesto.
+ */
 export function unlockAudio(): void {
+  const session = (navigator as AudioSessionNavigator).audioSession;
+  if (session) session.type = sessionType;
   if (context?.state === 'running') return;
   if (!context || context.state === 'closed') {
-    if (typeof AudioContext === 'undefined') {
-      throw new Error('Este navegador no tiene Web Audio.');
-    }
+    if (typeof AudioContext === 'undefined') return;
     // Sin `sampleRate`: la del dispositivo (PLAN D22); si no, el navegador remuestrea.
     context = new AudioContext({ latencyHint: 'interactive' });
+    context.addEventListener('statechange', notifyIfRunning);
   }
-  // Sin `await`: la promesa se resuelve después, pero la petición sale dentro del gesto.
-  context.resume().catch(() => undefined);
+  // Sin `await`, y en cada gesto mientras no suene: si el sistema no tomó un evento como gesto
+  // (iOS con `pointerup`, por ejemplo), aquel `resume()` se queda pendiente y este, en el `click`
+  // o el `touchend` del mismo toque, lo vuelve a pedir. Repetirlo no tiene ningún coste.
+  context.resume().then(notifyIfRunning, () => undefined);
   const source = context.createBufferSource();
   source.buffer = context.createBuffer(1, 1, context.sampleRate);
   source.connect(context.destination);
   source.start();
+  notifyIfRunning();
 }
 
-/** El contexto desbloqueado, para el resto del motor (no forma parte de la API pública). */
-export function unlockedContext(): AudioContext {
-  if (!context) throw new Error('El audio no está desbloqueado: llama antes a unlockAudio().');
+/** Avisa a los oyentes cuando el contexto suena de verdad (no basta con haberlo pedido). */
+function notifyIfRunning(): void {
+  if (context?.state !== 'running') return;
+  missed = false;
+  for (const listener of listeners) listener();
+}
+
+/** ¿Ha habido un gesto que haya creado (o esté reanudando) el contexto? */
+function isAudioUnlocked(): boolean {
+  return context !== undefined && context.state !== 'closed';
+}
+
+/**
+ * Un toque sobre el instrumento que Angular atiende (también uno repetido tras la hidratación): si
+ * no desbloqueó el audio en el gesto real, la interfaz pedirá otro («Toca para activar el sonido»).
+ */
+export function noteInstrumentTap(): void {
+  if (!isAudioUnlocked()) missed = true;
+}
+
+/** ¿Hubo un toque que no pudo desbloquear el audio, y aún no se ha desbloqueado? */
+export function missedAudioGesture(): boolean {
+  return missed && !isAudioUnlocked();
+}
+
+/** El contexto desbloqueado, si lo hay (para el motor; no forma parte de la API pública). */
+export function unlockedContext(): AudioContext | undefined {
   return context;
+}
+
+/** Avisa cada vez que el audio pasa a sonar tras un gesto (desbloqueo o reanudación). */
+export function onAudioUnlock(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** Reposo: mientras dura, los gestos sobre el instrumento no reanudan el contexto. */
+export function holdAudioUnlock(value: boolean): void {
+  held = value;
+}
+
+/**
+ * Tipo de sesión de audio que se pide en cada gesto y ahora mismo: `playback` al escuchar,
+ * `play-and-record` al grabar (PLAN §4.3).
+ */
+export function setAudioSessionType(type: AudioSessionType): void {
+  sessionType = type;
+  const session = (navigator as AudioSessionNavigator).audioSession;
+  if (session) session.type = type;
 }

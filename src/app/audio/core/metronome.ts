@@ -8,8 +8,8 @@ const ATTACK_SECONDS = 0.001;
 const DECAY_SECONDS = 0.012;
 const TAIL_SECONDS = 0.005;
 /** Primer pulso del compás: más agudo y algo más fuerte. */
-const ACCENT = { frequency: 1760, gain: 0.3 } as const;
-const NORMAL = { frequency: 1320, gain: 0.22 } as const;
+export const ACCENT_CLICK = { frequency: 1760, gain: 0.3 } as const;
+export const NORMAL_CLICK = { frequency: 1320, gain: 0.22 } as const;
 
 /** Un clic: seno con ataque de coseno alzado, caída exponencial y final en 0 exacto. */
 export function clickTable(sampleRate: number, frequency: number, gain: number): Float32Array {
@@ -38,8 +38,8 @@ export class Metronome {
   #delay = 0;
 
   constructor(sampleRate: number) {
-    this.#accent = clickTable(sampleRate, ACCENT.frequency, ACCENT.gain);
-    this.#normal = clickTable(sampleRate, NORMAL.frequency, NORMAL.gain);
+    this.#accent = clickTable(sampleRate, ACCENT_CLICK.frequency, ACCENT_CLICK.gain);
+    this.#normal = clickTable(sampleRate, NORMAL_CLICK.frequency, NORMAL_CLICK.gain);
     this.#table = this.#normal;
     this.#position = this.#normal.length;
   }

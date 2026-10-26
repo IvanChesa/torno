@@ -1,6 +1,15 @@
 /**
- * instrument: modelo del instrumento en TS puro (PLAN §4.5): catálogo de controles, gestos
- * (pulsar, mantener, girar), menú del dial principal, pantalla y atajos. Lo comparten el 3D, el
- * instrumento HTML y la guía. Llega en la fase 2.
+ * instrument: modelo del instrumento en TS puro (PLAN §4.5, D11): catálogo de controles, gestos,
+ * menú, pantalla y atajos. Lo usan el instrumento HTML, el 3D (fases 5 y 6) y la guía (fase 7).
+ * Sin DOM, sin audio y sin Angular: se prueba en Node.
  */
-export {};
+export * from './catalog';
+export * from './constants';
+export * from './control-value';
+export * from './display';
+export * from './gestures';
+export * from './instrument';
+export * from './instrument.content';
+export * from './keyboard';
+export * from './menu';
+export * from './sounds';

@@ -11,6 +11,7 @@ import {
   peak,
   rampSound,
   sineSound,
+  exportState,
 } from './test-harness';
 
 const RATE = 48_000;
@@ -236,7 +237,7 @@ describe('disco, reposo y carga', () => {
     const other = new Harness({ sampleRate: RATE });
     other.send({ type: 'set-sound', layer: 0, sound: constantSound(RATE, 0.9) });
     other.send({ type: 'set-pan', layer: 0, pan: -1 });
-    const session = other.core.exportState();
+    const session = exportState(other.core);
     if (what === 'cargar') h.send({ type: 'load-session', session });
     else h.send({ type: 'reset' });
     const { left } = h.render(RATE / 10);

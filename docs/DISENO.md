@@ -78,6 +78,12 @@ Generada con `node scripts/contrast.mjs` a partir de `tokens.css`; `scripts/cont
 | `--color-warning` #eec469 | `--color-bg` #252712 | ✅ 9,24:1 | 4,50:1 | Avisos |
 | `--color-warning` #eec469 | `--color-surface` #2f3119 | ✅ 8,09:1 | 4,50:1 | Avisos en paneles |
 | `--color-phosphor` #79f481 | `--color-screen` #0c1a0f | ✅ 12,88:1 | 7,00:1 | Pantalla del aparato |
+| `--color-ink` #f1ece0 | `--instrument-plate` #864230 | ✅ 6,28:1 | 4,50:1 | Rótulos del instrumento HTML |
+| `--instrument-brass` #c4a269 | `--instrument-plate` #864230 | ✅ 3,07:1 | 3,00:1 | Diales y anillo del disco sobre el cuerpo (WCAG 1.4.11) |
+| `--instrument-key` #e7ddc8 | `--instrument-plate` #864230 | ✅ 5,49:1 | 3,00:1 | Teclas sobre el cuerpo (WCAG 1.4.11) |
+| `--color-bg` #252712 | `--instrument-key` #e7ddc8 | ✅ 11,31:1 | 7,00:1 | Iconos y rótulos de las teclas |
+| `--color-bg` #252712 | `--instrument-brass` #c4a269 | ✅ 6,33:1 | 3,00:1 | Aguja de los diales |
+| `--color-focus` #f1ece0 | `--instrument-plate` #864230 | ✅ 6,28:1 | 3,00:1 | Anillo de foco sobre el instrumento |
 
 Una combinación nueva se añade a `PAIRS` en `scripts/contrast.mjs` antes de usarla.
 
@@ -217,6 +223,20 @@ Luz y color (para decidir en la fase 5.a con capturas): `RoomEnvironment` + PMRE
 3. **Arcilla clara:** cuerpo de bizcocho claro (`#c9a27e`), disco de esmalte oliva oscuro, latón oscuro.
 
 ---
+
+### 7.1 El instrumento HTML (fase 2)
+
+La maqueta 2D que se toca hasta que llega el 3D (y que sigue siendo la alternativa sin WebGL, `?sin3d=1`). Usa los mismos materiales en plano, con una excepción:
+
+- **Cuerpo:** `--instrument-plate` `#864230`, un barro más oscuro que el del 3D (`--instrument-body`). Sobre el terracota claro, ni la tinta ni el latón llegaban al contraste AA (4,5:1 los rótulos, 3:1 los controles): con este tono, sí (tabla de §2.1).
+- **Diales de latón** con una aguja oscura que gira de −135° a 135° con el valor; la capa elegida lleva un anillo de tinta alrededor (forma, no solo color).
+- **Pilotos:** fósforo si la capa tiene sonido, aviso si hay un sonido en cola, rojo de grabación si se graba; vacíos (solo el aro) si la capa está vacía. El estado también está en la pantalla y en el nombre accesible.
+- **Teclas** de cerámica crema con icono y rótulo; hundidas (`aria-pressed`) mientras reproduce o graba.
+- **Disco:** esmalte oliva con anillo de latón y una marca crema que da una vuelta por compás (solo con el transporte en marcha y sin movimiento reducido).
+- **Pantalla:** fósforo sobre negro, en mayúsculas, con la fila elegida invertida.
+- **Distribución:** pantalla y dial principal arriba; capas, teclas y disco en el centro; brazo, volumen y reposo en un lateral. En móvil se apila (pantalla, disco, capas, teclas y lateral). No es la del original ni la definitiva: la del 3D se decide en la fase 5.a.
+
+Capturas: `docs/informes/img/fase-2/instrumento-*.png`.
 
 ## 8. Comprobaciones
 

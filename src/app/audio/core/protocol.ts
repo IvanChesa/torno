@@ -2,15 +2,17 @@
  * Mensajes entre el hilo principal, el worklet y los workers (PLAN §4.3, D7): tipados, versionados
  * y sin `SharedArrayBuffer`. Un mensaje con otra versión se ignora.
  *
- * - Hilo principal → worklet: los comandos de `LoopCore` (`CoreCommand`).
- * - Worklet → hilo principal: el estado agrupado (`CoreStatus`, ≤ 30/s) con los avisos discretos.
- * - La sonda de la fase 0 (pitido y tono del worker) sigue aquí hasta que la sustituya el
- *   `AudioEngine` de la fase 2.
+ * - Hilo principal → worklet: los comandos de `LoopCore` (`CoreCommand`) y las peticiones del
+ *   propio worklet (`WorkletRequest`: copia de la sesión y cierre).
+ * - Worklet → hilo principal: el estado agrupado (`CoreStatus`, ≤ 30/s) con los avisos discretos,
+ *   la copia de la sesión y la grabación de la calibración (`WorkletEvent`).
+ * - Hilo principal ↔ workers: los sonidos de la biblioteca (`synth.worker`) y la exportación a WAV
+ *   (`export.worker`).
  */
 import type { TakeBars } from './constants';
 import type { SessionError, SessionState } from './session';
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 /** Nombre con el que se registra el procesador del worklet. */
 export const PROCESSOR_NAME = 'torno';
@@ -70,9 +72,18 @@ export type CoreCommand = Versioned &
     | { readonly type: 'reset' }
     /** Reposo: cancela la toma y pausa (el motor libera después el micrófono y el contexto). */
     | { readonly type: 'standby' }
+    /**
+     * Calibrar la latencia: con el transporte parado, suenan clics en muestras conocidas y se graba
+     * la entrada sin tocar. El resultado sale en un `CalibrationEvent`.
+     */
+    | { readonly type: 'calibrate' }
   );
 
 export type CoreCommandType = CoreCommand['type'];
+
+type WithoutVersion<C> = C extends unknown ? Omit<C, 'v'> : never;
+/** Un comando sin la versión (la pone quien lo envía). */
+export type CoreCommandBody = WithoutVersion<CoreCommand>;
 
 // --- Estado y avisos (worklet → hilo principal) ----------------------------------------------
 
@@ -95,11 +106,24 @@ export type NoticeCode =
   /** Comando no válido o imposible (`command` y `reason`). */
   | 'rejected'
   /** La salida se ha apagado del todo tras pausar o parar. */
-  | 'stopped';
+  | 'stopped'
+  /** La calibración ha terminado: su grabación sale en un `CalibrationEvent`. */
+  | 'calibrated'
+  /** Calibración interrumpida (`reason`: cancelled o standby). */
+  | 'calibration-cancelled';
 
 /** Por qué se rechaza un comando (o el error de la sesión que no se ha podido cargar). */
 export type RejectReason =
-  'range' | 'invalid' | 'no-memory' | 'too-long' | 'disc' | 'empty' | 'unknown' | SessionError;
+  | 'range'
+  | 'invalid'
+  | 'no-memory'
+  | 'too-long'
+  | 'disc'
+  | 'empty'
+  | 'unknown'
+  /** Calibrando, o calibrar con el transporte en marcha o durante una toma. */
+  | 'busy'
+  | SessionError;
 
 /** Por qué se descarta una toma. */
 export type CancelReason = 'cancelled' | 'too-short' | 'standby';
@@ -162,45 +186,56 @@ export interface CoreStatus extends Versioned {
   noticesDropped: number;
 }
 
-// --- Sonda de la fase 0 (temporal) -----------------------------------------------------------
+// --- Worklet: peticiones y eventos propios -------------------------------------------------------
 
-/** Suena un pitido (lo genera `BeepGenerator`, de audio/core). */
-export interface BeepCommand extends Versioned {
-  readonly type: 'beep';
-  readonly frequency: number;
-  readonly seconds: number;
-  readonly gain: number;
+/** Lo que el hilo principal pide al worklet, además de los comandos del núcleo. */
+export type WorkletRequest = Versioned &
+  /** Copia de la sesión (para guardar, autoguardar o exportar); responde con un `SessionCopyEvent`. */
+  (
+    | { readonly type: 'copy-session'; readonly id: number }
+    /** El procesador deja de pedir `process()` y el nodo se puede liberar. */
+    | { readonly type: 'dispose' }
+  );
+
+export type WorkletMessage = CoreCommand | WorkletRequest;
+
+/** Copia de la sesión, con el PCM transferido (sin copias de más). */
+export interface SessionCopyEvent extends Versioned {
+  readonly type: 'session';
+  readonly id: number;
+  readonly session: SessionState;
 }
 
-/** El procesador deja de pedir `process()` y el nodo se puede liberar. */
-export interface DisposeCommand extends Versioned {
-  readonly type: 'dispose';
+/**
+ * Grabación de la calibración: la entrada sin tocar desde el principio de la calibración y las
+ * muestras de esa grabación en las que empezó a sonar cada clic.
+ */
+export interface CalibrationEvent extends Versioned {
+  readonly type: 'calibration';
+  readonly sampleRate: number;
+  readonly pcm: Float32Array;
+  readonly clickFrames: readonly number[];
 }
 
-export type WorkletCommand = BeepCommand | DisposeCommand;
-
-/** El pitido ha terminado: `frames` es su duración exacta en muestras. */
-export interface BeepEndedEvent extends Versioned {
-  readonly type: 'beep-ended';
-  frames: number;
-}
-
-export type WorkletEvent = BeepEndedEvent;
+export type WorkletEvent = CoreStatus | SessionCopyEvent | CalibrationEvent;
 
 // --- Hilo principal ↔ worker de síntesis ------------------------------------------------------
 
-export interface RenderToneRequest extends Versioned {
-  readonly type: 'render-tone';
+export interface RenderSoundRequest extends Versioned {
+  readonly type: 'render-sound';
   readonly id: number;
+  /** Id del sonido de la biblioteca. */
+  readonly sound: string;
   readonly sampleRate: number;
-  readonly seconds: number;
 }
 
-export interface RenderToneResponse extends Versioned {
-  readonly type: 'tone';
+export interface RenderSoundResponse extends Versioned {
+  readonly type: 'sound';
   readonly id: number;
-  /** PCM mono; llega como `Transferable` (sin copia). */
+  readonly sound: string;
+  /** PCM mono del bucle; llega como `Transferable` (sin copia). */
   readonly pcm: Float32Array<ArrayBuffer>;
+  readonly lengthBeats: number;
   readonly renderMs: number;
 }
 
@@ -210,8 +245,40 @@ export interface WorkerErrorResponse extends Versioned {
   readonly message: string;
 }
 
-export type SynthWorkerRequest = RenderToneRequest;
-export type SynthWorkerResponse = RenderToneResponse | WorkerErrorResponse;
+export type SynthWorkerRequest = RenderSoundRequest;
+export type SynthWorkerResponse = RenderSoundResponse | WorkerErrorResponse;
+
+// --- Hilo principal ↔ worker de exportación ---------------------------------------------------
+
+export type ExportWorkerRequest = Versioned &
+  /** Mezcla estéreo: `repeats` vueltas del bucle (1–8) y, si se pide, un fundido al final. */
+  (
+    | {
+        readonly type: 'export-mix';
+        readonly id: number;
+        readonly session: SessionState;
+        readonly repeats: number;
+        readonly fadeOut: boolean;
+      }
+    /** Una pista mono por capa con sonido, una vuelta del bucle. */
+    | { readonly type: 'export-stems'; readonly id: number; readonly session: SessionState }
+  );
+
+export interface ExportedFile {
+  /** Capa de la pista (−1 = la mezcla). */
+  readonly layer: number;
+  /** El WAV entero; llega como `Transferable`. */
+  readonly bytes: ArrayBuffer;
+}
+
+export interface ExportWorkerResponseOk extends Versioned {
+  readonly type: 'exported';
+  readonly id: number;
+  readonly files: readonly ExportedFile[];
+  readonly renderMs: number;
+}
+
+export type ExportWorkerResponse = ExportWorkerResponseOk | WorkerErrorResponse;
 
 /** ¿Es un mensaje de este protocolo y de esta versión? (No valida el resto de campos.) */
 export function isCurrentMessage(data: unknown): data is Versioned & { readonly type: string } {

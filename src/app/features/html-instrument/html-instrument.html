@@ -1,0 +1,91 @@
+<div class="instrument" data-audio-unlock role="group" [attr.aria-label]="text.label">
+  <trn-instrument-screen class="area-screen" [display]="store.display()" />
+
+  <div class="control area-main">
+    <div trnControl="main" class="knob knob--main" [attr.aria-describedby]="hintId('main')"></div>
+    <span class="label" aria-hidden="true">{{ text.labels.main }}</span>
+  </div>
+
+  <div class="layers area-layers">
+    @for (layer of layers; track layer.id) {
+      @let pilot = pilots()[layer.layer];
+      <div
+        class="layer"
+        [class.is-selected]="selected() === layer.layer"
+        [class.is-muted]="pilot?.muted"
+      >
+        <span
+          class="pilot"
+          aria-hidden="true"
+          [class.has-content]="pilot?.hasContent"
+          [class.is-recording]="pilot?.recording"
+          [class.is-pending]="pilot?.pending"
+        ></span>
+        <div class="layer__controls">
+          <div
+            [trnControl]="layer.id"
+            class="knob"
+            [attr.aria-describedby]="hintId(layer.id)"
+          ></div>
+          <span class="meter" aria-hidden="true"><span #meter class="meter__fill"></span></span>
+        </div>
+        <span class="label" aria-hidden="true">{{ text.labels.layer(layer.number) }}</span>
+      </div>
+    }
+  </div>
+
+  <div class="keys area-keys">
+    <button type="button" trnControl="play" class="key" [attr.aria-describedby]="hintId('play')">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        @if (playing()) {
+          <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
+        } @else {
+          <path d="M8 5l11 7-11 7z" />
+        }
+      </svg>
+      <span class="label">{{ text.labels.play }}</span>
+    </button>
+    <button
+      type="button"
+      trnControl="record"
+      class="key key--record"
+      [attr.aria-describedby]="hintId('record')"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6" /></svg>
+      <span class="label">{{ text.labels.record }}</span>
+    </button>
+    <button type="button" trnControl="undo" class="key" [attr.aria-describedby]="hintId('undo')">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 7L4 11.5 9 16v-3h6a3 3 0 0 1 0 6h-2v2h2a5 5 0 0 0 0-10H9z" />
+      </svg>
+      <span class="label">{{ text.labels.undo }}</span>
+    </button>
+  </div>
+
+  <div class="control area-disc">
+    <div #disc trnControl="disc" class="disc" [attr.aria-describedby]="hintId('disc')">
+      <span class="disc__mark" aria-hidden="true"></span>
+    </div>
+    <span class="label" aria-hidden="true">{{ text.labels.disc }}</span>
+  </div>
+
+  <trn-instrument-side class="area-side" />
+
+  @for (spec of controls; track spec.id) {
+    <span [id]="hintId(spec.id)" hidden>{{ spec.hint }}</span>
+  }
+</div>
+
+<trn-instrument-notices />
+
+<p class="visually-hidden" aria-live="polite">{{ store.announcement() }}</p>
+<input
+  #file
+  type="file"
+  accept=".torno,application/x-torno"
+  class="visually-hidden"
+  tabindex="-1"
+  aria-hidden="true"
+  [attr.aria-label]="text.fileInputLabel"
+  (change)="onFile($event)"
+/>

@@ -2,7 +2,6 @@
  * audio/core: núcleo DSP en TS puro (PLAN §4.4). Se ejecuta igual en el worklet, en el worker de
  * exportación y en los tests de Node. Sin DOM, sin Web Audio, sin Angular y sin dependencias.
  */
-export * from './beep';
 export * from './constants';
 export * from './content';
 export * from './loop-core';

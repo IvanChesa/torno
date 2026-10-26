@@ -10,6 +10,7 @@ import {
   rampSound,
   sound,
   type InputSource,
+  exportState,
 } from './test-harness';
 
 const RATE = 48_000;
@@ -462,7 +463,7 @@ describe('juntas, bloqueos y estados', () => {
     h.send({ type: 'redo', layer: 0 });
     h.send({ type: 'set-sound', layer: 2, sound: constantSound(RATE, 0.2) });
     h.send({ type: 'clear-layer', layer: 0 });
-    h.send({ type: 'load-session', session: h.core.exportState() });
+    h.send({ type: 'load-session', session: exportState(h.core) });
     h.send({ type: 'reset' });
     h.send({ type: 'record', layer: 2, bars: 1, countIn: false, fitTempo: false });
     // Siguen libres: nivel, silencio, panorama, filtro y volumen.

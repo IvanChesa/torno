@@ -4,6 +4,7 @@ import { Session } from 'node:inspector/promises';
 import { describe, expect, it } from 'vitest';
 import { LAYER_COUNT } from './constants';
 import { MEMORY_BUDGET_BYTES, worstCaseMemory } from './memory';
+import { COPY_SAMPLES_PER_FRAME, SessionCopy } from './session-copy';
 import { PROTOCOL_VERSION, type CoreCommand } from './protocol';
 import {
   BLOCK,
@@ -13,6 +14,7 @@ import {
   seededRandom,
   sineSound,
   sound,
+  exportState,
 } from './test-harness';
 
 const RATE = 48_000;
@@ -65,7 +67,7 @@ describe('contabilidad de memoria', () => {
     for (let layer = 0; layer < LAYER_COUNT; layer++) {
       other.send({ type: 'set-sound', layer, sound: constantSound(RATE, 0.5) });
     }
-    const session = other.core.exportState();
+    const session = exportState(other.core);
     h.send({ type: 'play' });
     h.render(1000);
     h.send({ type: 'load-session', session });
@@ -102,11 +104,16 @@ interface ProfileNode {
   readonly children: readonly ProfileNode[];
 }
 
-/** Bytes muestreados cuya pila pasa por `LoopCore.process` (lo que reserva el hilo de audio). */
+/**
+ * Bytes muestreados cuya pila pasa por `LoopCore.process` o por `SessionCopy.pump` (lo que
+ * reserva el hilo de audio).
+ */
 function bytesUnderProcess(node: ProfileNode, inside = false): number {
+  const { functionName, url } = node.callFrame;
   const here =
     inside ||
-    (node.callFrame.functionName === 'process' && node.callFrame.url.endsWith('loop-core.ts'));
+    (functionName === 'process' && url.endsWith('loop-core.ts')) ||
+    (functionName === 'pump' && url.endsWith('session-copy.ts'));
   let total = here ? node.selfSize : 0;
   for (const child of node.children) total += bytesUnderProcess(child, here);
   return total;
@@ -143,9 +150,10 @@ describe('process() no reserva memoria', () => {
     );
     /**
      * Un minuto de sesión: una sobregrabación que se confirma, un cambio en cola que entra en un
-     * compás, el metrónomo, cuatro capas con filtro y varispeed, y el disco de otra capa agarrado y
-     * movido a saltos entre los segundos 10 y 50. Lo que reserva (la toma y el sonido) se envía
-     * antes de cada pasada, como en el worklet (en el manejador de mensajes, no en `process()`).
+     * compás, una copia de la sesión por tramos, el metrónomo, cuatro capas con filtro y varispeed,
+     * y el disco de otra capa agarrado y movido a saltos entre los segundos 10 y 50. Lo que reserva
+     * (la toma, el sonido y la copia) se pide antes de cada pasada, como en el worklet (en el
+     * manejador de mensajes, no en `process()`).
      */
     const minute = () => {
       for (let b = 0; b < blocks; b++) {
@@ -157,11 +165,16 @@ describe('process() no reserva memoria', () => {
         if (b === 50 * second) core.handle(release);
         core.process(input, outL, outR, BLOCK);
         core.statusReady = false;
+        // Lo que hace el worklet tras cada bloque mientras hay una copia de la sesión pedida.
+        if (!copy.done) copy.pump(BLOCK * COPY_SAMPLES_PER_FRAME);
       }
     };
+    let copy = new SessionCopy(0, core.snapshot());
     const prepare = () => {
       h.send({ type: 'set-sound', layer: 1, sound: noise });
       h.send({ type: 'record', layer: 3, bars: 2, countIn: false, fitTempo: false });
+      // Una copia de la sesión (autoguardado): se reserva aquí y se copia por tramos en la pasada.
+      copy = new SessionCopy(1, core.snapshot());
     };
     // Primera pasada: calienta el JIT con todos los caminos (también confirmar y aplicar la cola).
     prepare();
@@ -178,8 +191,9 @@ describe('process() no reserva memoria', () => {
     session.disconnect();
     const bytes = bytesUnderProcess(profile.head);
     console.warn(`process(): ${(bytes / 1024).toFixed(1)} KiB reservados en 60 s simulados`);
-    // La sobregrabación y el cambio en cola se aplicaron dentro de la ventana.
+    // La sobregrabación, el cambio en cola y la copia de la sesión se hicieron dentro de la ventana.
     expect(core.layerContent(3)).not.toBe(recorded);
+    expect(copy.done).toBe(true);
     expect(core.layerContent(1)?.source).toEqual({ kind: 'library', id: 'ruido' });
     // En V8, un número con decimales que cruza una llamada no integrada se empaqueta: unos pocos
     // bytes por segundo. A ese ritmo, el heap joven tardaría horas en llenarse una vez.

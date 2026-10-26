@@ -68,14 +68,16 @@ El núcleo cuenta los bytes de los búferes de PCM vivos sin contar dos veces el
 
 **Cargar una sesión** (o empezar de cero). El deshacer y el rehacer de todas las capas se sueltan al recibir el comando. Si la salida estaba sonando, la sesión que llega espera al fundido y se cuenta en la memoria. El pico es el estado actual más la sesión nueva: con 8 capas de 60 s, 92,16 MB a 48 kHz, por debajo del peor caso (una carga no puede coincidir con una toma: está bloqueada). La copia que hace el hilo principal para leer el archivo es memoria suya, no del núcleo.
 
+**Copias de la sesión** (guardar, autoguardar y exportar). El worklet reserva la copia al pedirla, en el manejador del mensaje; la llena por tramos en `process()` y la transfiere al hilo principal al terminar (§7). Es memoria transitoria y no cuenta en el presupuesto del núcleo: si contara, guardar con 4 capas de 60 s y el historial lleno a 48 kHz olvidaría un deshacer. Ocupa lo que el estado actual de la sesión (46,08 MB en el peor caso a 48 kHz) durante menos de un segundo. Durante una toma no se puede guardar ni exportar y el autoguardado espera, pero una copia empezada justo antes de grabar coincide con la reserva de la toma: el pico transitorio sería 195,84 + 46,08 = 241,92 MB, por encima de los 220 MB de §5 durante menos de un segundo. Queda como propuesta en el informe de la fase 2.
+
 ## 5. El hilo de audio no reserva memoria
-- **Por convención y con lint.** En `audio/core/` y `audio/worklet/`, ningún método puede usar lo siguiente (todos pueden acabar llamados desde `process()`); solo se libran los constructores, los métodos del manejador que preparan memoria (`handle`, `exportState`, `planTake`, `load`, `setSound`, `emptySession`) y, entre las funciones sueltas, las que no son `process*` ni `render*`:
+- **Por convención y con lint.** En `audio/core/` y `audio/worklet/`, ningún método puede usar lo siguiente (todos pueden acabar llamados desde `process()`); solo se libran los constructores, los métodos del manejador que preparan memoria (`handle`, `snapshot`, `planTake`, `load`, `setSound`, `emptySession`), el calentamiento de la copia de la sesión al crear el worklet (`warmUp`) y, entre las funciones sueltas, las que no son `process*` ni `render*`:
   - `new`, literales de objeto o de array, cierres, plantillas ni `...`;
   - métodos que copian (`slice`, `subarray`…);
   - `throw`, `await` ni `console`.
   
   Lo que reserva (los búferes de una toma, los contenidos de una sesión cargada) se hace en `handle()`. Los avisos van en objetos ya reservados.
-- **En ejecución.** El perfil de muestreo del heap de V8 registra 0 bytes reservados bajo `LoopCore.process` en un minuto simulado con todo en marcha: 4 capas con filtro y *varispeed*, metrónomo, una sobregrabación que se confirma, un cambio en cola que entra en un compás y el disco moviéndose a saltos. Es la cifra del **régimen permanente**. En los caminos raros (primera toma con ajuste de tempo, cola aplicada al pausar, carga sonando, parar, cierre a los 60 s, toma demasiado corta, reposo) el perfil da unos KiB por pasada, por números empaquetados en `#commitTake` o tras alguna desoptimización: irrelevante para el audio.
+- **En ejecución.** El perfil de muestreo del heap de V8 registra 0 bytes reservados bajo `LoopCore.process` y `SessionCopy.pump` en un minuto simulado con todo en marcha: 4 capas con filtro y *varispeed*, metrónomo, una sobregrabación que se confirma, un cambio en cola que entra en un compás, el disco moviéndose a saltos y una copia de la sesión por tramos. Es la cifra del **régimen permanente**. En los caminos raros (primera toma con ajuste de tempo, cola aplicada al pausar, carga sonando, parar, cierre a los 60 s, toma demasiado corta, reposo) el perfil da unos KiB por pasada, por números empaquetados en `#commitTake` o tras alguna desoptimización: irrelevante para el audio.
   - En V8, un número con decimales que cruza una llamada no integrada se empaqueta en el heap. Por eso los valores por tramo (pulso, objetivo del disco, ganancias) se pasan en campos y no en argumentos.
 
 ## 6. Cifras medidas (fase 1)
@@ -89,3 +91,47 @@ El núcleo cuenta los bytes de los búferes de PCM vivos sin contar dos veces el
 | Filtro | −3 dB exactamente en el corte (error < 0,01 % entre 150 Hz y 15 kHz; el criterio es ±10 %) | Bisección de la respuesta en régimen permanente, a 44,1 y 48 kHz |
 | Limitador | Pico de −0,34 dBFS con 4 capas a tope en fase (techo −0,3) | `limiter.spec.ts` y `loop-core.playback.spec.ts` |
 | Tamaño | `LoopCore` minificado: 32,7 kB (presupuesto del worklet: 40 kB) | esbuild con `--minify`, como el worklet |
+
+## 7. En el navegador (fase 2)
+
+El núcleo corre en el AudioWorklet; alrededor, el motor del hilo principal (`audio/engine/`), que es el único que toca el `AudioContext`, el micrófono y los archivos.
+
+### Arranque
+- **Desbloqueo** (`unlock.ts`, en el bundle inicial: 1,8 kB). Una escucha nativa en fase de captura sobre el documento, registrada en `main.ts` antes de arrancar Angular. Con cada `click`, `pointerup`, `touchend` o `keydown` sobre `[data-audio-unlock]` (el instrumento y «Tocar») mientras el contexto no suena, y antes de cualquier `await`: `navigator.audioSession.type`, crear o reanudar el contexto y un búfer silencioso de una muestra. Repetirlo en cada evento del toque cubre los navegadores que no toman alguno como gesto (iOS con `pointerup`, por ejemplo): el audio cuenta como desbloqueado cuando el contexto suena de verdad, no al pedirlo. Sigue escuchando para reanudar tras una interrupción, salvo en reposo.
+- **Motor** (`engine.ts`, 20,1 kB, con `import()`). Nunca crea el contexto: adopta el del desbloqueo. Carga el módulo con 5 s de espera («Reintentar» si no llega) y conecta el nodo: entrada mono (el micrófono, solo mientras graba o calibra) y salida estéreo. Los comandos de antes de que exista el nodo esperan en una cola.
+- **Estados:** `idle`, `loading`, `ready`, `needs-gesture` («Toca el instrumento para activar el sonido»), `interrupted` («Toca para reanudar»), `standby` y `error` (con su código; los textos los pone la interfaz).
+- **Un toque antes de la hidratación.** Si el JS principal ya estaba, el desbloqueo actúa en el gesto real. Si el toque llegó antes que el JS, Angular lo repite tras hidratar, ya fuera del gesto: el motor no crea un contexto sin gesto y la interfaz pide otro toque.
+
+### Worklet
+`processor.ts` (37,7 kB con el núcleo; presupuesto, 40 kB) valida cada mensaje, pasa la entrada y la salida a `LoopCore` y envía el estado como mucho 30 veces por segundo (el mismo objeto). La grabación de la calibración sale con su PCM transferido.
+
+**Copia de la sesión por tramos** (`audio/core/session-copy.ts`). Guardar, autoguardar y exportar piden una copia de lo que suena. Hecha de golpe en el manejador del mensaje, paraba el hilo de audio entre 7 y 10 ms con 4 capas de 60 s a 48 kHz (en Node; más de tres bloques de 128 muestras, que duran 2,67 ms). Ahora el manejador toma la instantánea del núcleo (`LoopCore.snapshot()`: el contenido de cada capa, que no cambia nunca, y la mezcla de ese momento) y reserva los búferes; después, cada `process()` copia un tramo de hasta 32.768 muestras (256 por muestra del bloque) y, al terminar, la sesión sale con su PCM transferido. Las copias pedidas se hacen de una en una y en orden.
+- Los tramos empiezan en 1024 muestras y crecen de 1024 en 1024, y el bucle de copia se calienta al crear el worklet: sin eso, en V8 los primeros tramos completos tardaban 1–2 ms, antes de que el JIT optimizara el bucle.
+- El resultado es idéntico byte a byte a la copia de golpe en el momento de pedirla, aunque la sesión cambie mientras tanto (`session-copy.spec.ts`).
+- La copia vive en el worklet y no en el núcleo: así no pesa en el worker de exportación, que también lleva `LoopCore`.
+
+### Micrófono y latencia
+- **Micrófono:** `getUserMedia` mono y sin procesar (sin cancelación de eco, supresión de ruido ni control de ganancia automáticos; si el navegador no acepta las restricciones, se pide sin ellas), solo al grabar o calibrar, con `play-and-record` en la sesión de audio. Se suelta al terminar o cancelar la toma, en reposo y con la pestaña oculta (que además cancela la toma y pausa). Si se cancela con la petición pendiente, la pista se para en cuanto llega.
+- **Latencia automática:** `baseLatency + outputLatency` del contexto y la latencia de entrada de la pista.
+- **Calibración:** con el transporte parado, el núcleo hace sonar 8 clics cada 0,5 s (después del volumen: suenan aunque la rueda esté a cero) y graba la entrada sin tocar. El hilo principal fecha cada ataque donde llega al 30 % del pico de su ventana, igual que el clic de referencia, y da la mediana si al menos 6 de los 8 coinciden (±1 ms). En los tests en Node la mide sin error con 0, 1, 480, 7000 y 23.000 muestras, con ruido (±1 muestra) y con dos clics perdidos. La latencia máxima medible es el intervalo entre clics (0,5 s).
+- **Ajuste manual** de 0 a 500 ms. El modo y el valor se guardan en `localStorage`.
+- **Medido en Chromium:** con un micrófono de retorno determinista (la salida retrasada 20 ms con un `DelayNode`), la toma queda alineada con los pulsos a 2 muestras (0,04 ms). **Riesgo:** con un retorno por `MediaStream` (como un micrófono de verdad), la latencia cambia en cada apertura de la pista: 20,7, 20,7, 21,3 y 12,0 ms en cuatro calibraciones seguidas. Como el micrófono se suelta tras cada toma, una toma puede quedar desplazada unos 9 ms respecto a la calibración. Se medirá en móviles reales (fase 4; §5 pide ±5 ms) y hay dos salidas propuestas en el informe de la fase 2.
+
+### Archivos
+- **`.torno`** (`audio/files/torno-format.ts`): firma `\x89TORNO\r\n`, versión (1), cabecera JSON en ASCII y PCM float32 LE. Se valida entero antes de devolver nada, también cada muestra (finitas y en ±16). Ida y vuelta idéntica byte a byte; 1000 archivos malformados rechazados con su código.
+- **Remuestreo** al cargar una sesión de otra frecuencia: `decodeAudioData` de un `OfflineAudioContext` sobre un WAV en coma flotante con tres vueltas seguidas, quedándose con la del medio (sin junta). Es el remuestreador de calidad del navegador. Un `AudioBufferSourceNode` de otra frecuencia interpola linealmente en Chromium: un tono de 15 kHz bajaba 3,44 dB y dejaba imágenes a −15 dB.
+- **WAV** de 24 bits (mezcla estéreo y pistas mono), escrito por tramos directamente en el archivo. La mezcla sale del mismo núcleo (`OfflineRenderer`) con 1–8 vueltas y fundido final opcional de 2 s; las pistas, cada capa sola, sin panorama y sin silenciar, en un ZIP sin compresión.
+- **Worker de exportación** (38,6 kB): se crea al arrancar el motor y se reutiliza, así exportar no hace ninguna petición de red.
+- **Autoguardado** (IndexedDB): un `.torno` 1,5 s después de la última edición, nunca durante una toma; una sesión vacía lo borra. Al volver: «Recuperar la sesión anterior» o «Empezar de cero». La cuota llena se avisa.
+
+### Cifras (fase 2)
+| Medida | Valor | Cómo |
+|---|---|---|
+| Desbloqueo en el bundle inicial | 1,8 kB (límite 2 kB) | `scripts/check-bundles.mjs` |
+| Worklet · motor · worker de exportación · worker de síntesis | 37,7 · 20,1 · 38,6 · 2,5 kB (límite 40 kB) | ídem |
+| Copia de la sesión, 4 capas de 60 s a 48 kHz | De golpe, 7,4–9,7 ms en el manejador. Por tramos, 368 bloques (0,98 s): mediana 0,04–0,05 ms y peor bloque 0,09–0,32 ms, con el render de las 4 capas incluido | `npm run test:bench`, 3 ejecuciones en el PC de Iván (Node 24) |
+| Alineación de una toma con latencia calibrada | 2 muestras (0,04 ms) en los cuatro pulsos | e2e `microphone.spec.ts`, retorno de 20 ms |
+| Latencia del retorno por `MediaStream` en cuatro aperturas | 20,7 · 20,7 · 21,3 · 12,0 ms | calibración repetida en Chromium (fase 2) |
+| Peticiones de red al grabar, guardar y exportar | 0 | e2e `files.spec.ts` |
+| La mezcla exportada frente al render del núcleo | ≤ 1 LSB de 24 bits | e2e `files.spec.ts` |
+| Remuestreo de 44,1 a 48 kHz, tono de 15 kHz a −6 dBFS | 0,00 dB; imágenes a 18,9 y 11,1 kHz: −87,8 y −105,4 dB (con la interpolación lineal de antes: −3,44 dB; −15,0 y −27,3 dB) | e2e `files.spec.ts` en Chromium (DFT de la vuelta, que es periódica) |

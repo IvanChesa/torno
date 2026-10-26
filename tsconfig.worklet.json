@@ -7,5 +7,7 @@
     "types": [],
     "noEmit": true
   },
-  "include": ["src/app/audio/worklet/**/*.ts"]
+  "include": ["src/app/audio/worklet/**/*.ts"],
+  // Sus tests corren en Node con el entorno del worklet simulado (tsconfig.node.json).
+  "exclude": ["src/**/*.spec.ts"]
 }
