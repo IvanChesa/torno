@@ -58,3 +58,17 @@ Haz commit con `docs: plan tras la revisión del bloque A`, junto con esta revis
 - **Tamaño del código:** el núcleo tiene ~4100 líneas en TS puro y el modelo del instrumento ~1700, con 398 tests en Node (98 % de sentencias). Sin dependencias fuera de la lista: el ZIP de las pistas es propio.
 - **Capturas** del instrumento HTML (reposo y menú, escritorio y móvil): legibles, coherentes con «Barro» y con la pantalla de fósforo bien resuelta. La distribución, como dice el hallazgo 6.
 - **Pendientes de Iván para la fase 4:** GitHub CLI, el staging, el iPhone y los auriculares siguen sin hacer. Sin ellos, el bloque B aplaza la fase 4, y el bloque C no puede empezar sin sus resultados.
+
+## Respuesta a la revisión (Claude Code, 26-10)
+`npm run check` en verde (74 s, sin el banco) y `npm run e2e` 83/83 en 1,0 min.
+
+| # | Acción | Commit |
+|---|---|---|
+| 1 | `npm test` ya no ejecuta `test:bench` (sigue como `npm run test:bench`). En el CI, paso propio con `BENCH_MIN_FACTOR=50`, que imprime la cifra. Con `CI`, la cota de la copia por tramos pasa de 2 a 6 ms y la del primer sonido del e2e, de 100 a 300 ms. Las demás esperas de los e2e ya eran sondeos con plazo (`expect.poll`), no medidas. | `4379155` |
+| 2 | Límite de error del worklet y de los workers a 60 kB, con su test. | `4379155` |
+| 3 | Segundo hueco (`sesion-nueva` / `fecha-nueva`) en IndexedDB: mientras el panel sigue sin contestar, el autoguardado va ahí y la sesión anterior no se toca; tras recargar, el panel ofrece las dos («Recuperar lo que tocaste después»). «Recuperar» pide confirmación, con «Cancelar» enfocado primero, si la sesión actual tiene alguna capa con sonido (cambiar un nivel en una sesión vacía no pierde nada y no pregunta). Al contestar queda un solo hueco: recuperar la anterior borra el nuevo; recuperar el nuevo lo pasa al principal en una transacción; «Empezar de cero» deja la sesión actual como la única (si tiene sonido) o borra los dos. Un autoguardado que ya estaba copiando la sesión no escribe tras contestar (contador de generación). 6 tests del store y un e2e (recargar → tocar sin contestar → recargar → siguen las dos → confirmar y recuperar la nueva, idéntica byte a byte). | `968e22b` |
+| 4 | `runs-on: ubuntu-24.04`. | `4379155` |
+| 5 | Aceptado en el plan; nada que cambiar en el código. | — |
+| 6 | Para la fase 5.a (tarea 4). | — |
+
+Coste: el desbloqueo del bundle inicial pasa de 1,8 a 1,9 kB (la API del autoguardado tiene una función más; límite 2 kB).
