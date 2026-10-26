@@ -89,6 +89,8 @@ Lo escribe Claude Code (CLAUDE.md, «Ciclo de cada fase» y «Paradas»):
   - los fallos de los e2e salen como anotaciones del commit (reporter `github`), que se leen sin credenciales;
   - el e2e del autoguardado espera a que termine el borrado antes de recargar. Era una carrera del test, no un fallo del flujo: reproducida en local frenando la CPU (6 de 6) y arreglada (6 de 6).
 
+  En el CI siguiente, también en verde, la prueba del micrófono sintético pasó al reintentar: la captura falsa de Chromium había perdido o repetido un bloque de 10 ms (441 muestras a 44,1 kHz), lo mismo que se vio en local con el PC cargado. La prueba admite ahora como mucho un salto de 10 ms justos (`c85c42f`).
+
 **Desviaciones** (detalle en los informes, §4):
 - **Fase 1:**
   - la junta del bucle se cruza al grabar (10 ms, tras la revisión), no al leer;
