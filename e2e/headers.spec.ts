@@ -1,12 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { instrumentAudio } from './support/audio';
 import { InstrumentDriver, MENU } from './support/instrument';
 import { saveSession } from './support/torno';
 
-// Las cabeceras del servidor (PLAN fase 4, tarea 2): el build servido con las de su .htaccess
-// (scripts/serve-static.mjs las lee de dist/torno/browser/.htaccess, como las aplicará Apache).
-// La CSP no puede romper nada del instrumento: worklet, workers de síntesis y de exportación,
-// micrófono y descargas por blob:.
+// Las cabeceras y las rutas del servidor (PLAN fase 4, tarea 2): el build servido por
+// `wrangler pages dev` (scripts/serve-pages.mjs), que aplica su _headers y las reglas de Cloudflare
+// Pages como el despliegue. La CSP no puede romper nada del instrumento: worklet, workers de síntesis
+// y de exportación, micrófono y descargas por blob:.
 
 declare global {
   interface Window {
@@ -43,29 +45,54 @@ test.describe('cabeceras del servidor', () => {
     expect(headers['x-content-type-options']).toBe('nosniff');
     expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
     expect(headers['x-frame-options']).toBe('DENY');
-    expect(headers['cross-origin-opener-policy']).toBe('same-origin');
     expect(headers['strict-transport-security']).toContain('max-age=');
-    expect(headers['cache-control']).toBe('no-cache');
+    // Sin COOP ni COEP: no hay SharedArrayBuffer (D7, CLAUDE.md).
+    expect(headers['cross-origin-opener-policy']).toBeUndefined();
+    expect(headers['cross-origin-embedder-policy']).toBeUndefined();
+    // El HTML, con la caché de Pages: se revalida siempre.
+    expect(headers['cache-control']).toBe('public, max-age=0, must-revalidate');
 
     // Los módulos con hash: caché inmutable y tipo JS (también el worklet).
     const html = await home.text();
     const main = /<script src="(main-[A-Za-z0-9_-]+\.js)"/.exec(html)?.[1];
     expect(main).toBeTruthy();
     const script = await request.get(`/${main}`);
-    expect(script.headers()['cache-control']).toContain('immutable');
-    expect(script.headers()['content-type']).toContain('text/javascript');
+    expect(script.headers()['cache-control']).toBe('public, max-age=31536000, immutable');
+    expect(script.headers()['content-type']).toMatch(/javascript/);
     const css = /href="(styles-[A-Za-z0-9_-]+\.css)"/.exec(html)?.[1];
     expect((await request.get(`/${css}`)).headers()['cache-control']).toContain('immutable');
 
-    // Una ruta con barra final redirige a la de sin barra; una que no existe da 404 con CSP.
+    // Pages: /ruta/ y /ruta.html redirigen a /ruta; una URL que no existe da 404, con la CSP.
     const slash = await request.get('/sobre-el-proyecto/', { maxRedirects: 0 });
-    expect(slash.status()).toBe(301);
+    expect(slash.status()).toBe(308);
     expect(slash.headers()['location']).toBe('/sobre-el-proyecto');
+    const dotHtml = await request.get('/sobre-el-proyecto.html', { maxRedirects: 0 });
+    expect(dotHtml.status()).toBe(308);
+    expect(dotHtml.headers()['location']).toBe('/sobre-el-proyecto');
+    expect((await request.get('/sobre-el-proyecto')).status()).toBe(200);
     const missing = await request.get('/no-existe');
     expect(missing.status()).toBe(404);
     expect(missing.headers()['content-security-policy']).toBe(csp);
-    // Los archivos que empiezan por punto no se sirven (el .htaccess, el estado del FTP).
-    expect((await request.get('/.htaccess')).status()).toBe(404);
+    // La configuración de Pages no se sirve, ni la página sin prerenderizar de Angular.
+    expect((await request.get('/_headers')).status()).toBe(404);
+    expect((await request.get('/index.csr.html')).status()).toBe(404);
+  });
+
+  test('la comprobación del despliegue (verify-pages) pasa entera contra Pages en local', async ({
+    baseURL,
+  }) => {
+    // La misma orden que corre tras cada despliegue contra la vista previa (deploy.yml), con el
+    // build local: el HTML servido es el del build y la CSP, la de su _headers.
+    const { stdout } = await promisify(execFile)(process.execPath, [
+      'scripts/verify-pages.mjs',
+      baseURL ?? '',
+      '--build',
+      'dist/torno/browser',
+    ]).catch((error: { stdout?: string }) => ({ stdout: error.stdout ?? String(error) }));
+    const lines = stdout.split('\n');
+    expect(lines.filter((line) => line.startsWith('✖'))).toEqual([]);
+    const total = /^(\d+) de \1 bien$/.exec(lines.find((line) => / bien$/.test(line)) ?? '');
+    expect(Number(total?.[1])).toBeGreaterThan(30);
   });
 
   test('el worklet se sirve con su tipo y caché inmutable', async ({ page, request }) => {
@@ -78,8 +105,8 @@ test.describe('cabeceras del servidor', () => {
     const [module] = await page.evaluate(() => window.__torno?.modules ?? []);
     expect(module).toMatch(/\/audio\/processor\.[A-Z0-9]+\.js$/);
     const response = await request.get(new URL(module!).pathname);
-    expect(response.headers()['content-type']).toContain('text/javascript');
-    expect(response.headers()['cache-control']).toContain('immutable');
+    expect(response.headers()['content-type']).toMatch(/javascript/);
+    expect(response.headers()['cache-control']).toBe('public, max-age=31536000, immutable');
   });
 
   test('con la CSP: tocar, grabar, guardar y exportar sin ninguna violación', async ({ page }) => {

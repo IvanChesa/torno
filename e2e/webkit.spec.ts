@@ -4,8 +4,8 @@ import { InstrumentDriver, MENU } from './support/instrument';
 // WebKit de escritorio (PLAN fase 2): reproducir, pausar y el menú, con el teclado y el puntero.
 // El WebKit de Playwright para Windows no trae Web Audio: ahí se comprueba que el instrumento lo
 // dice con un aviso visible y que el menú sigue funcionando. En Linux (el CI), suena.
-// Es el build servido con las cabeceras de su .htaccess: también sin violaciones de la CSP en
-// WebKit (fase 4).
+// Es el build servido como en Cloudflare Pages, con su _headers: también sin violaciones de la CSP
+// en WebKit (fase 4).
 
 test.describe('WebKit', () => {
   test('reproducir y pausar un sonido, y recorrer el menú', async ({ page }) => {

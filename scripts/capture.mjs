@@ -1,5 +1,5 @@
 // Capturas deterministas (`?captura=1`) de las páginas para los informes de fase, en escritorio
-// y en móvil, servidas desde el build estático (CLAUDE.md, «Capturas»).
+// y en móvil, del build estático servido como en Cloudflare Pages (CLAUDE.md, «Capturas»).
 //
 // Uso: npm run capturas -- --fase=2   (después de `npm run build`)
 //      → docs/informes/img/fase-2/<página>-<escritorio|movil>.png
@@ -13,7 +13,7 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, devices } from '@playwright/test';
-import { startStaticServer } from './serve-static.mjs';
+import { startPagesServer } from './serve-pages.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PAGES = [
@@ -58,7 +58,7 @@ async function openHome(page, url) {
   return page.locator('[data-control="main"]');
 }
 
-const server = await startStaticServer({ port: 0 });
+const server = await startPagesServer();
 const browser = await chromium.launch();
 try {
   for (const viewport of VIEWPORTS) {

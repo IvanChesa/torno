@@ -305,6 +305,7 @@ const NODE_GLOBALS = Object.fromEntries(
     'TextEncoder',
     'TextDecoder',
     'AbortController',
+    'AbortSignal',
     'fetch',
   ].map((name) => [name, 'readonly']),
 );
@@ -320,6 +321,7 @@ export default defineConfig([
       'test-results/',
       'playwright-report/',
       'out/',
+      '.wrangler/',
       '.claude/',
       // Configuración de Codex, que no se usa en este proyecto (revisión del bloque 0).
       '.agents/',

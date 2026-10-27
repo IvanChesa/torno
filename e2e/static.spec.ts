@@ -15,8 +15,8 @@ test.describe('build estático', () => {
       request,
     }) => {
       const response = await request.get(route.path);
-      // /404 es un archivo real (como en Apache): 200 si se pide directamente; el 404 lo da
-      // cualquier URL desconocida (último test).
+      // /404 es un archivo real (404.html, que Pages sirve en /404): 200 si se pide directamente;
+      // el 404 lo da cualquier URL desconocida (último test).
       expect(response.status()).toBe(200);
       const html = await response.text();
       expect(html).toContain(`<title>${route.title}</title>`);
