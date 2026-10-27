@@ -131,9 +131,16 @@ export async function verifyPages(base, { build } = {}) {
       `${response.status}`,
     );
   }
+  // La configuración de Pages no se publica (wrangler no la sube como archivo): Pages da 404. En
+  // Linux, `wrangler pages dev` responde 502 a /_headers (busca _headers/index.html y falla).
   for (const url of ['/_headers', '/_redirects']) {
-    const response = await request(url, 'HEAD');
-    check(`${url} no se sirve`, response.status === 404, `${response.status}`);
+    const response = await request(url);
+    const body = await response.text();
+    check(
+      `${url} no se sirve`,
+      response.status >= 400 && !body.includes('Content-Security-Policy:'),
+      `${response.status}`,
+    );
   }
 
   // --- Cabeceras de seguridad (en la portada; la CSP, también en la 404) -------------------------

@@ -73,8 +73,11 @@ test.describe('cabeceras del servidor', () => {
     const missing = await request.get('/no-existe');
     expect(missing.status()).toBe(404);
     expect(missing.headers()['content-security-policy']).toBe(csp);
-    // La configuración de Pages no se sirve, ni la página sin prerenderizar de Angular.
-    expect((await request.get('/_headers')).status()).toBe(404);
+    // La configuración de Pages no se sirve (Pages da 404; `wrangler pages dev` en Linux, 502,
+    // porque busca _headers/index.html), ni la página sin prerenderizar de Angular.
+    const config = await request.get('/_headers');
+    expect(config.status()).toBeGreaterThanOrEqual(400);
+    expect(await config.text()).not.toContain('Content-Security-Policy:');
     expect((await request.get('/index.csr.html')).status()).toBe(404);
   });
 
