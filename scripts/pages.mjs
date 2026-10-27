@@ -40,8 +40,19 @@ export const HEADERS_LIMITS = { rules: 100, lineLength: 2000 };
 /** Tipos de <script> que el navegador ejecuta (los JSON de Angular, no). */
 const EXECUTABLE = new Set(['', 'text/javascript', 'application/javascript', 'module']);
 
-/** Nombre con hash del build de Angular, de esbuild (el worklet) o de las fuentes. */
-const HASHED = /[.-][A-Za-z0-9_-]{8}\.(js|css|woff2)$/;
+/**
+ * Si un archivo del build lleva hash en el nombre. El JS y el CSS, el de Angular (`chunk-DJVAsKa_.js`,
+ * con minúsculas y `_`) o el de esbuild (`processor.JUKLXABX.js`, el worklet); lo demás (fuentes e
+ * imágenes que cita el CSS, en `media/`), el de Angular para los recursos, en mayúsculas
+ * (`…-2NUMMRN6.woff2`): así una página como `sobre-el-proyecto.html` no pasa por tener hash.
+ * @param {string} file ruta relativa al build, con `/`
+ */
+export function isHashed(file) {
+  const name = file.split('/').pop() ?? file;
+  return /\.(js|css)$/.test(name)
+    ? /[.-][A-Za-z0-9_-]{8}\.(js|css)$/.test(name)
+    : /[.-][A-Z0-9]{8}\.[a-z0-9]+$/.test(name);
+}
 
 /**
  * El código de los scripts en línea ejecutables de una página, tal cual (sin los de `src`).
@@ -151,19 +162,19 @@ export function routeFile(route) {
 export function cacheProblem(rules, file) {
   const cache = headersFor(rules, servedPath(file)).get('cache-control') ?? '';
   const immutable = /\bimmutable\b/.test(cache);
-  const name = file.split('/').pop() ?? file;
-  if (/\.(js|css|woff2)$/.test(name)) {
-    if (!HASHED.test(name)) return `${file}: sin hash en el nombre`;
-    return immutable && cache.includes('max-age=31536000')
-      ? null
-      : `${file}: con hash y sin caché inmutable de un año (${cache || 'la de Pages'})`;
-  }
-  if (name.endsWith('.html')) {
+  if (file.endsWith('.html')) {
     // Sin regla, Pages pone `public, max-age=0, must-revalidate`: se revalida siempre.
     return cache === '' || (!immutable && /\b(no-cache|max-age=0)\b/.test(cache))
       ? null
       : `${file}: el HTML no puede quedarse en caché (${cache})`;
   }
+  // Todo lo que lleva hash, un año e inmutable; el JS, el CSS y las fuentes, siempre con hash.
+  if (isHashed(file)) {
+    return immutable && cache.includes('max-age=31536000')
+      ? null
+      : `${file}: con hash y sin caché inmutable de un año (${cache || 'la de Pages'})`;
+  }
+  if (/\.(js|css|woff2)$/.test(file)) return `${file}: sin hash en el nombre`;
   return immutable ? `${file}: sin hash y con caché inmutable` : null;
 }
 

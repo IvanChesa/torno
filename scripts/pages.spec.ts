@@ -13,6 +13,7 @@ import {
   headersLimitProblems,
   inlineHandlers,
   inlineScripts,
+  isHashed,
   PLACEHOLDER,
   processBuild,
   routeFile,
@@ -134,12 +135,15 @@ describe('el analizador de _headers', () => {
     expect(headersFor(parsed, '/c')).toEqual(new Map([['x-uno', 'a']]));
   });
 
-  it('rechaza lo que no entiende', () => {
+  it('rechaza lo que no entiende y lo que en Pages no casaría nunca', () => {
     expect(() => parseHeaders('/*\n  ! X-Uno')).toThrow(/quitar cabeceras/);
     expect(() => parseHeaders('/*/*\n  X: y')).toThrow(/más de un \*/);
     expect(() => parseHeaders('  X: y')).toThrow(/sin patrón/);
     expect(() => parseHeaders('/*\n  sin dos puntos')).toThrow(/sin «:»/);
-    expect(() => parseHeaders('main.js\n  X: y')).toThrow(/tiene que empezar/);
+    expect(() => parseHeaders('main.js\n  X: y')).toThrow(/tiene que ser una ruta/);
+    // Pages solo reconoce https:// y, en las reglas de dominio, con ruta.
+    expect(() => parseHeaders('http://torno.pages.dev/*\n  X: y')).toThrow(/tiene que ser/);
+    expect(() => parseHeaders('https://torno.pages.dev\n  X: y')).toThrow(/tiene que ser/);
   });
 });
 
@@ -209,8 +213,31 @@ describe('rutas y caché para Pages', () => {
     expect(routeFile('/guia/paso')).toBe('guia/paso.html');
   });
 
+  it('qué lleva hash: el JS y el CSS de Angular y esbuild, y los recursos de media/', () => {
+    for (const file of BUILD_FILES.filter((name) => /\.(js|css|woff2)$/.test(name))) {
+      expect(isHashed(file), file).toBe(true);
+    }
+    // Las imágenes que cite el CSS (o el póster de la fase 7) van a media/ con el mismo hash.
+    expect(isHashed('media/poster-ABCD1234.webp')).toBe(true);
+    for (const file of [
+      'index.html',
+      'sobre-el-proyecto.html',
+      'favicon.svg',
+      'licencias/terceros.txt',
+      'licencias/fraunces-OFL.txt',
+      'app.js',
+      'media/logotipo.svg',
+    ]) {
+      expect(isHashed(file), file).toBe(false);
+    }
+  });
+
   it('la caché de cada archivo: lo que no cumple, sale', () => {
     expect(cacheProblem(rules, 'main-XRTRA2B6.js')).toBeNull();
+    expect(cacheProblem(rules, 'media/poster-ABCD1234.webp')).toBeNull();
+    expect(cacheProblem(rules, 'media/logotipo.svg')).toMatch(/sin hash y con caché inmutable/);
+    // Con hash, fuera de una regla inmutable: también sale.
+    expect(cacheProblem(rules, 'img/foto-ABCD1234.webp')).toMatch(/sin caché inmutable/);
     expect(cacheProblem(rules, 'app.js')).toMatch(/sin hash/);
     // Un archivo sin hash en una carpeta inmutable (audio/) no puede quedarse en caché un año.
     expect(cacheProblem(rules, 'audio/sin-hash.json')).toMatch(/sin hash y con caché inmutable/);

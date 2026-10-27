@@ -10,7 +10,8 @@
 // - `*` (uno por patrón) casa con cualquier cosa, también con `/`; `:nombre` casa con un trozo sin
 //   `/` (y, en el dominio, sin `.`);
 // - si varias reglas dan la misma cabecera, sus valores se unen con una coma.
-// Lo que no entiende (quitar cabeceras con `!`, más de un `*`), lo rechaza.
+// Lo que no entiende (quitar cabeceras con `!`, más de un `*`) y las reglas que en Pages no casarían
+// nunca (`http://…`, o de dominio sin ruta), las rechaza.
 
 /**
  * @typedef {{ pattern: string, host: RegExp | null, path: RegExp, headers: [string, string][] }} HeaderRule
@@ -47,10 +48,11 @@ export function parseHeaders(text) {
     if (!/^\s/.test(raw)) {
       const pattern = raw.trim();
       if (pattern.split('*').length > 2) throw new Error(`${where}: más de un * en «${pattern}»`);
-      const absolute = /^https?:\/\/([^/]+)(\/.*)?$/.exec(pattern);
+      // Pages solo reconoce reglas de dominio con https:// y con ruta: las demás no casan nunca.
+      const absolute = /^https:\/\/([^/]+)(\/.*)$/.exec(pattern);
       if (!absolute && !pattern.startsWith('/')) {
         throw new Error(
-          `${where}: el patrón tiene que empezar por / o por https:// («${pattern}»)`,
+          `${where}: el patrón tiene que ser una ruta (/…) o https://dominio/ruta («${pattern}»)`,
         );
       }
       rule = {

@@ -18,6 +18,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { headersFor, parseHeaders } from './pages-headers.mjs';
+import { isHashed } from './pages.mjs';
 
 /** Las páginas prerenderizadas y su archivo en el build (scripts/pages.mjs). */
 const PAGES = [
@@ -39,17 +40,37 @@ const IMMUTABLE = 'public, max-age=31536000, immutable';
 const INJECTED = /cloudflareinsights|beacon\.min\.js|data-cf-beacon|\/cdn-cgi\//;
 const TIMEOUT_MS = 20_000;
 
+/** El tipo MIME que tiene que llevar cada clase de archivo con hash. */
+const TYPES = [
+  { extension: /\.js$/, label: 'JavaScript', type: /javascript/ },
+  { extension: /\.css$/, label: 'CSS', type: /^text\/css/ },
+  { extension: /\.woff2$/, label: 'font/woff2', type: /^font\/woff2/ },
+  { extension: /\.webp$/, label: 'image/webp', type: /^image\/webp/ },
+  { extension: /\.png$/, label: 'image/png', type: /^image\/png/ },
+  { extension: /\.svg$/, label: 'image/svg+xml', type: /^image\/svg\+xml/ },
+];
+const ANY_TYPE = { label: 'con su tipo', type: /./ };
+
 /**
  * @typedef {{ name: string, ok: boolean, detail: string }} Check
  * @typedef {{ url: string, label: string, type: RegExp }} Asset
  */
 
-/** Los archivos de una carpeta del build que cumplen un patrón, como recursos que comprobar. */
-async function buildAssets(build, dir, pattern, label, type) {
-  const names = await readdir(path.join(build, dir)).catch(() => []);
-  return names
-    .filter((name) => pattern.test(name))
-    .map((name) => ({ url: `/${dir ? `${dir}/` : ''}${name}`, label, type }));
+/** Todos los archivos de una carpeta, con `/`. */
+async function filesOf(dir) {
+  const entries = await readdir(dir, { recursive: true, withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile())
+    .map((entry) =>
+      path.relative(dir, path.join(entry.parentPath, entry.name)).replaceAll('\\', '/'),
+    )
+    .sort();
+}
+
+/** Un archivo del build como recurso que comprobar, con el tipo que le toca. */
+function asset(file) {
+  const { label, type } = TYPES.find((kind) => kind.extension.test(file)) ?? ANY_TYPE;
+  return { url: `/${file}`, label, type };
 }
 
 /**
@@ -198,29 +219,30 @@ export async function verifyPages(base, { build } = {}) {
     );
   }
 
-  // --- Lo que carga la portada: tipo MIME y caché ------------------------------------------------
+  // --- Lo que lleva hash: tipo MIME y caché inmutable -------------------------------------------
+  // Sin --build, lo que carga la portada; con él, todos los archivos con hash del build, y que estén
+  // el worklet, los dos workers y las fuentes (si cambiara el formato de sus nombres, se notaría).
   const homeHtml = html['/'] ?? '';
   check('Sin Cloudflare Web Analytics ni scripts inyectados', !INJECTED.test(homeHtml));
   const main = /<script src="(main-[A-Za-z0-9_-]+\.js)"/.exec(homeHtml)?.[1];
   const styles = /href="(styles-[A-Za-z0-9_-]+\.css)"/.exec(homeHtml)?.[1];
   check('La portada carga main-….js y styles-….css', main && styles, `${main} · ${styles}`);
   /** @type {Asset[]} */
-  const assets = [
-    ...(main ? [{ url: `/${main}`, label: 'JavaScript', type: /javascript/ }] : []),
-    ...(styles ? [{ url: `/${styles}`, label: 'CSS', type: /^text\/css/ }] : []),
-  ];
+  let assets = [main, styles].filter((file) => file !== undefined).map(asset);
   if (build) {
-    assets.push(
-      ...(await buildAssets(
-        build,
-        'audio',
-        /^processor\.[A-Z0-9]+\.js$/,
-        'JavaScript',
-        /javascript/,
-      )),
-      ...(await buildAssets(build, '', /^worker-[A-Z0-9]+\.js$/, 'JavaScript', /javascript/)),
-      ...(await buildAssets(build, 'media', /\.woff2$/, 'font/woff2', /^font\/woff2/)),
+    const hashed = (await filesOf(build)).filter(isHashed);
+    const count = (pattern) => hashed.filter((file) => pattern.test(file)).length;
+    const parts = {
+      worklet: count(/^audio\/processor\.[^/]+\.js$/),
+      workers: count(/^worker-[^/]+\.js$/),
+      fonts: count(/^media\/[^/]+\.woff2$/),
+    };
+    check(
+      'El build lleva con hash el worklet, los dos workers y las fuentes',
+      parts.worklet === 1 && parts.workers >= 2 && parts.fonts >= 1,
+      `${parts.worklet} worklet, ${parts.workers} workers y ${parts.fonts} fuentes, de ${hashed.length} archivos con hash`,
     );
+    assets = hashed.map(asset);
   }
   for (const { url, label, type } of assets) {
     const response = await request(url, 'HEAD');
