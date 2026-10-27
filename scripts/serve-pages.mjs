@@ -80,6 +80,7 @@ export async function startPagesServer({ port = 0, root = ROOT, cli = false } = 
   let output = '';
   child.stdout?.on('data', (chunk) => (output += chunk));
   child.stderr?.on('data', (chunk) => (output += chunk));
+  /** @type {Promise<number | null>} el código de salida de wrangler */
   const exited = new Promise((resolve) => child.once('exit', resolve));
 
   const close = async () => {
@@ -113,15 +114,17 @@ export async function startPagesServer({ port = 0, root = ROOT, cli = false } = 
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  return { url: `http://localhost:${listen}`, close };
+  return { url: `http://localhost:${listen}`, close, exited };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const portFlag = process.argv.indexOf('--port');
   const port = portFlag >= 0 ? Number(process.argv[portFlag + 1]) : 4300;
-  const { url, close } = await startPagesServer({ port, cli: true });
+  const { url, close, exited } = await startPagesServer({ port, cli: true });
   console.log(`Build en ${url}, servido como en Cloudflare Pages (Ctrl+C para salir)`);
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
     process.once(signal, () => void close().then(() => process.exit(0)));
   }
+  // Si wrangler se cierra solo, este proceso también, con su código (Playwright lo verá).
+  void exited.then((code) => process.exit(code ?? 1));
 }
