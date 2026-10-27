@@ -1,0 +1,58 @@
+# Torno: cabeceras de Cloudflare Pages (PLAN D19 y fase 4, tarea 2).
+#
+# Angular copia esta plantilla al build y scripts/pages.mjs (tras el build) escribe el _headers
+# definitivo: cambia el marcador de `script-src` por los hashes SHA-256 de los scripts en línea del
+# HTML prerenderizado y comprueba que cada archivo del build cae en su regla de caché.
+# En local, `wrangler pages dev` (scripts/serve-pages.mjs) lo aplica igual que Pages: los e2e del
+# build corren bajo esta CSP.
+#
+# Formato de Pages: un patrón de URL por línea, sin sangría, y sus cabeceras debajo, con sangría.
+# Si dos reglas que coinciden dan la misma cabecera, Pages une sus valores con una coma: cada
+# cabecera sale de una sola regla.
+
+# Todo el sitio (también la 404 y las redirecciones).
+# CSP: los scripts, solo del propio sitio y los en línea con su hash. El worklet (addModule) cuenta
+# como script; los workers de síntesis y de exportación, como worker. Los estilos en línea son los
+# de los componentes de Angular. Las descargas por blob: no dependen de la CSP.
+# Sin COOP ni COEP: no hay SharedArrayBuffer (D7) y el AudioWorklet no necesita aislamiento.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' __SCRIPT_HASHES__; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self'; media-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Permissions-Policy: microphone=(self), camera=(), geolocation=(), payment=(), usb=()
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Cross-Origin-Resource-Policy: same-origin
+  Strict-Transport-Security: max-age=31536000
+
+# torno.pages.dev, fuera de los buscadores: la dirección canónica será torno.ivanchesa.es (fase 9).
+# Las vistas previas (staging.torno.pages.dev y las de cada despliegue) ya llevan noindex de Pages.
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+
+# Con hash en el nombre (main-XXXXXXXX.js, chunk-…, worker-…, styles-…, las fuentes de media/ y el
+# worklet de audio/): un año, inmutables.
+/main-*
+  Cache-Control: public, max-age=31536000, immutable
+
+/chunk-*
+  Cache-Control: public, max-age=31536000, immutable
+
+/worker-*
+  Cache-Control: public, max-age=31536000, immutable
+
+/styles-*
+  Cache-Control: public, max-age=31536000, immutable
+
+/media/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/audio/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Sin hash (el favicon y las licencias): un día. El HTML lleva la de Pages, que se revalida siempre
+# (`max-age=0, must-revalidate`): cada build cambia los nombres de lo que carga.
+/favicon.svg
+  Cache-Control: public, max-age=86400
+
+/licencias/*
+  Cache-Control: public, max-age=86400

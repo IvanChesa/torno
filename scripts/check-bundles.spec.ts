@@ -1,7 +1,13 @@
 // El comprobador de presupuestos (scripts/check-bundles.mjs) caza lo que tiene que cazar:
 // librerías y capas prohibidas en el bundle inicial y tamaños por encima de §5.
 import { describe, expect, it } from 'vitest';
-import { checkBundles, forbiddenInInitial, initialScripts, LIMITS } from './check-bundles.mjs';
+import {
+  checkBundles,
+  forbiddenInInitial,
+  initialScripts,
+  LIMITS,
+  PAGES_LIMITS,
+} from './check-bundles.mjs';
 
 interface Output {
   bytes: number;
@@ -119,6 +125,28 @@ describe('check-bundles', () => {
       },
     );
     expect(errors).toHaveLength(4);
+  });
+
+  it('límites de Pages: falla con un archivo de más de 25 MiB o con más de 20 000 archivos', () => {
+    const run = (files: { file: string; bytes: number }[]) =>
+      checkBundles(metafile(healthy()), { '/': PAGE }, { ...WORKLET, files });
+    expect(run([{ file: 'main-ABC.js', bytes: 250_000 }]).errors).toEqual([]);
+    const big = run([
+      { file: 'a.bin', bytes: PAGES_LIMITS.fileBytes + 1 },
+      { file: 'b.bin', bytes: PAGES_LIMITS.fileBytes + 2 },
+      { file: 'c.bin', bytes: PAGES_LIMITS.fileBytes },
+    ]).errors.join('\n');
+    expect(big).toContain('a.bin');
+    expect(big).toContain('b.bin');
+    expect(big).not.toContain('c.bin');
+    const atLimit = Array.from({ length: PAGES_LIMITS.files }, (_, i) => ({
+      file: `f${i}.txt`,
+      bytes: 1,
+    }));
+    expect(run(atLimit).errors).toEqual([]);
+    expect(run([...atLimit, { file: 'otro.txt', bytes: 1 }]).errors.join('\n')).toContain(
+      'Archivos del despliegue',
+    );
   });
 
   it('falla si un script de la página no está en el metafile o no hay worklet', () => {
