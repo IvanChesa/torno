@@ -29,8 +29,8 @@ Marca ✅ o ❌ y apunta las cifras y lo raro que veas u oigas.
 
 | # | Prueba | Cómo | Android | iPhone |
 |---|---|---|---|---|
-| 1 | **Primera reproducción en frío** | Abre la dirección en una pestaña nueva (mejor tras cerrar el navegador). Sin tocar nada más, pulsa REPRODUCIR una vez. Tiene que sonar la batería ALFAR enseguida, y la capa 2 tiene que quedar elegida. Apunta «Del toque al primer sonido» (la primera cifra, «en frío»). Si pasa de **150 ms**, se precargará ALFAR al acercarse al instrumento (PLAN §5, «Síntesis»). | … ms | … ms |
-| 2 | Reproducir, pausar y parar | Pausa y reproduce otra vez: apunta la segunda cifra del panel. Mantén REPRODUCIR para parar. | … ms | … ms |
+| 1 | **Primera reproducción en frío** | Con el altavoz del móvil o auriculares de cable (los Bluetooth añaden por sí solos más de 150 ms). Abre la dirección en una pestaña nueva (mejor tras cerrar el navegador) y espera a que cargue del todo: el panel de diagnóstico aparece debajo del instrumento (si pulsas antes, esa reproducción no se mide). Sin tocar nada más, pulsa REPRODUCIR una vez. Tiene que sonar la batería ALFAR enseguida, y la capa 2 tiene que quedar elegida. Apunta «Del toque al primer sonido» (la primera cifra, «en frío»). Si pasa de **150 ms**, se precargará ALFAR al acercarse al instrumento (PLAN §5, «Síntesis»). | … ms | … ms |
+| 2 | Reproducir, pausar y parar | Igual que en la 1, sin Bluetooth. Pausa y reproduce otra vez: apunta la segunda cifra del panel. Mantén REPRODUCIR para parar. | … ms | … ms |
 | 3 | Con el interruptor de silencio (iPhone) | Con el interruptor activado, ¿suena? | — | |
 | 4 | Sonidos y cola | Con la batería sonando, elige en la capa 2 un bajo (SONIDO → BAJO). Pone EN COLA y entra al empezar el compás. DESHACER antes del compás cancela la cola. | | |
 | 5 | **Calibrar la latencia** | Con los auriculares de cable puestos, acerca uno de ellos al micrófono del móvil. Luego ENTRADA → LATENCIA → CALIBRAR, sin tocar nada mientras suenan los clics. Apunta la latencia que sale en la pantalla. Repite con los Bluetooth si los tienes. **Copia el informe.** | cable … ms · BT … ms | cable … ms · BT … ms |

@@ -95,11 +95,11 @@ Quedan las pruebas de Iván en Android e iPhone. No bloquean la fusión, pero s�
 | Criterio | Estado | Evidencia |
 |---|---|---|
 | CI verde y la vista previa `staging.torno.pages.dev` actualizada solo al hacer *push* a `main`, con el mismo build que probó el CI | ✅ CI · ⏳ despliegue (al fusionar) | CI de la rama en verde (§6). `deploy.yml` se dispara con el CI (`workflow_run`, `branches: [main]`) y solo si terminó en verde y fue un *push*. Sube el artefacto `torno-browser` de esa misma ejecución (`run-id`). Después, `verify-pages --build site` comprueba que el HTML servido es, byte a byte, el del artefacto. El primer despliegue, en §6 («La vista previa»). |
-| Comprobaciones con `curl` en el informe: `/sobre-el-proyecto` sin barra da 200, con barra redirige a la URL sin ella y una URL desconocida da 404 con la página 404 | ✅ local · ⏳ vista previa (al fusionar) | Contra `wrangler pages dev`: `curl` en §6 (200, 308 → `/sobre-el-proyecto`, 404 con «Página no encontrada») y `verify-pages`, 39 de 39. En la vista previa, en §6 («La vista previa»). |
+| Comprobaciones con `curl` en el informe: `/sobre-el-proyecto` sin barra da 200, con barra redirige a la URL sin ella y una URL desconocida da 404 con la página 404 | ✅ local · ⏳ vista previa (al fusionar) | Contra `wrangler pages dev`: `curl` en §6 (200, 308 → `/sobre-el-proyecto`, 404 con «Página no encontrada») y `verify-pages`, 50 de 50. En la vista previa, en §6 («La vista previa»). |
 | Lista de prueba en el informe y resultados de Iván en Android e iPhone | ⏳ (lista ✅; resultados, de Iván) | `docs/PRUEBAS-MOVIL.md`: 14 pruebas con casillas y huecos para las cifras, y el panel `?diagnostico=1`. Ya apunta a la vista previa. |
 
 Lo demostrado:
-- **El build de los e2e es el de Pages.** Los 56 e2e del build (55 en Chromium y 1 en WebKit) corren contra `wrangler pages dev`, con el `_headers` del build: CSP, rutas sin barra final y 404. Ninguna violación de la CSP en el recorrido completo: reproducir, grabar con el micrófono, guardar y exportar la mezcla y las pistas. Como control, un script en línea sin hash se bloquea (`e2e/headers.spec.ts`).
+- **El build de los e2e es el de Pages.** Los 57 e2e del build (56 en Chromium y 1 en WebKit) corren contra `wrangler pages dev`, con el `_headers` del build: CSP, rutas sin barra final y 404. Ninguna violación de la CSP en el recorrido completo: reproducir, grabar con el micrófono, guardar y exportar la mezcla y las pistas. Como control, un script en línea sin hash se bloquea (`e2e/headers.spec.ts`).
 - **Las rutas de Pages, como quiere `CLAUDE.md`** (URLs sin barra final):
   - `/sobre-el-proyecto` da 200;
   - `/sobre-el-proyecto/` y `/sobre-el-proyecto.html` redirigen con un 308 a `/sobre-el-proyecto`, con la consulta (`?diagnostico=1`);
@@ -109,8 +109,8 @@ Lo demostrado:
   - JS, CSS, fuentes y worklet llevan hash y un año inmutable;
   - el HTML se revalida siempre;
   - el favicon y las licencias, un día.
-- **Las capturas no cambian:** las 30 de `docs/informes/img/fase-4/`, rehechas con el build servido por `wrangler pages dev`, salen idénticas byte a byte a las de la 4.a.
-- **Panel de diagnóstico (4.a):** mide del toque a que el sonido sale por el altavoz. En el escritorio (Chromium, build estático, PC tranquilo), la primera reproducción en frío tarda 157–238 ms; las siguientes, 48–54 ms (con unos 40 ms de latencia de salida, la que informa Chrome en Windows).
+- **Las capturas no cambian con Pages:** las 30 de `docs/informes/img/fase-4/`, rehechas con el build servido por `wrangler pages dev`, salen idénticas byte a byte a las de la 4.a. Tras la revisión solo cambian las 2 del panel (la fila «Navegador», #12).
+- **Panel de diagnóstico (4.a):** mide del toque a que el sonido sale por el altavoz. En el escritorio (Chromium, build estático, PC tranquilo), la primera reproducción en frío tarda 157–238 ms; las siguientes, 48–54 ms (con unos 40 ms de latencia de salida, la que informa Chrome en Windows). Tras la revisión, la medida empieza en el momento del toque (`event.timeStamp`), y «en frío» es la primera reproducción de la página (#4 y #5): con los e2e en marcha a la vez, 325 ms en frío y 51 ms después.
 
 ## 3. Tareas del plan
 | Tarea | Estado | Notas |
@@ -128,7 +128,7 @@ Lo demostrado:
 - **El CI también corre en los *push* a `fase-*`.** El proyecto nunca ha usado *pull requests* para las fases; las de Dependabot siguen disparándolo.
 - **La CSP se completa en el build**, no con `security.autoCsp`. `autoCsp` pone la política en un `<meta>` con `'strict-dynamic'`:
   - no admite `frame-ancestors`;
-  - no se aplicaría al worklet ni a los workers, que se rigen por la cabecera de su propia respuesta;
+  - no se aplicaría a los workers, que se rigen por la cabecera de su propia respuesta (el worklet sí hereda la del documento, también la de un `<meta>`; corregido tras la revisión, #15);
   - obligaría a una segunda política por cabecera, compatible con la del `<meta>`.
 
   Con los hashes en la cabecera hay una sola política, y cualquier script en línea nuevo rompe el build hasta que tenga su hash.
@@ -155,7 +155,7 @@ Lo demostrado:
 Las de Apache (`<IfModule>`, `Header always set`, `DirectorySlash Off`) se van con el `.htaccess`.
 
 **De la 4.b:**
-- **Todos los e2e del build contra `wrangler pages dev`**, no solo los de las cabeceras: los 56 corren con las reglas de producción.
+- **Todos los e2e del build contra `wrangler pages dev`**, no solo los de las cabeceras: los 57 corren con las reglas de producción.
   - La alternativa era un servidor propio que imitara a Pages, como el que imitaba a Apache. La descarté: es una imitación más que mantener, y puede separarse de Pages sin que nadie lo note.
   - Coste: unos 3–5 s de arranque de `workerd`.
 - **`scripts/serve-pages.mjs`:**
@@ -163,21 +163,24 @@ Las de Apache (`<IfModule>`, `Header always set`, `DirectorySlash Off`) se van c
   - `WRANGLER_SEND_METRICS=false`, sin métricas de uso de wrangler;
   - cierra el árbol de procesos entero, porque wrangler lanza otro `node` y `workerd`: `taskkill /T` en Windows y el grupo de procesos en Linux y macOS. Comprobado: tras los e2e y las capturas no queda ningún `workerd`.
 - **`noindex` de `torno.pages.dev`, con `https://:project.pages.dev/*`.** Un `:nombre` no cruza puntos en el dominio, así que la regla no casa con `staging.torno.pages.dev`: el `noindex` de las vistas previas lo pone Pages. Se comprueba tras cada despliegue.
-- **El analizador de `_headers` (`scripts/pages-headers.mjs`)** solo sirve para comprobar la caché en el build y la CSP tras desplegar. Rechaza lo que no entiende (`!`, dos `*`).
+- **El analizador de `_headers` (`scripts/pages-headers.mjs`)** solo sirve para comprobar la caché en el build y la CSP tras desplegar. Rechaza lo que no entiende (`!`, dos `*`) y, tras la revisión (#8), lo que en Pages no casaría nunca (`http://…`, reglas de dominio sin ruta).
+- **Todo lo que lleva hash, inmutable** (`isHashed`, tras la revisión, #9): el JS y el CSS con el hash de Angular o de esbuild, y cualquier otro archivo con el de los recursos de Angular (`-XXXXXXXX.ext`, en mayúsculas). Así cabrán las imágenes de `media/` de la fase 7, y una página como `sobre-el-proyecto.html` no pasa por tener hash.
 - **Límites del `_headers` comprobados en el build:** 100 reglas y 2000 caracteres por línea. La CSP crece con cada script en línea: hoy lleva 3 hashes (la línea, 469 caracteres) y con 30 aún cabría.
 - **El HTML servido se compara byte a byte con el del build.** Demuestra que se publica lo que probó el CI y que Cloudflare no inyecta nada: Web Analytics, ni, con el dominio propio, Rocket Loader o la ofuscación de correos.
-- **El despliegue:**
-  - lista los proyectos en silencio (`quiet`), porque el log es público;
+- **El despliegue** (con las correcciones de la revisión, #1–#3):
+  - pregunta a la API de Cloudflare solo por el proyecto `torno` (`curl`, sin imprimir la respuesta): el registro es público y la lista de la cuenta no tiene por qué salir en él. La primera versión la listaba con `quiet`, pero el `env:` del paso siguiente la habría impreso igual;
+  - instala wrangler con `npm ci --ignore-scripts` desde el `package-lock.json` del commit probado (el árbol exacto, con sus integridades) y sin el token en el entorno; las acciones lo usan desde `repo/` y no instalan nada. Probado en local: 430 paquetes en 29 s y `wrangler --version` responde sin los scripts de instalación;
+  - avisa si la vista previa no queda en `staging.torno.pages.dev` (si el subdominio `torno` estuviera cogido, la API daría otro);
   - marca cada despliegue con el commit probado (`--commit-hash`);
   - usa Node de `.nvmrc`, porque wrangler 4 pide Node 22 o más;
   - nunca cancela un despliegue en curso (`concurrency` sin cancelación).
 
 ## 6. Salida de los checks
 ```
-npm run check   (91 s, PC de Iván)
+npm run check   (80 s, PC de Iván, tras la respuesta a la revisión)
 lint: All files pass linting · Prettier sin cambios
-test:node: 452 passed · sentencias 98,4 % · ramas 94,98 %   (4.a: 442)
-test:ng: 65 passed
+test:node: 453 passed · sentencias 98,4 % · ramas 94,98 %   (4.a: 442)
+test:ng: 67 passed   (4.a: 65)
 build + postbuild:
 ✔ Pages: /404, /sobre-el-proyecto como ruta.html; CSP con 3 hashes de scripts en línea (3 páginas); caché comprobada en 24 archivos
 check-bundles (sin cambios de tamaño respecto a la 4.a):
@@ -186,10 +189,10 @@ check-bundles (sin cambios de tamaño respecto a la 4.a):
 ✔ Motor de audio (engine.ts)               22.6 kB  (error > 60.0 kB)
 ✔ Worker synth.worker.ts                   17.4 kB  · Worker export.worker.ts 41.7 kB · Worklet 40.8 kB
 ✔ Fuentes                                 144.1 kB  (error > 150.0 kB)
-✔ Archivo más grande (Pages)              0.28 MiB  (error > 25.00 MiB)  main-XRTRA2B6.js
+✔ Archivo más grande (Pages)              0.28 MiB  (error > 25.00 MiB)  main-PZAKFP57.js
 ✔ Archivos del despliegue (Pages)      24 archivos  (error > 20000 archivos)
-npm run e2e: 97 passed (1,2 min): 40 con ng serve, 56 con el build en wrangler pages dev
-  (55 en Chromium y 1 en WebKit) y la comprobación del despliegue entera
+npm run e2e: 97 passed (1,2 min): 40 con ng serve y 57 con el build en wrangler pages dev
+  (56 en Chromium, con la comprobación del despliegue entera, y 1 en WebKit)
 ```
 
 **El build servido como en Pages, con `curl`** (`node scripts/serve-pages.mjs`, en local):
@@ -214,12 +217,12 @@ referrer-policy: strict-origin-when-cross-origin
 x-content-type-options: nosniff
 x-frame-options: DENY
 ```
-`node scripts/verify-pages.mjs http://localhost:4391 --build dist/torno/browser`: **39 de 39 bien**.
+`node scripts/verify-pages.mjs http://localhost:4393 --build dist/torno/browser`: **50 de 50 bien** (39 de 39 antes de la revisión, #6).
 - Las tres páginas: 200, se revalidan y son las del build.
 - Cinco redirecciones con 308 y la consulta.
 - Dos 404 con la página de error; `_headers` y `_redirects` no se sirven.
 - La CSP, también en la 404 e igual a la del `_headers`; Permissions-Policy, nosniff, DENY, Referrer-Policy y HSTS; sin COOP ni COEP.
-- `main`, `styles`, el worklet, los dos workers y las dos fuentes, con su tipo e inmutables; el favicon, un día.
+- Los 17 archivos con hash del build (con el worklet, los dos workers y las dos fuentes, que tienen que estar), con su tipo e inmutables; el favicon, un día.
 - Ni cookies ni scripts inyectados.
 
 **CI de GitHub en la rama** (Ubuntu 24.04, con WebKit de Linux reproduciendo con audio bajo la CSP):
@@ -238,6 +241,7 @@ En `docs/informes/img/fase-4/`, de escritorio y móvil (30):
 - `instrumento-diagnostico-*`: el panel `?diagnostico=1` antes de tocar, sin cifras para que la captura no cambie (4.a).
 - El resto, idénticas a las de la fase 3, porque la CSP no cambia nada a la vista. La excepción es `instrumento-recuperar-confirmar-movil`, que ya parte la línea de la pantalla tras el «·» (revisión de la fase 3, #6).
 - **4.b:** rehechas con el build servido por `wrangler pages dev`, las 30 salen idénticas byte a byte (`git status` limpio). La 4.b no cambia nada a la vista.
+- **Tras la revisión (#12):** en `instrumento-diagnostico-*`, la fila «Navegador» dice «Oculto en las capturas» en vez del agente de usuario, que cambiaba con cada versión de Playwright. Las otras 28 no cambian.
 
 ## 8. Dependencias añadidas
 | Paquete | Versión | Motivo | ¿En la lista permitida? |
@@ -268,10 +272,16 @@ También en `docs/PENDIENTES.md`:
   - fase 9: `torno.ivanchesa.es` en *Custom domains* y su CNAME.
 - **Claude Code:**
   - tras fusionar, comprobar el primer despliegue y apuntar aquí `curl` y `verify-pages`;
+  - en la fase 7, la imagen Open Graph (revisión, #10): CORP `same-origin` va en todo, y si esa imagen tuviera que poder incrustarse desde otra web, haría falta quitarle la cabecera (`! Cross-Origin-Resource-Policy`, que el analizador tendría que aprender) o llevar CORP de `/*` a las reglas que la necesiten;
   - en la fase 9, la producción (`--branch=main` con una etiqueta `v*`).
 
 ## 10. Propuestas de cambio al plan
-1. **Precargar ALFAR al acercarse al instrumento** (de la 4.a, sigue abierta). En el escritorio, la primera reproducción en frío ya tarda 157–238 ms hasta el altavoz, más que los 150 ms de la revisión del bloque B, y un móvil irá más lento. Las cifras de Iván en el móvil (prueba 1) decidirán, como dice PLAN §5.
+1. **Aprobar ya la precarga de ALFAR al acercarse al instrumento** (de la 4.a; la revisión, #14, pide proponerla ya). Preparar en silencio (cargar el motor, crear el worker y renderizar ALFAR a la caché) está permitido (`CLAUDE.md`). La primera reproducción en frío ya pasa de los 150 ms de PLAN §5 en el escritorio:
+   - 157–238 ms en mi PC, con el PC tranquilo;
+   - 203–233 ms en el CI de Linux (las dos últimas ejecuciones de la rama, en `dev` y en `estatico`);
+   - 266–405 ms en la pasada del revisor, con carga.
+
+   Un móvil solo puede ir más lento. Propuesta: hacerla al empezar el bloque C (o antes, si Iván quiere). Las cifras de la prueba 1 en el móvil servirán para medir el efecto.
 2. **Vistas previas de las ramas de fase.** Un *push* a `fase-*` con el CI en verde publicaría en `<rama>.torno.pages.dev`; `staging` seguiría siendo solo `main`. Así Iván podría probar en el móvil antes de fusionar: el 3D de las fases 5 y 6 y el pulido de la 8. Hoy solo despliega `main` (D19), y un `workflow_run` no sirve para las ramas: haría falta un job de despliegue dentro del CI.
 
 ## 11. Cómo probarlo
@@ -281,3 +291,32 @@ También en `docs/PENDIENTES.md`:
 - `node scripts/verify-pages.mjs http://localhost:4300 --build dist/torno/browser`: las comprobaciones del despliegue, en local.
 - `http://localhost:4300/?diagnostico=1`: el panel bajo el instrumento. Pulsa REPRODUCIR y verás «Del toque al primer sonido» (la primera, en frío). «Copiar el informe» lo deja en el portapapeles.
 - Tras la fusión: `https://staging.torno.pages.dev/?diagnostico=1` en el móvil, con `docs/PRUEBAS-MOVIL.md`.
+
+---
+
+## Respuesta a la revisión
+[Revisión](../revisiones/fase-4.md): CAMBIOS NECESARIOS, sin Bloqueantes. Corregidos el Importante, los 6 Menores y 6 de las 8 Sugerencias; las otras 2 quedan anotadas (#10, para la fase 7) o como propuesta a Iván (#14).
+
+| Hallazgo | Acción | Commit |
+|---|---|---|
+| 1 · Importante: la lista de proyectos de la cuenta saldría en el registro público | Corregido. Se pregunta a la API solo por `torno` (`curl`, sin imprimir la respuesta): 200 existe, 404 se crea, otro código falla. Frase del §5 corregida | `303a452` |
+| 2 · Menor: wrangler se instalaba fuera del lockfile y con el token en el entorno | Corregido: `npm ci --ignore-scripts` en el commit probado, sin el token, y `workingDirectory: repo` en las acciones. Probado en local que wrangler funciona sin los scripts de instalación | `303a452` |
+| 3 · Menor: `staging.torno.pages.dev` se daba por hecha | Corregido: aviso en el job si el alias es otro. La dirección real se apunta tras el primer despliegue | `303a452` |
+| 4 · Menor: «en frío» era la primera medida, no la primera reproducción | Corregido: el store sabe si ya ha habido una reproducción, con o sin panel. Dos tests nuevos: la primera reproducción sin panel y una pausa de verdad, que no mide | `543d3af` |
+| 5 · Menor: la medida empezaba en el manejador, no en el toque | Corregido: las pulsaciones llevan `event.timeStamp` (clic, gesto, teclado y atajos); si no es del reloj de `performance.now()`, el de ahora (test) | `543d3af` |
+| 6 · Menor: las comprobaciones del worklet y de los workers podían desaparecer | Corregido: con `--build`, todos los archivos con hash, y falla si falta el worklet, alguno de los dos workers o las fuentes. 50 comprobaciones en local | `626df18` |
+| 7 · Menor: comentario del «ErrorDocument de Apache» | Corregido | `540c29b` |
+| 8 · Sugerencia: reglas `http://` y de dominio sin ruta | Hecha: el analizador las rechaza (tests) | `626df18` |
+| 9 · Sugerencia: `HASHED` solo con `.js`, `.css` y `.woff2` | Hecha: `isHashed` con cualquier extensión para los recursos de Angular, y todo lo que lleva hash, inmutable (tests con una imagen de `media/`) | `626df18` |
+| 10 · Sugerencia: CORP `same-origin` y la imagen Open Graph | Anotada para la fase 7 (§9): es entonces cuando existirá esa imagen | — |
+| 11 · Sugerencia: el navegador de las capturas, fuera del `try`; `close()` con wrangler ya cerrado | Hecha: `chromium.launch()` dentro del `try`, y en Linux y macOS se mata siempre el grupo (ignorando `ESRCH`) | `540c29b` |
+| 12 · Sugerencia: el agente de usuario en las capturas del panel | Hecha: con `?captura=1`, «Oculto en las capturas». Las 2 capturas del panel, rehechas | `5d50530` |
+| 13 · Sugerencia: la prueba 1 con auriculares Bluetooth | Hecha: las pruebas 1 y 2 piden el altavoz o auriculares de cable, y esperar al panel antes de tocar | `__DOCS__` |
+| 14 · Sugerencia: proponer ya la precarga de ALFAR | Propuesta en §10.1, con las cifras de los tres sitios. Lo decide Iván | `__DOCS__` |
+| 15 · Sugerencia: dos frases del informe | Corregidas: el worklet hereda la política del documento, y son 57 los e2e contra `wrangler pages dev` | `__DOCS__` |
+
+Tras las correcciones:
+- `npm run check`: en verde (453 tests en Node y 67 en Angular).
+- e2e: 97 de 97.
+- `verify-pages` en local: 50 de 50.
+- Sin procesos `workerd` propios al terminar. Los dos que quedaban vivos eran de otra sesión, la de `ivan-chesa.es`, y no los he tocado.
