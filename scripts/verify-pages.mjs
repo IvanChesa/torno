@@ -39,6 +39,9 @@ const IMMUTABLE = 'public, max-age=31536000, immutable';
 /** Lo que inyecta Cloudflare si se activan sus añadidos (Web Analytics, Rocket Loader…). */
 const INJECTED = /cloudflareinsights|beacon\.min\.js|data-cf-beacon|\/cdn-cgi\//;
 const TIMEOUT_MS = 20_000;
+/** Intentos de cada petición ante un corte de red o de TLS, con 3, 6, 9… s de espera. */
+const FETCH_ATTEMPTS = 5;
+const RETRY_DELAY_MS = 3000;
 
 /** El tipo MIME que tiene que llevar cada clase de archivo con hash. */
 const TYPES = [
@@ -67,6 +70,24 @@ async function filesOf(dir) {
     .sort();
 }
 
+/**
+ * `fetch` que reintenta los cortes de red y de TLS (no las respuestas de error): el certificado de
+ * un subdominio de Pages recién creado tarda unos minutos en llegar a todos los nodos de Cloudflare.
+ * Así falló la comprobación del primer despliegue (27-10), con un `handshake failure`.
+ * @param {URL | string} url
+ * @param {RequestInit} init
+ */
+async function fetchWithRetries(url, init) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    } catch (error) {
+      if (attempt >= FETCH_ATTEMPTS) throw error;
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * attempt));
+    }
+  }
+}
+
 /** Un archivo del build como recurso que comprobar, con el tipo que le toca. */
 function asset(file) {
   const { label, type } = TYPES.find((kind) => kind.extension.test(file)) ?? ANY_TYPE;
@@ -89,10 +110,9 @@ export async function verifyPages(base, { build } = {}) {
   const cookies = [];
   /** GET o HEAD sin seguir redirecciones; apunta las cookies que lleguen. */
   const request = async (url, method = 'GET') => {
-    const response = await fetch(new URL(url, site.origin), {
+    const response = await fetchWithRetries(new URL(url, site.origin), {
       method,
       redirect: 'manual',
-      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     const cookie = response.headers.get('set-cookie');
     if (cookie) cookies.push(`${url}: ${cookie}`);
@@ -268,10 +288,9 @@ export async function verifyPages(base, { build } = {}) {
   // --- Sin cookies; en HTTPS, http:// redirige ---------------------------------------------------
   check('Sin cookies (ningún Set-Cookie)', cookies.length === 0, cookies.join(' · '));
   if (remote) {
-    const http = await fetch(`http://${site.host}/`, {
-      redirect: 'manual',
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    }).catch(() => null);
+    const http = await fetchWithRetries(`http://${site.host}/`, { redirect: 'manual' }).catch(
+      () => null,
+    );
     const location = http?.headers.get('location') ?? '';
     check(
       'http:// → https://',
@@ -321,7 +340,18 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   if (build && wait > 0 && !(await waitForBuild(base, build, wait))) {
     console.error(`✖ ${base} no sirve todavía el build de ${build} (tras ${wait} s)`);
   }
-  const checks = await verifyPages(base, { build });
+  /** @type {Check[]} */
+  let checks;
+  try {
+    checks = await verifyPages(base, { build });
+  } catch (error) {
+    // Ni con los reintentos: se dice qué ha pasado y la comprobación falla.
+    const cause = error instanceof Error && error.cause instanceof Error ? error.cause : error;
+    console.error(
+      `✖ No se ha podido comprobar ${base}: ${cause instanceof Error ? cause.message : String(cause)}`,
+    );
+    process.exit(1);
+  }
   console.log(`Comprobaciones de ${base}${build ? `, con el build de ${build}` : ''}:\n`);
   for (const { name, ok, detail } of checks) {
     console.log(`${ok ? '✔' : '✖'} ${name}${detail ? `: ${detail}` : ''}`);
