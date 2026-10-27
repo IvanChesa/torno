@@ -11,7 +11,7 @@ Todo recurso de terceros, archivo a archivo. Torno no usa imágenes, texturas, m
 | Geist Mono (variable: `wght`), subconjunto latino, redonda | `@fontsource-variable/geist-mono` 5.3.0 → `files/geist-mono-latin-wght-normal.woff2` | Copyright 2024 The Geist Project Authors (Vercel) | SIL Open Font License 1.1 | https://github.com/vercel/geist-font · https://fontsource.org/fonts/geist-mono |
 | Three.js (se instala en la fase 5) | `three` | three.js authors | MIT | https://github.com/mrdoob/three.js |
 
-El prerenderizado usa además `@angular/ssr` y `@angular/platform-server` (MIT), `beasties` (Apache-2.0) y `xhr2` (MIT) en el build; no llegan al navegador. Las herramientas de desarrollo (Vitest, Playwright, ESLint, esbuild…) no se distribuyen.
+El prerenderizado usa además `@angular/ssr` y `@angular/platform-server` (MIT), `beasties` (Apache-2.0) y `xhr2` (MIT) en el build; no llegan al navegador. Las herramientas de desarrollo (Vitest, Playwright, ESLint, esbuild, wrangler…) no se distribuyen.
 
 **Dónde están los textos de las licencias en la web publicada:**
 - `licencias/terceros.txt`: los avisos de todo el JS de terceros, que genera el build de Angular (`3rdpartylicenses.txt`) y copia `scripts/publish-licenses.mjs` dentro de lo que se despliega.

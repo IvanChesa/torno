@@ -1,12 +1,12 @@
 # Pruebas en el móvil (fase 4.b)
 
-Lista para probar Torno en un Android y en un iPhone por el staging. Los resultados desbloquean el bloque C: si el audio falla en iOS, se arregla antes de construir el 3D (PLAN, fase 4).
+Lista para probar Torno en un Android y en un iPhone en la vista previa de Cloudflare Pages (el staging). Los resultados desbloquean el bloque C: si el audio falla en iOS, se arregla antes de construir el 3D (PLAN, fase 4).
 
 Rellena las casillas y los huecos. Cuando la lista diga **«copia el informe»**, pulsa «Copiar el informe» en el panel de diagnóstico y pégalo al final de esta página, en «Informes del panel». Ni el panel ni la web envían nada: todo se queda en el móvil hasta que tú lo pegues aquí.
 
 ## Antes de empezar
 
-- **Dirección:** `https://staging-torno.ivanchesa.es/?diagnostico=1` (con el usuario y la contraseña del staging). Con `?diagnostico=1`, debajo del instrumento aparece el panel «Diagnóstico del audio».
+- **Dirección:** `https://staging.torno.pages.dev/?diagnostico=1`. Es pública, sin contraseña, y no la indexan los buscadores (`noindex`). Se actualiza sola con cada cambio en `main`. Con `?diagnostico=1`, debajo del instrumento aparece el panel «Diagnóstico del audio».
 - **Auriculares con cable**, y unos Bluetooth si los tienes, para comparar la latencia.
 - Volumen a media altura. Cierra las demás apps que suenen (música, vídeos).
 - En el iPhone, haz las pruebas 1 a 3 con el **interruptor de silencio activado** (naranja) y repítelas desactivado.

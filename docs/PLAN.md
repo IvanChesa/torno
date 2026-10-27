@@ -130,7 +130,7 @@ Parámetros de `/`: `?sin3d=1` (instrumento HTML, para pruebas y sin WebGL) y `?
 | **Dirección visual** (§10) | ✅ B «Barro» (24-10) | — |
 | **Repo en GitHub** | ✅ `IvanChesa/torno`, público (24-10) | Se conecta al empezar el bloque A; push de `main` tras cada fusión |
 | **GitHub CLI** (`gh auth login`) | ✅ (26-10) | — |
-| **Secrets de Cloudflare** en `IvanChesa/torno` (D19) | ❌ | Iván, antes de la 4.b: `CLOUDFLARE_API_TOKEN` (solo «Cloudflare Pages: Edit») y `CLOUDFLARE_ACCOUNT_ID`, como en tierra-luna-sol. Ya no hace falta cPanel |
+| **Secrets de Cloudflare** en `IvanChesa/torno` (D19) | ✅ (27-10) | — |
 | Móvil Android real | Iván | Desde la fase 4, por la vista previa `staging.torno.pages.dev` |
 | **Un iPhone para probar** (aunque sea prestado) | Iván | **Fase 4**: el audio en iOS es el mayor riesgo del proyecto |
 | Auriculares, mejor con cable (los Bluetooth añaden mucha latencia) | Iván | Fase 4, para probar la sobregrabación |
