@@ -31,6 +31,8 @@ export const DIAGNOSTICS_CONTENT = {
     firstSoundEmpty: 'Pulsa REPRODUCIR para medirlo',
     cold: 'en frío',
     silent: 'no ha sonado en 5 s',
+    /** Con `?captura=1`, en lugar del agente de usuario, que cambia con cada versión. */
+    browserInCapture: 'Oculto en las capturas',
     latencyModes: { auto: 'automática', calibrated: 'calibrada', manual: 'manual' },
   },
 

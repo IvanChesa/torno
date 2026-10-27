@@ -1,5 +1,6 @@
 import { afterNextRender, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import type { EngineDiagnostics } from '../../audio/engine';
+import { isCaptureMode } from '../../core/capture-mode';
 import { SessionStore } from '../../state';
 import { DIAGNOSTICS_CONTENT } from './diagnostics.content';
 import { diagnosticsRows, reportText } from './diagnostics-report';
@@ -116,7 +117,10 @@ export class DiagnosticsPanel {
     this.#store.enableDiagnostics();
     const destroyRef = inject(DestroyRef);
     afterNextRender(() => {
-      this.#userAgent.set(navigator.userAgent);
+      // En las capturas (`?captura=1`), un texto fijo: el agente de usuario cambia con cada versión.
+      this.#userAgent.set(
+        isCaptureMode(location.search) ? this.text.values.browserInCapture : navigator.userAgent,
+      );
       const refresh = () => this.#snapshot.set(this.#store.diagnostics());
       refresh();
       const timer = setInterval(refresh, REFRESH_MS);
