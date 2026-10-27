@@ -19,7 +19,8 @@ jobs:
     name: Lint, tests, build, presupuestos y e2e
     # Imagen fijada: el audio de WebKit depende de los paquetes del sistema; se cambia a propósito.
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # Lo normal son 5–6 min; el margen es para los reintentos de la instalación de los navegadores.
+    timeout-minutes: 30
     steps:
       # Acciones fijadas por SHA de commit (la versión va en el comentario).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -57,7 +58,7 @@ jobs:
 
       # Navegadores de Playwright en caché, con su versión en la clave (revisión del bloque B, #4):
       # sin caché, cada CI se jugaba una descarga que una vez se quedó colgada 20 min. Con la caché
-      # acertada solo faltan los paquetes del sistema (apt). Diez minutos como mucho en cada caso.
+      # acertada solo faltan los paquetes del sistema (apt). Cada instalación, con intentos cortados.
       - name: Versión de Playwright
         id: playwright
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
@@ -78,15 +79,31 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium-webkit
 
+      # Cada intento, con su tiempo límite, y hasta 3. A veces el espejo no se para del todo: sigue a
+      # cuentagotas, y eso no lo corta el tiempo límite de apt (así se colgó el CI de 79e3eed, el 27-10).
+      # `timeout` corta el grupo entero de procesos (npx, sudo y apt-get); antes de repetir, dpkg
+      # termina lo que hubiera quedado a medias.
       - name: Navegadores y paquetes del sistema (sin caché)
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 10
-        run: npx playwright install --with-deps chromium webkit
+        timeout-minutes: 14
+        run: |
+          for attempt in 1 2 3; do
+            timeout -k 15 240 npx playwright install --with-deps chromium webkit && exit 0
+            echo "::warning title=Instalación cortada::Intento $attempt de 3 sin terminar en 4 min: se repite."
+            sudo dpkg --configure -a || true
+          done
+          exit 1
 
       - name: Paquetes del sistema de los navegadores (con caché)
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        timeout-minutes: 10
-        run: npx playwright install-deps chromium webkit
+        timeout-minutes: 11
+        run: |
+          for attempt in 1 2 3; do
+            timeout -k 15 180 npx playwright install-deps chromium webkit && exit 0
+            echo "::warning title=Instalación cortada::Intento $attempt de 3 sin terminar en 3 min: se repite."
+            sudo dpkg --configure -a || true
+          done
+          exit 1
 
       # Los del build, contra `wrangler pages dev` (scripts/serve-pages.mjs), como en Pages.
       - run: npm run e2e
