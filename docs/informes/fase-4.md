@@ -247,6 +247,7 @@ En la rama, la caché de los navegadores hace que solo se instalen los paquetes 
 - **Proyecto:** `torno` no existía y se creó (la API respondió 404 y luego `pages project create`). El subdominio estaba libre: la vista previa queda en `staging.torno.pages.dev`, sin aviso de dirección distinta.
 - **Subida:** 24 archivos y el `_headers` en 2 s. Este despliegue: `https://3ca22254.torno.pages.dev`. La acción usó el wrangler del lockfile («✅ Using Wrangler 4.149.0», sin instalar nada).
 - **La comprobación del job falló**, pero no por el sitio: `fetch failed`, con `ssl/tls alert handshake failure`. El certificado del subdominio recién creado aún no estaba en todos los nodos de Cloudflare. Minutos después, desde aquí y con el artefacto exacto que se desplegó (descargado del CI), **52 de 52**. Para que no vuelva a pasar, `verify-pages` reintenta los cortes de red y de TLS y, si no hay manera, lo dice con su causa (`e71669a`).
+- **Segundo despliegue** (ejecución 40549729359, commit `cbf0849`): en verde de principio a fin, en 48 s. El proyecto ya existía, así que el paso de crearlo se salta. La comprobación pasa en el propio job: **52 de 52**. Este despliegue: `https://49d76608.torno.pages.dev`.
 
 `node scripts/verify-pages.mjs https://staging.torno.pages.dev --build <artefacto de b434f25>`: **52 de 52 bien**. Respecto de las 50 de local, añade dos:
 - `X-Robots-Tag: noindex`, que pone Pages en las vistas previas;
