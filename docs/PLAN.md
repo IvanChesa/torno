@@ -14,7 +14,7 @@ Se inspira en **TAPE** (`ethanplusai/tape`, tape.ethanplus.ai) y tiene **todas s
 
 **Objetivo:** pieza de portfolio de Iván Chesa Lapena (desarrollador web freelance, ivanchesa.es). Tiene que demostrar Angular moderno, **audio en tiempo real de calidad profesional** (AudioWorklet, DSP propio), 3D web, interacción accesible y rendimiento. Complementa a tierra-luna-sol: allí manda el rigor científico; aquí, el audio, la interacción y el diseño de producto. **El SEO es secundario.**
 
-**Dónde vive:** subdominio de ivanchesa.es en Banahosting (propuesto: `torno.ivanchesa.es`; staging: `staging-torno.ivanchesa.es`). Proyecto y repositorio independientes.
+**Dónde vive:** **Cloudflare Pages** (plan gratuito, proyecto `torno`, la misma cuenta que tierra-luna-sol; decisión de Iván del 27-10, D19). En producción, `torno.ivanchesa.es`, conectado al lanzar con un CNAME; el staging es la vista previa `staging.torno.pages.dev`. Proyecto y repositorio independientes.
 
 ### 0.1 Paridad con el original (todo esto entra en la v1)
 
@@ -93,7 +93,7 @@ Se inspira en **TAPE** (`ethanplusai/tape`, tape.ethanplus.ai) y tiene **todas s
 | D16 | **Autoguardado local en IndexedDB**, visible y borrable desde la web y desde el menú | Mejora clara sobre el original sin salir del dispositivo. |
 | D17 | **Privacidad:** 0 cookies, 0 analítica, 0 peticiones a terceros; el audio nunca sale del navegador | Cumplimiento sin banner y garantía visible de calidad. |
 | D18 | **SEO secundario:** title y description simples, una imagen Open Graph global y `robots.txt` básico | Es una pieza de portfolio dentro de ivanchesa.es. |
-| D19 | **Despliegue:** GitHub Actions → FTPS a Banahosting (staging en cada push a `main`, producción con etiqueta `v*`) | El SSH está bloqueado; mismo sistema que tierra-luna-sol. |
+| D19 | **Hosting en Cloudflare Pages** (decisión de Iván, 27-10; sustituye a Banahosting por FTPS). GitHub Actions sube **el build que ya ha probado el CI** con `cloudflare/wrangler-action` fijado por SHA. Un push a `main` con el CI en verde va a la vista previa `staging.torno.pages.dev` (`--branch=staging`) y una etiqueta `v*`, a producción (`--branch=main`). `_headers` y `_redirects` en lugar de `.htaccess`. Secrets: `CLOUDFLARE_API_TOKEN` (solo «Cloudflare Pages: Edit») y `CLOUDFLARE_ACCOUNT_ID`. Sin Cloudflare Web Analytics | Sin cPanel, sin FTP ni Imunify360; la misma cuenta que tierra-luna-sol. |
 | D20 | **Tests:** Vitest (núcleo, síntesis, archivos y modelo) + Playwright (Chromium con micrófono sintético y AudioWorklet real; WebKit de escritorio) + axe + regresión visual | — |
 | D21 | **Solo español en la v1** | — |
 | D22 | **Frecuencia de muestreo: la del dispositivo** (`latencyHint: "interactive"`), sin forzar 48 kHz | Si no coincide con la del hardware, el navegador remuestrea: más CPU y más latencia. |
@@ -103,7 +103,7 @@ Se inspira en **TAPE** (`ethanplusai/tape`, tape.ethanplus.ai) y tiene **todas s
 Cualquier otro paquete → **preguntar a Iván antes de instalarlo**.
 
 - **Producción:** `@angular/*` 22.x · `three` `^0.186.0` · las dos familias tipográficas de `DISENO.md` (`@fontsource/*` o `@fontsource-variable/*`; candidatas: Fraunces y Geist Mono, ambas OFL 1.1)
-- **Desarrollo:** lo que genera `ng new` (incluidos Vitest y jsdom) · `@types/three` · `esbuild` (fijado a la versión que usa `@angular/build`) · `angular-eslint`, `eslint`, `@eslint/js` y `typescript-eslint` · `prettier` · `@playwright/test` · `@axe-core/playwright` · `sharp` (póster e imagen Open Graph) · `@vitest/coverage-v8`
+- **Desarrollo:** lo que genera `ng new` (incluidos Vitest y jsdom) · `@types/three` · `esbuild` (fijado a la versión que usa `@angular/build`) · `wrangler` (fijado a la misma versión que el despliegue, para `wrangler pages dev` en los e2e de las cabeceras) · `angular-eslint`, `eslint`, `@eslint/js` y `typescript-eslint` · `prettier` · `@playwright/test` · `@axe-core/playwright` · `sharp` (póster e imagen Open Graph) · `@vitest/coverage-v8`
 - **Propuesta pendiente de Iván** (se pide en su fase): `@lhci/cli` (Lighthouse en el CI, fase 8).
 - **Recursos de three que no son dependencias nuevas:** `three/addons/*` (`RoomEnvironment`, `RoundedBoxGeometry`, `OrbitControls`).
 
@@ -129,9 +129,9 @@ Parámetros de `/`: `?sin3d=1` (instrumento HTML, para pruebas y sin WebGL) y `?
 | Nombre y carpeta del proyecto | ✅ `torno` | — |
 | **Dirección visual** (§10) | ✅ B «Barro» (24-10) | — |
 | **Repo en GitHub** | ✅ `IvanChesa/torno`, público (24-10) | Se conecta al empezar el bloque A; push de `main` tras cada fusión |
-| **GitHub CLI** (`gh auth login`, para los secrets del staging) | ❌ | Iván, **antes del bloque B (fase 4)** |
-| **Staging en cPanel** | ❌ | Iván, antes de la fase 4: subdominio `staging-torno.ivanchesa.es` con AutoSSL, protección con contraseña, cuenta FTP limitada a esa carpeta y `gh secret set` de las credenciales |
-| Móvil Android real | Iván | Desde la fase 4, por la URL de staging |
+| **GitHub CLI** (`gh auth login`) | ✅ (26-10) | — |
+| **Secrets de Cloudflare** en `IvanChesa/torno` (D19) | ✅ (27-10) | — |
+| Móvil Android real | Iván | Desde la fase 4, por la vista previa `staging.torno.pages.dev` |
 | **Un iPhone para probar** (aunque sea prestado) | Iván | **Fase 4**: el audio en iOS es el mayor riesgo del proyecto |
 | Auriculares, mejor con cable (los Bluetooth añaden mucha latencia) | Iván | Fase 4, para probar la sobregrabación |
 
@@ -306,7 +306,7 @@ Todo se trabaja en **modo autónomo por bloques**, con el ciclo de `CLAUDE.md`: 
 |---|---|---|---|
 | 0 | 0 | `max` | Cimientos y pruebas técnicas: la base de todo lo demás |
 | A | 1–2 | `max` | El núcleo de audio y el motor en el navegador |
-| B | 3–4 | `max` | Sonidos (Iván los escucha) y staging con pruebas en móviles reales e iPhone |
+| B | 3–4 | `max` | Sonidos (Iván los escucha) y la vista previa de Cloudflare Pages, con pruebas en móviles reales e iPhone |
 | C | 5–6 | `max` | El instrumento 3D y su interacción. **Parada prevista tras 5.a** para que Iván apruebe el diseño |
 | D | 7 | `high` | Web de producto, guía y contenido (Iván revisa los textos) |
 | E | 8 | `max` | Pulido y calidad final |
@@ -420,22 +420,34 @@ Criterios de aceptación:
 - [ ] e2e: la cola entra exactamente en el siguiente compás y deshacer la cancela.
 - [ ] **Iván ha escuchado los sonidos** al final del bloque (se apunta en `PENDIENTES.md`; no bloquea las demás fases del bloque).
 
-### Fase 4: Staging, entrega continua y móviles reales
+### Fase 4: Staging (vista previa de Cloudflare Pages), entrega continua y móviles reales
 
-**Dos entregas** (revisión del bloque B):
-- **4.a, sin credenciales:** se puede hacer ya. Tareas 1, 2, 3 (el flujo escrito, que no se activa sin secrets), 5 y 7. Termina con informe «en curso» y **para**.
-- **4.b, con el staging:** necesita a Iván (§3): subdominio de staging protegido, cuenta FTP y secrets. Tareas 3 (activarlo), 4 y 6, criterios, revisión y fusión.
+**Dos entregas:**
+- **4.a, sin credenciales:** hecha (rama `fase-4-staging`), pensada aún para Banahosting: `public/.htaccess` generado con la CSP (`scripts/htaccess.mjs`) y `deploy-staging.yml` por FTPS.
+- **4.b, con los secrets de Cloudflare** (§3): pasa lo de la 4.a a Cloudflare Pages (D19, tareas 2 y 3), lo despliega (tarea 4) y recoge las pruebas de Iván (tarea 6). Después, criterios, revisión y fusión. Ya no hace falta cPanel.
 
 Tareas:
 1. **CI verde en GitHub** (lint, test, build y e2e con Chromium y WebKit). El remoto está conectado desde el bloque A. Caché de los navegadores de Playwright y tiempo límite en su instalación (revisión del bloque B, #4).
-2. **`public/.htaccess`:**
-   - HTTPS obligatorio (el micrófono y el AudioWorklet lo exigen);
-   - URLs sin barra final, `ErrorDocument 404`, `Options -Indexes`;
-   - caché larga e `immutable` para los archivos con hash (también el worklet); corta para el HTML;
-   - tipos MIME correctos para los módulos JS;
-   - cabeceras de seguridad, `Permissions-Policy: microphone=(self)` y una CSP con `script-src 'self'` y `worker-src 'self'`, compatible con el worklet, los dos workers, las descargas por `blob:` y el CSS crítico de Angular (valorar `security.autoCsp`). Un e2e contra el build servido con esas cabeceras.
-3. **`deploy-staging.yml`:** push a `main` + CI verde → build → FTPS (`SamKirkland/FTP-Deploy-Action` fijado por SHA), con `X-Robots-Tag: noindex`.
-4. **Verificación con `curl`:** códigos, cabeceras, MIME y caché. Comprobar que Imunify360 no bloquea el despliegue.
+2. **Cabeceras y rutas para Cloudflare Pages:**
+   - **`_headers`**, generado tras el build con la CSP de la 4.a: el generador de `.htaccess` pasa a escribir `_headers`, y `public/.htaccess` y sus reglas de Apache se borran. Lleva:
+     - las cabeceras de seguridad, `Permissions-Policy: microphone=(self)` y la CSP (`script-src 'self'` con los hashes, `worker-src 'self'`, las descargas por `blob:` y el CSS crítico de Angular);
+     - caché larga e `immutable` para los archivos con hash (JS, worklet y fuentes) y corta para el HTML;
+     - `X-Robots-Tag: noindex` para `torno.pages.dev` hasta el lanzamiento. Las vistas previas ya llevan `noindex` de Pages: comprobarlo.
+   - **Sin COOP/COEP:** no hacen falta, porque el proyecto no usa `SharedArrayBuffer` (D7) y el AudioWorklet no necesita aislamiento entre orígenes. Si algún día hicieran falta, irían en `_headers`.
+   - **Barra final:** Pages sirve `ruta/index.html` en `/ruta/` y redirige `/ruta` a `/ruta/`, al revés de la regla de `CLAUDE.md` («URLs en español y sin barra final»). Por eso el build se reorganiza tras el prerenderizado:
+     - `sobre-el-proyecto/index.html` → `sobre-el-proyecto.html`, que Pages sirve en `/sobre-el-proyecto` y a la que redirige `/sobre-el-proyecto/`;
+     - **`404/index.html` → `404.html` en la raíz**: sin él, Pages trata la web como una SPA y devuelve la portada con 200 en cualquier URL desconocida.
+
+     Se comprueba con `curl` en la vista previa (códigos y destino de cada redirección) y, si Pages se comporta de otra forma, se anota y se ajusta.
+   - **`_redirects`**, solo si algo no se resuelve con la reorganización anterior.
+   - **Límites de Pages:** 25 MiB por archivo y 20 000 archivos. `check-bundles` falla si un archivo pasa de 25 MiB.
+   - **e2e de cabeceras y rutas** contra `wrangler pages dev`, que aplica `_headers` y las reglas de Pages, en lugar del servidor que imitaba a Apache.
+3. **Despliegue:**
+   - **`deploy.yml`** sustituye a `deploy-staging.yml`. Cuando el CI de un push a `main` termina en verde, descarga su artefacto `torno-browser` (el build ya probado) y lo sube con `cloudflare/wrangler-action` (fijado por SHA, con `wranglerVersion` fija): `pages deploy <carpeta> --project-name=torno --branch=staging`. Sin secrets, termina con un aviso y no despliega.
+   - El proyecto `torno` (de tipo *Direct Upload*, rama de producción `main`) lo crea el propio flujo si no existe (`wrangler pages project create torno --production-branch=main`): Iván solo pone los secrets.
+   - `permissions: contents: read, actions: read`. La URL de la vista previa, en el resumen del job.
+   - Sin Cloudflare Web Analytics. Las vistas previas son públicas, con `noindex`: el repo ya es público y no hay nada que esconder. Proteger la vista previa con Cloudflare Access es opcional (decisión de Iván).
+4. **Verificación con `curl`** en `staging.torno.pages.dev`: los códigos de las 3 rutas, la barra final, el 404 de una URL desconocida, las cabeceras (CSP, `Permissions-Policy`, caché y `noindex`), el tipo MIME de los módulos y que no haya cookies.
 5. **Dependabot.**
 6. **Prueba de Iván en Android e iPhone** con el instrumento HTML, siguiendo una lista en el informe: reproducir, grabar con auriculares, sobregrabar, cambiar de app y volver, calibrar la latencia, guardar y exportar. También:
    - varias tomas seguidas tras calibrar, para ver si quedan alineadas entre sí;
@@ -445,8 +457,8 @@ Tareas:
 7. **Página de pruebas para Iván** (`docs/PRUEBAS-MOVIL.md`): la lista de la tarea 6, con casillas y huecos para las cifras, y cómo leer la latencia y el tiempo del primer sonido en la propia web (un panel de diagnóstico con `?diagnostico=1`, sin datos personales ni red).
 
 Criterios de aceptación:
-- [ ] CI verde y staging actualizado solo al hacer push a `main`.
-- [ ] Comprobaciones con `curl` en el informe.
+- [ ] CI verde y la vista previa `staging.torno.pages.dev` actualizada solo al hacer push a `main`, con el mismo build que probó el CI.
+- [ ] Comprobaciones con `curl` en el informe: `/sobre-el-proyecto` sin barra final da 200, la URL con barra redirige a la que no la lleva, y una URL desconocida da 404 con la página 404.
 - [ ] Lista de prueba en el informe y resultados de Iván en Android e iPhone (versión, navegador, auriculares, latencia medida y problemas). Los resultados no bloquean la fusión de la fase 4, pero **sí el inicio del bloque C**: si el audio falla en iOS, se arregla antes de construir el 3D.
 
 ### Fase 5: Diseño del instrumento y modelo 3D
@@ -540,10 +552,12 @@ Criterios de aceptación:
 
 ### Fase 9: Lanzamiento
 
-**Iván (manual):** subdominio de producción con AutoSSL, cuenta FTP limitada, secrets de producción y licencia del código.
+**Iván (manual):**
+- **`torno.ivanchesa.es`**: en Pages → `torno` → *Custom domains*, añadir `torno.ivanchesa.es`. Después, un **CNAME** `torno` → `torno.pages.dev` en la zona DNS de ivanchesa.es: en el cPanel de Banahosting o, si ivanchesa.es ya ha pasado a Cloudflare, en su DNS. Pages emite el certificado solo.
+- La licencia del código.
 
 **Claude Code:**
-1. **`deploy-production.yml`:** despliegue con una etiqueta `v*` (o manual), reutilizando el build verificado.
+1. **Producción:** una etiqueta `v*` (o el lanzamiento manual del flujo) despliega el build verificado con `--branch=main`, la rama de producción de `torno`. Va a `torno.pages.dev` y a `torno.ivanchesa.es`; se quita el `noindex` de `torno.pages.dev` solo si Iván lo pide (la canónica es `torno.ivanchesa.es`).
 2. Verificación en producción con `curl` y Lighthouse.
 3. **README de portfolio** (capturas, vídeo o GIF corto, stack, arquitectura, mediciones), **LICENSE**, **CHANGELOG** y etiqueta **`v1.0.0`**. El repo pasa a público.
 4. **Indexación:** `indexable: true` en `site.config.ts` (hasta aquí todo lleva `noindex`) y comprobar que solo la 404 lo conserva. Comprobar también que los enlaces legales de ivanchesa.es siguen existiendo tras su rediseño.
@@ -561,7 +575,7 @@ Criterios de aceptación:
 |---|---|
 | **Claude Code (Opus 5.5)** | Ejecuta los bloques en modo autónomo: por fase, plan en el informe → trabajo → `npm run check` → revisión por subagente → correcciones → fusión → `DIARIO.md`. Para al final del bloque, en la parada prevista o ante una condición de parada. |
 | **Claude (sesión de plan y revisión)** | Prepara el plan y los prompts, revisa cada bloque completo (diff, checks propios, criterios, capturas, audio y estrategia), escribe `docs/revisiones/bloque-X.md` y ajusta el plan si hace falta. |
-| **Iván** | Decide, hace los pasos manuales (GitHub, cPanel, secrets), escucha los sonidos, revisa los textos, prueba en sus móviles y da el OK a cada bloque. |
+| **Iván** | Decide, hace los pasos manuales (GitHub, los secrets de Cloudflare y el CNAME del lanzamiento), escucha los sonidos, revisa los textos, prueba en sus móviles y da el OK a cada bloque. |
 
 Reglas:
 - Una sesión de Claude Code por bloque (o por fase, si se alarga). Al empezar, lee `CLAUDE.md`, §0–§5 y §7 del plan, la sección de su fase y el informe y la revisión anteriores.
@@ -587,7 +601,7 @@ Reglas:
 | Sonidos que no gustan | Escucha de Iván al final del bloque B; los presets son datos fáciles de ajustar |
 | Archivos `.torno` maliciosos o rotos | Validación completa antes de cambiar nada + 1000 casos malformados |
 | Contexto de sesión lleno | Entregas, informe vivo y prompt «Retomar» |
-| Imunify360 bloquea el FTP desde GitHub | Detección en la fase 4; plan B: subida manual del build |
+| Pages trata mal la barra final o el 404 (la web como SPA) | Reorganización del build tras el prerenderizado, `404.html` en la raíz y comprobación con `curl` en la vista previa (fase 4) |
 
 ---
 

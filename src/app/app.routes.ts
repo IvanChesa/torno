@@ -18,7 +18,7 @@ export const routes: Routes = [
     data: { description: ROUTES_CONTENT.about.description } satisfies SeoRouteData,
     loadComponent: () => import('./pages/about/about-page').then((m) => m.AboutPage),
   },
-  // /404 existe para prerenderizar la página de error (el ErrorDocument de Apache, fase 4);
+  // /404 existe para prerenderizar la página de error (el 404.html de Cloudflare Pages, fase 4);
   // ** muestra la misma página en el cliente para cualquier otra URL. Las dos, con noindex.
   {
     path: '404',

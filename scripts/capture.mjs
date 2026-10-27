@@ -1,5 +1,5 @@
 // Capturas deterministas (`?captura=1`) de las páginas para los informes de fase, en escritorio
-// y en móvil, servidas desde el build estático (CLAUDE.md, «Capturas»).
+// y en móvil, del build estático servido como en Cloudflare Pages (CLAUDE.md, «Capturas»).
 //
 // Uso: npm run capturas -- --fase=2   (después de `npm run build`)
 //      → docs/informes/img/fase-2/<página>-<escritorio|movil>.png
@@ -7,13 +7,13 @@
 //        abierto, con la chuleta de atajos, cargando el audio, con el error de «Reintentar» y
 //        ofreciendo recuperar la sesión anterior; desde la fase 3, el menú SONIDO con la colección,
 //        MARCAR TEMPO, un cambio EN COLA y el panel de recuperar con los dos huecos y su
-//        confirmación.
+//        confirmación; desde la fase 4, el panel de diagnóstico (`?diagnostico=1`).
 /* global document, AudioWorklet -- se usan dentro de page.evaluate() y addInitScript(), en la página */
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, devices } from '@playwright/test';
-import { startStaticServer } from './serve-static.mjs';
+import { startPagesServer } from './serve-pages.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PAGES = [
@@ -58,9 +58,12 @@ async function openHome(page, url) {
   return page.locator('[data-control="main"]');
 }
 
-const server = await startStaticServer({ port: 0 });
-const browser = await chromium.launch();
+const server = await startPagesServer();
+/** @type {import('@playwright/test').Browser | undefined} */
+let browser;
 try {
+  // Dentro del `try`: si el navegador no arranca, el servidor también se cierra.
+  browser = await chromium.launch();
   for (const viewport of VIEWPORTS) {
     const context = await browser.newContext({
       ...viewport.options,
@@ -93,6 +96,11 @@ try {
     await page.keyboard.press('?');
     await page.getByRole('heading', { name: 'Atajos de teclado' }).waitFor();
     await shootInstrument(page, 'atajos', viewport.name);
+
+    // El panel de diagnóstico, antes de tocar (sin cifras que cambien de una vez a otra).
+    await openHome(page, `${home}&diagnostico=1`);
+    await page.getByRole('region', { name: 'Diagnóstico del audio' }).waitFor();
+    await shootInstrument(page, 'diagnostico', viewport.name);
 
     // SONIDO → BATERÍA: los tres bucles y APAGADO.
     main = await openHome(page, home);
@@ -170,6 +178,6 @@ try {
     await context.close();
   }
 } finally {
-  await browser.close();
+  await browser?.close();
   await server.close();
 }

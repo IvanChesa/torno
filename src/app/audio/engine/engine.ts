@@ -45,6 +45,12 @@ import {
 } from '../files/torno-format';
 import { createZip } from '../files/zip';
 import { clearAutosave, loadAutosave, saveAutosave, type AutosaveSlot } from './autosave';
+import {
+  playbackStats,
+  waitForSound,
+  type EngineDiagnostics,
+  type OutputWindow,
+} from './diagnostics';
 import { download, fileStamp } from './download';
 import {
   autoLatencySeconds,
@@ -158,6 +164,9 @@ export class AudioEngine {
   /** Sube al cancelar: un autoguardado que ya estaba copiando la sesión no llega a escribir. */
   #autosaveGeneration = 0;
   readonly #sounds = new Map<string, { pcm: Float32Array; lengthBeats: number }>();
+  /** Solo con el diagnóstico (`measureFirstSound`): lee lo que sale del núcleo. */
+  #analyser: AnalyserNode | null = null;
+  #analyserData: Float32Array<ArrayBuffer> | null = null;
 
   constructor() {
     onAudioUnlock(() => this.#onUnlock());
@@ -183,6 +192,62 @@ export class AudioEngine {
   /** Estimación automática de la latencia de ida y vuelta, en ms (con el contexto en marcha). */
   get autoLatencyMs(): number {
     return this.#context ? autoLatencySeconds(this.#context, this.#mic.inputLatency) * 1000 : 0;
+  }
+
+  // --- Diagnóstico (`?diagnostico=1`) -----------------------------------------------------------
+
+  /** Lo que el navegador dice del audio ahora mismo (para las pruebas en los móviles). */
+  diagnostics(): EngineDiagnostics {
+    const context = this.#context;
+    const ms = (seconds: number | undefined) =>
+      typeof seconds === 'number' && Number.isFinite(seconds) ? seconds * 1000 : null;
+    const session = (navigator as { audioSession?: { type: string } }).audioSession;
+    return {
+      contextState: context?.state ?? null,
+      sampleRate: context?.sampleRate ?? null,
+      baseLatencyMs: context ? ms(context.baseLatency) : null,
+      outputLatencyMs: context ? ms(context.outputLatency) : null,
+      inputLatencyMs: this.#micState === 'on' ? this.#mic.inputLatency * 1000 : null,
+      autoLatencyMs: this.autoLatencyMs,
+      latency: this.#latency,
+      audioSession: session?.type ?? null,
+      memoryBytes: this.#status?.memoryBytes ?? null,
+      playback: context ? playbackStats(context) : null,
+    };
+  }
+
+  /**
+   * Cuántos ms tarda en sonar algo desde `since` (reloj de `performance.now()`, el del toque), o
+   * `null` si no suena en `timeoutMs`. Si el audio aún está cargando, la espera lo incluye.
+   */
+  measureFirstSound(since: number, timeoutMs = 5000): Promise<number | null> {
+    return waitForSound(() => this.#output(), since, timeoutMs);
+  }
+
+  /**
+   * Lo último que ha salido del núcleo, con la hora a la que sale por el altavoz su última muestra
+   * (crea el analizador la primera vez). La ventana, de 16384 muestras (≈ 0,34 s a 48 kHz), cubre
+   * de sobra lo que pueda tardar en leerse aunque el hilo principal esté ocupado.
+   */
+  #output(): OutputWindow | null {
+    const context = this.#context;
+    const node = this.#node;
+    if (!context || !node) return null;
+    if (!this.#analyser || !this.#analyserData) {
+      this.#analyser = new AnalyserNode(context, { fftSize: 16_384 });
+      this.#analyserData = new Float32Array(this.#analyser.fftSize);
+      node.connect(this.#analyser);
+    }
+    this.#analyser.getFloatTimeDomainData(this.#analyserData);
+    // La última muestra del analizador es la de `currentTime`; `getOutputTimestamp` dice a qué hora
+    // sale por el altavoz el instante del contexto que suena ahora. Sin esa marca, la hora actual.
+    const stamp =
+      typeof context.getOutputTimestamp === 'function' ? context.getOutputTimestamp() : undefined;
+    const end =
+      stamp?.performanceTime && stamp.contextTime !== undefined
+        ? stamp.performanceTime + (context.currentTime - stamp.contextTime) * 1000
+        : performance.now();
+    return { samples: this.#analyserData, sampleRate: context.sampleRate, end };
   }
 
   subscribe(listener: (event: EngineEvent) => void): () => void {

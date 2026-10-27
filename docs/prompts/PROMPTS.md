@@ -7,11 +7,11 @@ El ciclo, las paradas y las decisiones ya tomadas están en `CLAUDE.md`: los pro
 |---|---|---|---|
 | 0 | 0 (`fase-0-cimientos`) | `/effort max` | ✅ |
 | A | 1 (`fase-1-nucleo-audio`) y 2 (`fase-2-motor-navegador`) | `/effort max` | — |
-| B | 3 (`fase-3-sonidos`) y 4 (`fase-4-staging`) | `/effort max` | GitHub CLI, staging, secrets e iPhone (si no, la fase 4 se aplaza) |
+| B | 3 (`fase-3-sonidos`) y 4 (`fase-4-staging`) | `/effort max` | Secrets de Cloudflare (`CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`) e iPhone (si no, la fase 4 se aplaza) |
 | C | 5 (`fase-5-modelo-3d`) y 6 (`fase-6-interaccion`) | `/effort max` | Pruebas de la fase 4 en Android e iPhone |
 | D | 7 (`fase-7-web-producto`) | `/effort high` | — |
 | E | 8 (`fase-8-pulido`) | `/effort max` | iPhone; decisión sobre `@lhci/cli` |
-| F | 9 (`fase-9-lanzamiento`) | `/effort high` | Subdominio de producción, FTP, secrets y licencia |
+| F | 9 (`fase-9-lanzamiento`) | `/effort high` | `torno.ivanchesa.es` en Pages y su CNAME, y la licencia |
 
 ## Empezar el proyecto
 ```
@@ -28,7 +28,7 @@ Aplica docs/revisiones/bloque-<X>.md (decisiones de Iván: <… o «ninguna»>) 
 Aplica docs/revisiones/bloque-B.md y ejecuta la entrega 4.a (sin credenciales) en modo autónomo; para al terminarla.
 ```
 ```
-El staging y los secrets están listos. Ejecuta la entrega 4.b en modo autónomo y cierra la fase 4.
+Los secrets de Cloudflare están listos. El hosting pasa a Cloudflare Pages (PLAN D19 y fase 4): ejecuta la entrega 4.b en modo autónomo y cierra la fase 4.
 ```
 
 ## Tras la parada de la fase 5.a

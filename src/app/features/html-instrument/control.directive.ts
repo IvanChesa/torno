@@ -157,7 +157,7 @@ export class ControlDirective implements OnDestroy {
       return;
     }
     if (this.spec().gestures.includes('press')) {
-      this.store.input({ type: 'press', control: this.trnControl() });
+      this.store.input({ type: 'press', control: this.trnControl(), at: event.timeStamp });
     }
   }
 
@@ -168,23 +168,26 @@ export class ControlDirective implements OnDestroy {
     if (!action) return;
     event.preventDefault();
     event.stopPropagation();
-    this.run(action);
+    this.run(action, event.timeStamp);
   }
 
   protected onKeyUp(event: KeyboardEvent): void {
     const action = keyUp(this.spec(), keyInput(event));
     if (!action) return;
     event.preventDefault();
-    this.run(action);
+    this.run(action, event.timeStamp);
   }
 
-  private run(action: KeyAction): void {
+  /** `at`: el momento de la tecla (`event.timeStamp`), para las pulsaciones. */
+  private run(action: KeyAction, at: number): void {
     const id = this.trnControl();
     const spec = this.spec();
     switch (action.type) {
       case 'press':
+        this.store.input({ type: 'press', control: id, at });
+        return;
       case 'hold':
-        this.store.input({ type: action.type, control: id });
+        this.store.input({ type: 'hold', control: id });
         return;
       case 'step':
         this.store.input({ type: 'turn', control: id, steps: action.steps });
@@ -217,16 +220,18 @@ export class ControlDirective implements OnDestroy {
       turn: spec.gestures.includes('turn'),
     });
     this.gestureState = step.state;
-    for (const output of step.outputs) this.handle(output);
+    const at = 'time' in input ? input.time : undefined;
+    for (const output of step.outputs) this.handle(output, at);
     return step.outputs;
   }
 
-  private handle(output: GestureOutput): void {
+  /** `at`: el momento del evento que ha dado la salida (`event.timeStamp`), para las pulsaciones. */
+  private handle(output: GestureOutput, at: number | undefined): void {
     const id = this.trnControl();
     switch (output.type) {
       case 'press':
         // En los botones, pulsar es su `click` (que llega justo después).
-        if (!this.isButton()) this.store.input({ type: 'press', control: id });
+        if (!this.isButton()) this.store.input({ type: 'press', control: id, at });
         return;
       case 'hold':
         this.store.input({ type: 'hold', control: id });

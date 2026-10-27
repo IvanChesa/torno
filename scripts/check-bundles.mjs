@@ -1,13 +1,19 @@
 // Presupuestos de tamaño (PLAN §5) y fronteras del bundle inicial (PLAN §4.9), comprobados con
 // el metafile de esbuild que deja `ng build` (dist/torno/browser-stats.json, opción statsJson).
+// También los límites de Cloudflare Pages para lo que se despliega (PLAN fase 4, tarea 2).
 //
 // Uso: node scripts/check-bundles.mjs   (después de `npm run build`)
 // Sale con código 1 si se rompe un límite de error; los avisos se imprimen pero no fallan.
 import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { PAGES_CONFIG, routeFile } from './pages.mjs';
 
 const KB = 1000;
+const MIB = 1024 * 1024;
+
+/** Límites de Cloudflare Pages en el plan gratuito: tamaño por archivo y archivos por sitio. */
+export const PAGES_LIMITS = { fileBytes: 25 * MIB, files: 20_000 };
 
 /**
  * Límites en bytes, en bruto (PLAN §5). `warn` avisa; `error` falla. El «JS inicial» es el de la
@@ -48,10 +54,12 @@ export function initialScripts(html) {
 }
 
 /**
- * Revisa el metafile y las páginas prerenderizadas. Devuelve filas para la tabla, errores y avisos.
+ * Revisa el metafile, las páginas prerenderizadas y lo que se despliega. Devuelve filas para la
+ * tabla, errores y avisos.
  * @param {{ outputs: Record<string, { bytes: number, entryPoint?: string, inputs: Record<string, { bytesInOutput: number }> }> }} metafile
  * @param {Record<string, string>} pages ruta → HTML prerenderizado
- * @param {{ worklet: { file: string, bytes: number }[] }} extra archivos fuera del metafile
+ * @param {{ worklet: { file: string, bytes: number }[], files?: { file: string, bytes: number }[] }} extra
+ *   archivos fuera del metafile: el worklet y todo lo que se despliega
  */
 export function checkBundles(metafile, pages, extra) {
   const rows = [];
@@ -59,16 +67,18 @@ export function checkBundles(metafile, pages, extra) {
   const warnings = [];
   const outputs = Object.entries(metafile.outputs);
   const bytesOf = (file) => metafile.outputs[file]?.bytes ?? 0;
-  const judge = (label, bytes, limit, detail = '') => {
+  const judge = (label, bytes, limit, detail = '', format = fmt) => {
     let verdict = 'ok';
     if (limit.error !== undefined && bytes > limit.error) {
       verdict = 'ERROR';
-      errors.push(`${label}: ${fmt(bytes)} > ${fmt(limit.error)}`);
+      errors.push(
+        `${label}: ${format(bytes)} > ${format(limit.error)}${detail ? ` (${detail})` : ''}`,
+      );
     } else if (limit.warn !== undefined && bytes > limit.warn) {
       verdict = 'aviso';
-      warnings.push(`${label}: ${fmt(bytes)} > ${fmt(limit.warn)}`);
+      warnings.push(`${label}: ${format(bytes)} > ${format(limit.warn)}`);
     }
-    rows.push({ label, bytes, limit, verdict, detail });
+    rows.push({ label, bytes, limit, verdict, detail, format });
   };
 
   // 1. JS inicial de cada página, y nada prohibido dentro.
@@ -155,11 +165,56 @@ export function checkBundles(metafile, pages, extra) {
     `${fonts.length} archivos`,
   );
 
+  // 6. Cloudflare Pages: ningún archivo de más de 25 MiB y 20 000 archivos como mucho.
+  if (extra.files) {
+    const largest = extra.files.reduce((max, file) => (file.bytes > max.bytes ? file : max), {
+      file: '',
+      bytes: 0,
+    });
+    for (const { file, bytes } of extra.files) {
+      if (bytes > PAGES_LIMITS.fileBytes && file !== largest.file) {
+        errors.push(`Pages: ${file}: ${fmtMib(bytes)} > ${fmtMib(PAGES_LIMITS.fileBytes)}`);
+      }
+    }
+    judge(
+      'Archivo más grande (Pages)',
+      largest.bytes,
+      { error: PAGES_LIMITS.fileBytes },
+      largest.file,
+      fmtMib,
+    );
+    judge(
+      'Archivos del despliegue (Pages)',
+      extra.files.length,
+      { error: PAGES_LIMITS.files },
+      '',
+      (count) => `${count} archivos`,
+    );
+  }
+
   return { rows, errors, warnings };
 }
 
 function fmt(bytes) {
   return `${(bytes / KB).toFixed(1)} kB`;
+}
+
+function fmtMib(bytes) {
+  return `${(bytes / MIB).toFixed(2)} MiB`;
+}
+
+/** Todos los archivos que se despliegan (sin `_headers` ni `_redirects`), con su tamaño. */
+async function deployedFiles(dir, base = dir) {
+  const out = [];
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...(await deployedFiles(full, base)));
+    else {
+      const file = path.relative(base, full).replaceAll('\\', '/');
+      if (!PAGES_CONFIG.has(file)) out.push({ file, bytes: (await stat(full)).size });
+    }
+  }
+  return out;
 }
 
 async function main() {
@@ -168,8 +223,9 @@ async function main() {
   const metafile = JSON.parse(await readFile(path.join(root, 'browser-stats.json'), 'utf8'));
   const { routes } = JSON.parse(await readFile(path.join(root, 'prerendered-routes.json'), 'utf8'));
   const pages = {};
+  // Las páginas, donde las deja scripts/pages.mjs para Pages (`/ruta` → `ruta.html`).
   for (const route of Object.keys(routes)) {
-    pages[route] = await readFile(path.join(browser, route, 'index.html'), 'utf8');
+    pages[route] = await readFile(path.join(browser, routeFile(route)), 'utf8');
   }
   const audioDir = path.join(browser, 'audio');
   const worklet = [];
@@ -178,18 +234,19 @@ async function main() {
       worklet.push({ file: `audio/${file}`, bytes: (await stat(path.join(audioDir, file))).size });
     }
   }
+  const files = await deployedFiles(browser);
 
-  const { rows, errors, warnings } = checkBundles(metafile, pages, { worklet });
+  const { rows, errors, warnings } = checkBundles(metafile, pages, { worklet, files });
   const width = Math.max(...rows.map((row) => row.label.length));
-  console.log('Presupuestos (PLAN §5), en bruto:');
+  console.log('Presupuestos (PLAN §5), en bruto, y límites de Cloudflare Pages:');
   for (const row of rows) {
     const limits = [
-      row.limit.warn === undefined ? '' : `aviso > ${fmt(row.limit.warn)}`,
-      row.limit.error === undefined ? '' : `error > ${fmt(row.limit.error)}`,
+      row.limit.warn === undefined ? '' : `aviso > ${row.format(row.limit.warn)}`,
+      row.limit.error === undefined ? '' : `error > ${row.format(row.limit.error)}`,
     ].filter(Boolean);
     const mark = row.verdict === 'ok' ? '✔' : row.verdict === 'aviso' ? '⚠' : '✖';
     console.log(
-      `${mark} ${row.label.padEnd(width)}  ${fmt(row.bytes).padStart(9)}  (${limits.join(' · ')})  ${row.detail}`,
+      `${mark} ${row.label.padEnd(width)}  ${row.format(row.bytes).padStart(13)}  (${limits.join(' · ')})  ${row.detail}`,
     );
   }
   for (const warning of warnings) console.warn(`⚠ AVISO: ${warning}`);

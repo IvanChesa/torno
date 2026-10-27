@@ -190,3 +190,39 @@ Lo escribe Claude Code (CLAUDE.md, «Ciclo de cada fase» y «Paradas»):
 - **Decisiones abiertas:** subdominio definitivo, licencia, `@lhci/cli` (fase 8), indexación al lanzar (fase 9) y el micrófono entre tomas (tras la fase 4).
 
 **Siguiente.** Revisión del bloque B por la sesión de plan. Después, la fase 4 en cuanto estén el staging y los secrets. El bloque C no puede empezar sin las pruebas de la fase 4 en móviles.
+
+### Fase 4, entrega 4.a · 2026-10-26 · parada (sin credenciales; la 4.b espera al staging)
+
+**Hecho.**
+- **Revisión del bloque B:** el plan y la revisión, en `main` (`b255c2d`). El CI de `main` que se había colgado instalando los navegadores se canceló y el siguiente salió en verde.
+- **Entrega 4.a**, en la rama `fase-4-staging` (sin fusionar: la fase se revisa y se fusiona en la 4.b):
+  - CI con caché de los navegadores de Playwright, 10 min como mucho para instalarlos y también en las ramas de fase. En `main`, el build se guarda como artefacto para el despliegue.
+  - `public/.htaccess`:
+    - HTTPS, URLs sin barra y 404;
+    - caché `immutable` para lo que lleva hash y `no-cache` para el HTML;
+    - Permissions-Policy, nosniff, COOP/CORP y HSTS;
+    - una CSP con `script-src 'self'` y los hashes de los scripts en línea, que el build calcula y escribe (`scripts/htaccess.mjs`).
+  - El servidor local sirve el build con esas cabeceras: los 55 e2e del build y el de WebKit corren bajo la CSP de producción, sin ninguna violación (con control negativo).
+  - `deploy-staging.yml`, escrito e inactivo sin secrets: sube por FTPS el artefacto del CI, con noindex y la contraseña de cPanel.
+  - Dependabot.
+  - `docs/PRUEBAS-MOVIL.md`, con 14 pruebas, y el panel `?diagnostico=1`. El panel mide del toque al primer sonido hasta el altavoz, con la hora del propio audio, y copia el informe sin red.
+
+**Métricas.**
+- `npm run check` en 66 s: 442 tests en Node y 65 en Angular.
+- e2e: 96/96 en 65 s.
+- CI de la rama en verde: 4 min 22 s sin caché y 4 min 51 s con ella.
+- Presupuestos: JS de `/` 302,1 kB y motor 22,3 kB; desbloqueo 1,9 kB, sin cambios.
+- Primera reproducción en frío en el escritorio: 157–238 ms hasta el altavoz; después, 48–54 ms.
+
+**Desviaciones** (informe de la fase 4, §4):
+- el CI también corre en los *push* a `fase-*`;
+- la CSP se completa en el build, no con `autoCsp`;
+- el despliegue sube el artefacto del CI;
+- la contraseña del staging la vuelve a poner el despliegue;
+- el panel mide hasta el altavoz.
+
+**Para la sesión de revisión** (§10): propuesta de precargar ALFAR ya en la 4.b. En el escritorio, la primera reproducción en frío ya pasa de los 150 ms de la revisión del bloque B, #2.
+
+**Pendientes para Iván** (`docs/PENDIENTES.md`): el staging en cPanel (subdominio con AutoSSL, privacidad de directorios y FTP limitado) y los cuatro secrets: `STAGING_FTP_SERVER`, `STAGING_FTP_USERNAME`, `STAGING_FTP_PASSWORD` y `STAGING_AUTH_USER_FILE`. Después, las pruebas de `docs/PRUEBAS-MOVIL.md` en Android e iPhone.
+
+**Siguiente.** Con el staging listo, el prompt de la 4.b (`docs/prompts/PROMPTS.md`).

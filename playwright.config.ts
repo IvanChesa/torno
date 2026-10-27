@@ -3,8 +3,10 @@ import path from 'node:path';
 
 // e2e contra los dos sitios donde tiene que funcionar el audio (PLAN fases 0 y 2):
 // - «dev»: `ng serve` (el worklet y el micrófono sintético los genera `npm run e2e` antes, en pree2e);
-// - «estatico»: el build prerenderizado servido en local (`npm run build` antes);
-// - «webkit»: el build en WebKit de escritorio (reproducir, pausar y menú).
+// - «estatico»: el build prerenderizado (`npm run build` antes), servido como en Cloudflare Pages
+//   con `wrangler pages dev` (scripts/serve-pages.mjs): su _headers (CSP incluida), las URLs sin
+//   barra final y la 404 de Pages (fase 4);
+// - «webkit»: ese mismo build en WebKit de escritorio (reproducir, pausar y menú).
 // Chromium sin interfaz va con --mute-audio (lo pone Playwright): el audio se procesa y se mide,
 // pero no suena por los altavoces. Su micrófono es un archivo propio (scripts/make-fake-mic.mjs).
 // Puertos poco comunes y sin reutilizar un servidor que ya escuche en ellos: en local puede haber
@@ -41,7 +43,7 @@ export default defineConfig({
     {
       name: 'dev',
       use: { ...chromium, baseURL: `http://localhost:${DEV_PORT}` },
-      testIgnore: /(static|hydration|webkit)\.spec\.ts$/,
+      testIgnore: /(static|hydration|webkit|headers)\.spec\.ts$/,
     },
     {
       name: 'estatico',
@@ -62,9 +64,11 @@ export default defineConfig({
       timeout: 180_000,
     },
     {
-      command: `node scripts/serve-static.mjs --port ${STATIC_PORT}`,
+      // wrangler arranca workerd: unos segundos.
+      command: `node scripts/serve-pages.mjs --port ${STATIC_PORT}`,
       url: `http://localhost:${STATIC_PORT}`,
       reuseExistingServer: false,
+      timeout: 90_000,
     },
   ],
 });

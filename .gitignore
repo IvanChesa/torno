@@ -68,3 +68,6 @@ AGENTS.md
 
 # Escucha de la colección (npm run demo:sounds)
 /demo-sounds/
+
+# Temporales de `wrangler pages dev` (scripts/serve-pages.mjs)
+/.wrangler/
