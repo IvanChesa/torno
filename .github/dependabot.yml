@@ -31,6 +31,10 @@ updates:
       - dependency-name: typescript
         update-types: ['version-update:semver-major', 'version-update:semver-minor']
       - dependency-name: esbuild
+      # - los tipos de Node, los de la versión más antigua que admite el proyecto (`engines`: 22), no
+      #   los de una versión mayor de Node que no se usa (la primera propuesta fue la 26);
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
       # - las versiones mayores de Angular, con su migración (`ng update`).
       - dependency-name: '@angular/*'
         update-types: ['version-update:semver-major']
