@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-4-staging`
 - **Fecha:** 2026-10-26 (4.a) y 2026-10-27 (4.b)
-- **Estado:** listo para revisión (la vista previa se publica al fusionar)
+- **Estado:** terminada: revisada y fusionada en `main` (`45c5df7`), con la vista previa publicada y comprobada. Solo faltan las pruebas de Iván en el móvil, que no bloquean la fusión pero sí el bloque C.
 
 ## 0. Plan de la fase
 
@@ -89,13 +89,13 @@ La fase 4 deja Torno publicado de forma continua en Cloudflare Pages y listo par
   - los e2e del build y las capturas corren contra `wrangler pages dev`, que aplica las mismas reglas que Pages;
   - `deploy.yml` publica en `staging.torno.pages.dev` el build que probó el CI y lo comprueba después con `scripts/verify-pages.mjs`.
 
-Quedan las pruebas de Iván en Android e iPhone. No bloquean la fusión, pero sí el inicio del bloque C.
+La vista previa ya está publicada en `https://staging.torno.pages.dev`, y la comprobación contra ella da 52 de 52. Quedan las pruebas de Iván en Android e iPhone. No bloquean la fusión, pero sí el inicio del bloque C.
 
 ## 2. Criterios de aceptación
 | Criterio | Estado | Evidencia |
 |---|---|---|
-| CI verde y la vista previa `staging.torno.pages.dev` actualizada solo al hacer *push* a `main`, con el mismo build que probó el CI | ✅ CI · ⏳ despliegue (al fusionar) | CI de la rama en verde (§6). `deploy.yml` se dispara con el CI (`workflow_run`, `branches: [main]`) y solo si terminó en verde y fue un *push*. Sube el artefacto `torno-browser` de esa misma ejecución (`run-id`). Después, `verify-pages --build site` comprueba que el HTML servido es, byte a byte, el del artefacto. El primer despliegue, en §6 («La vista previa»). |
-| Comprobaciones con `curl` en el informe: `/sobre-el-proyecto` sin barra da 200, con barra redirige a la URL sin ella y una URL desconocida da 404 con la página 404 | ✅ local · ⏳ vista previa (al fusionar) | Contra `wrangler pages dev`: `curl` en §6 (200, 308 → `/sobre-el-proyecto`, 404 con «Página no encontrada») y `verify-pages`, 50 de 50. En la vista previa, en §6 («La vista previa»). |
+| CI verde y la vista previa `staging.torno.pages.dev` actualizada solo al hacer *push* a `main`, con el mismo build que probó el CI | ✅ | CI de la rama y de `main` en verde (§6). `deploy.yml` se dispara con el CI (`workflow_run`, `branches: [main]`) y solo si terminó en verde y fue un *push*: los dos intentos fallidos del CI de la fusión dejaron el despliegue saltado. Sube el artefacto `torno-browser` de esa misma ejecución (`run-id`). En la vista previa, el HTML de las tres páginas es, byte a byte, el del artefacto (§6, «La vista previa»). |
+| Comprobaciones con `curl` en el informe: `/sobre-el-proyecto` sin barra da 200, con barra redirige a la URL sin ella y una URL desconocida da 404 con la página 404 | ✅ | En la vista previa: `curl` en §6 (200, 308 → `/sobre-el-proyecto`, 404 con «Página no encontrada») y `verify-pages`, 52 de 52. Antes, en local con `wrangler pages dev`: 50 de 50. |
 | Lista de prueba en el informe y resultados de Iván en Android e iPhone | ⏳ (lista ✅; resultados, de Iván) | `docs/PRUEBAS-MOVIL.md`: 14 pruebas con casillas y huecos para las cifras, y el panel `?diagnostico=1`. Ya apunta a la vista previa. |
 
 Lo demostrado:
@@ -234,7 +234,57 @@ x-frame-options: DENY
 | `ec4638a` (4.b, con `wrangler pages dev`) | caché y solo `install-deps` | 95 passed, 2 failed: el 502 de `/_headers` en Linux (§4) | 5 min 52 s |
 | `bb40504` (4.b, corregido) | caché y solo `install-deps` (24 s) | **97 passed** en 3,1 min | 5 min 41 s |
 
-**La vista previa** (`https://staging.torno.pages.dev`): se publica al fusionar en `main`. Aquí irán el despliegue, su comprobación y `curl`.
+**CI de `main` tras la fusión:**
+
+| Ejecución | Navegadores | Resultado |
+|---|---|---|
+| `45c5df7`, intentos 1 y 2 | sin caché en `main`: instalación completa | ✖ los dos, a los 10 min. El espejo de `apt` de Azure se quedó parado a mitad de una descarga (`libsvtav1enc1d1`, `libvpx9`). El despliegue se saltó las dos veces |
+| `b434f25`, con `apt` con tiempo límite, reintentos y sin *pipelining* (corrección en `main`) | instalación completa en 40 s | ✅ 6 min 5 s; e2e en verde |
+
+En la rama, la caché de los navegadores hace que solo se instalen los paquetes del sistema. Pero `main` no puede leer la caché de otra rama: su primera vez es una instalación completa, la más expuesta a un espejo lento. Desde `b434f25`, `main` ya tiene su caché.
+
+**La vista previa** (`https://staging.torno.pages.dev`), primer despliegue (`deploy.yml`, ejecución 40547930197, commit `b434f25`):
+- **Proyecto:** `torno` no existía y se creó (la API respondió 404 y luego `pages project create`). El subdominio estaba libre: la vista previa queda en `staging.torno.pages.dev`, sin aviso de dirección distinta.
+- **Subida:** 24 archivos y el `_headers` en 2 s. Este despliegue: `https://3ca22254.torno.pages.dev`. La acción usó el wrangler del lockfile («✅ Using Wrangler 4.149.0», sin instalar nada).
+- **La comprobación del job falló**, pero no por el sitio: `fetch failed`, con `ssl/tls alert handshake failure`. El certificado del subdominio recién creado aún no estaba en todos los nodos de Cloudflare. Minutos después, desde aquí y con el artefacto exacto que se desplegó (descargado del CI), **52 de 52**. Para que no vuelva a pasar, `verify-pages` reintenta los cortes de red y de TLS y, si no hay manera, lo dice con su causa (`e71669a`).
+
+`node scripts/verify-pages.mjs https://staging.torno.pages.dev --build <artefacto de b434f25>`: **52 de 52 bien**. Respecto de las 50 de local, añade dos:
+- `X-Robots-Tag: noindex`, que pone Pages en las vistas previas;
+- `http://` → `https://` con un 301.
+
+Además, Pages da 404 a `/_headers` y `/_redirects`; ni cookies ni scripts inyectados; y el HTML de las tres páginas, idéntico byte a byte al del artefacto.
+
+**`curl` en la vista previa:**
+```
+/                          200
+/sobre-el-proyecto         200
+/sobre-el-proyecto/        308 → https://staging.torno.pages.dev/sobre-el-proyecto
+/sobre-el-proyecto.html    308 → https://staging.torno.pages.dev/sobre-el-proyecto
+/no-existe                 404   (<h1>Página no encontrada</h1>)
+/404                       200
+
+$ curl -sI https://staging.torno.pages.dev/sobre-el-proyecto/
+HTTP/1.1 308 Permanent Redirect
+Location: /sobre-el-proyecto
+
+$ curl -sI https://staging.torno.pages.dev/
+HTTP/1.1 200 OK
+Content-Type: text/html; charset=utf-8
+Cache-Control: public, max-age=0, must-revalidate
+Link: <chunk-DJVAsKa_.js>; rel="modulepreload", <chunk-455DNjWZ.js>; rel="modulepreload"
+Strict-Transport-Security: max-age=31536000
+content-security-policy: default-src 'self'; script-src 'self' 'sha256-8sGKvDKC8crv9OBcqEMvqrNDWlm1/80h7NJpJzqOnLI=' …
+cross-origin-resource-policy: same-origin
+permissions-policy: microphone=(self), camera=(), geolocation=(), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-robots-tag: noindex
+
+$ curl -sI https://torno.pages.dev/
+HTTP/1.1 404 Not Found        (aún no hay producción: llega en la fase 9)
+```
+Lo único que Pages añade y `wrangler pages dev` no: el `Link` de *Early Hints* (los `modulepreload` de la página) y el `noindex` de la vista previa. Ninguna de las dos cosas pide cambiar nada.
 
 ## 7. Capturas
 En `docs/informes/img/fase-4/`, de escritorio y móvil (30):
@@ -271,7 +321,10 @@ También en `docs/PENDIENTES.md`:
   - opcional: proteger la vista previa con Cloudflare Access;
   - fase 9: `torno.ivanchesa.es` en *Custom domains* y su CNAME.
 - **Claude Code:**
-  - tras fusionar, comprobar el primer despliegue y apuntar aquí `curl` y `verify-pages`;
+  - ~~tras fusionar, comprobar el primer despliegue~~: hecho (§6, «La vista previa»);
+  - las dos PR que abrió Dependabot al llegar `dependabot.yml` a `main`, sin tocar:
+    - #1: wrangler 4.149.0 → 4.152.0. Los avisos de `undici` se arreglan en la 4.153.0;
+    - #2: `@types/node` 22 → 26, una versión mayor que no corresponde (el proyecto admite Node 22 y 24). `dependabot.yml` ya no propone versiones mayores de `@types/node` (`d3edeab`), así que la #2 se puede cerrar;
   - en la fase 7, la imagen Open Graph (revisión, #10): CORP `same-origin` va en todo, y si esa imagen tuviera que poder incrustarse desde otra web, haría falta quitarle la cabecera (`! Cross-Origin-Resource-Policy`, que el analizador tendría que aprender) o llevar CORP de `/*` a las reglas que la necesiten;
   - en la fase 9, la producción (`--branch=main` con una etiqueta `v*`).
 

@@ -13,6 +13,7 @@ Lo escribe Claude Code (CLAUDE.md, «Ciclo de cada fase» y «Paradas»):
 | 1 · Núcleo de audio en TS puro (`fase-1-nucleo-audio`, fusión `e170652`) | 2026-10-24 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 2 Importantes, los 10 Menores y 3 de las 4 Sugerencias, corregidos (la #14 queda para la fase 3) ([revisión](../revisiones/fase-1.md), [informe](fase-1.md)) | `LoopCore` a 240–242× tiempo real · 0,0 KiB reservados por `process()` en 60 s · peor caso de memoria 195,84 MB a 48 kHz (≤ 220) · limitador −0,342 dBFS · cola y tomas exactas a la muestra, deriva 0 en 10 min · `LoopCore` minificado 34,1 kB · 314 tests en Node (98,35 % de sentencias y 94,38 % de ramas en el TS puro) + 31 en Angular + 31 e2e |
 | 2 · Motor en el navegador, archivos e instrumento HTML (`fase-2-motor-navegador`, fusión `40d75e5`) | 2026-10-26 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 6 Importantes, los 8 Menores de código y las 6 Sugerencias, corregidos o anotados (la #20, para la fase 5.a; la mitad de la #21, decisión de Iván) ([revisión](../revisiones/fase-2.md), [informe](fase-2.md)) | primer sonido tras pulsar 7–14 ms · toma alineada a −2 muestras (0,04 ms) tras calibrar · mezcla exportada = render del núcleo (≤ 1 LSB de 24 bits) · remuestreo: 15 kHz a 0,00 dB, imágenes < −87 dB · copia de la sesión por tramos: peor bloque 0,26 ms (de golpe, 7,8 ms) · 1000 `.torno` malformados rechazados · 0 peticiones de red al grabar, guardar y exportar · CI de `main` en verde, con WebKit y audio en Linux · JS de `/` 301,4 kB · desbloqueo 1,8 kB · worklet 37,7 kB · worker de exportación 38,6 kB · `LoopCore` a 204–233× · 398 tests en Node (98,23 % de sentencias y 94,65 % de ramas en el TS puro) + 41 en Angular + 81 e2e · axe: 0 violaciones |
 | 3 · Biblioteca de sonidos y menú completo (`fase-3-sonidos`, fusión `acef572`) | 2026-10-26 | CAMBIOS NECESARIOS: 0 Bloqueantes; el Importante (clic con saltos de tempo grandes y el filtro antialias encendido), los 6 Menores y 1 de las 2 Sugerencias, corregidos; la #9, razonada ([revisión](../revisiones/fase-3.md), [informe](fase-3.md)) | 12 bucles propios en Re menor a 90 BPM, deterministas (hash fijado) y sin junta · picos −1,1 a −14,1 dBFS, RMS en su objetivo por papel · fundamentales de los bajos, nota a nota, a ≤ 15 cents · render ≤ 32 ms en caliente a 48 kHz (en frío, hasta 43–61 ms; a 96 kHz, hasta 93) · tono de 12 kHz a 240 BPM: imagen a −68,7 dB · LoopCore 237× (97 BPM), 65× a 240 BPM, 36× en el peor caso · la cola entra en la muestra 128 000 (el compás siguiente) · JS de `/` 301,5 kB · worklet 40,8 kB · worker de exportación 41,7 kB · worker de síntesis 17,4 kB · 430 tests en Node (98,4 % de sentencias) + 50 en Angular + 89 e2e |
+| 4 · Vista previa en Cloudflare Pages, entrega continua y pruebas en el móvil (`fase-4-staging`, fusión `45c5df7`) | 2026-10-27 | CAMBIOS NECESARIOS: 0 Bloqueantes; el Importante (la lista de proyectos de la cuenta habría salido en el registro público), los 6 Menores y 6 de las 8 Sugerencias, corregidos; la #10, para la fase 7, y la #14, propuesta a Iván ([revisión](../revisiones/fase-4.md), [informe](fase-4.md)) | `staging.torno.pages.dev` publicada con el build que probó el CI: `verify-pages` 52/52 (50/50 en local) · rutas sin barra final (308), 404 propia y CSP con 3 hashes · 24 archivos, el mayor 0,28 MiB de 25 · e2e 97/97, 57 de ellos contra `wrangler pages dev` · JS de `/` 302,1 kB · desbloqueo 1,9 kB · worklet 40,8 kB · worker de exportación 41,7 kB · 453 tests en Node + 67 en Angular · primera reproducción en frío hasta el altavoz: 157–238 ms en el escritorio y 203–251 ms en el CI |
 
 ## Bloques
 
@@ -226,3 +227,43 @@ Lo escribe Claude Code (CLAUDE.md, «Ciclo de cada fase» y «Paradas»):
 **Pendientes para Iván** (`docs/PENDIENTES.md`): el staging en cPanel (subdominio con AutoSSL, privacidad de directorios y FTP limitado) y los cuatro secrets: `STAGING_FTP_SERVER`, `STAGING_FTP_USERNAME`, `STAGING_FTP_PASSWORD` y `STAGING_AUTH_USER_FILE`. Después, las pruebas de `docs/PRUEBAS-MOVIL.md` en Android e iPhone.
 
 **Siguiente.** Con el staging listo, el prompt de la 4.b (`docs/prompts/PROMPTS.md`).
+
+### Bloque B, cierre con la fase 4 · 2026-10-27 · terminado (parada de fin de bloque)
+
+**Hecho.**
+- **Plan:** Iván cambia el hosting a Cloudflare Pages (D19) y pone los secrets. Sus cambios en el plan, `CLAUDE.md`, los pendientes y los prompts van en un commit aparte (`3d4e8c3`).
+- **Entrega 4.b; fase 4 revisada y fusionada** (`45c5df7`):
+  - el build se prepara para Pages tras el prerenderizado (`scripts/pages.mjs`): rutas como `ruta.html` (URLs sin barra final), `404.html` en la raíz, fuera `index.csr.html` y `_headers` con la CSP por hashes de la 4.a. Se borran el `.htaccess` y sus scripts;
+  - `check-bundles` añade los límites de Pages (25 MiB por archivo y 20 000 archivos);
+  - los 57 e2e del build y las capturas corren contra `wrangler pages dev` (`scripts/serve-pages.mjs`), que aplica las reglas de Pages;
+  - `deploy.yml` sustituye al FTPS. Con el CI de `main` en verde, publica su artefacto en `staging.torno.pages.dev` y lo comprueba con `scripts/verify-pages.mjs`. Pregunta a la API solo por el proyecto `torno` y usa el wrangler del `package-lock.json`, sin el token en el entorno.
+- **Revisión de la fase 4:** CAMBIOS NECESARIOS, sin Bloqueantes. Corregidos el Importante (la lista de proyectos de la cuenta habría salido en el registro público), los 6 Menores y 6 Sugerencias. Entre ellos, «en frío» del panel ya es la primera reproducción, y la medida empieza en el toque.
+- **CI de `main` tras la fusión:** los dos intentos se colgaron instalando los navegadores, porque el espejo de `apt` de Azure se paraba a mitad de una descarga y en `main` aún no había caché. Corregido en `main` (`b434f25`): `apt` con 20 s de tiempo límite, 5 reintentos y sin *pipelining*.
+- **La vista previa:** `https://staging.torno.pages.dev`, publicada por `deploy.yml`, que creó el proyecto en el primer despliegue. La comprobé con el artefacto desplegado: 52 de 52 (rutas, 308, 404, CSP, `noindex`, `http` → `https`, sin cookies y el HTML idéntico al del CI). La comprobación del propio job falló esa primera vez por un corte de TLS: el certificado recién emitido aún no estaba en todos los nodos de Cloudflare. `verify-pages` ya reintenta esos cortes (`e71669a`).
+
+**Métricas.** Las de la fila de la fase 4. Además:
+- **Tiempos:** `npm run check` en 80 s y e2e 97/97 en 1,2 min (PC de Iván); CI de la rama en 6 min 16 s (e2e en 3,0 min).
+- **Primera reproducción en frío, hasta el altavoz:** 157–238 ms en el escritorio y 203–251 ms en el CI de Linux.
+
+**Desviaciones** (informe de la fase 4, §4):
+- la comprobación en la vista previa va tras la fusión, porque el `workflow_run` solo usa el flujo de `main`;
+- la versión de wrangler del despliegue sale del `package.json` del commit probado;
+- el despliegue comprueba la vista previa cada vez;
+- el HTML lleva la caché por defecto de Pages (`max-age=0, must-revalidate`);
+- sin COOP; CORP se queda;
+- «`/_headers` no se sirve» admite el 502 de `wrangler pages dev` en Linux.
+
+**Para la sesión de revisión del bloque** (informe, §9 y §10):
+- **Propuesta 1:** aprobar ya la precarga de ALFAR. La primera reproducción en frío pasa de 150 ms ya en el escritorio.
+- **Propuesta 2:** vistas previas de las ramas de fase, para probar en el móvil antes de fusionar (fases 5, 6 y 8).
+- **Dependabot ya está activo y ha abierto dos PR, que no he tocado:**
+  - **#1:** wrangler 4.149.0 → 4.152.0. Ojo: los avisos de `undici` se arreglan en la 4.153.0;
+  - **#2:** `@types/node` 22 → 26, una versión mayor que no corresponde (`engines`: Node 22 o 24). He añadido a `dependabot.yml` que no proponga versiones mayores de `@types/node`. Se puede cerrar la #2.
+- **Fase 7:** CORP `same-origin` y la imagen Open Graph (revisión, #10).
+
+**Pendientes para Iván** (`docs/PENDIENTES.md`):
+- **Ahora:** las pruebas de `docs/PRUEBAS-MOVIL.md` en Android e iPhone, en `https://staging.torno.pages.dev/?diagnostico=1`. Desbloquean el bloque C.
+- Decidir las dos PR de Dependabot y la precarga de ALFAR.
+- Opcional: Cloudflare Access para la vista previa.
+
+**Siguiente.** Revisión del bloque B por la sesión de plan. El bloque C empieza cuando estén las pruebas en el móvil.
