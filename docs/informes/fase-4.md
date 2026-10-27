@@ -242,7 +242,8 @@ x-frame-options: DENY
 | `b434f25`, con `apt` con tiempo límite, reintentos y sin *pipelining* (corrección en `main`) | instalación completa en 40 s | ✅ 6 min 5 s; e2e en verde |
 | `cbf0849` (documentos) | con la caché de `main` | ✅ 4 min 45 s |
 | `79e3eed` (documentos) | con caché: solo `install-deps` | ✖ a los 10 min: el espejo seguía a cuentagotas (`librav1e0`), y eso no lo corta el tiempo límite de `apt`. El despliegue se saltó y la vista previa siguió con `cbf0849`, el mismo build |
-| Corrección en `main` | cada instalación, en intentos de 3 min (con caché) o 4 min (sin ella), cortados con `timeout` (todo el grupo de procesos) y hasta 3, con `dpkg --configure -a` entre uno y otro; el job, con 30 min de margen | — |
+| `cac69e6`, intentos cortados con `timeout` y hasta 3 | con caché | ✖ a los 3 min: `timeout` cortó `npx`, pero no el `apt-get` que Playwright lanza con `sudo` (va en su propia sesión). Siguió vivo, con el bloqueo de `dpkg`, y los intentos 2 y 3 chocaron con él |
+| Corrección en `main`: `scripts/ci-playwright.sh` | cada instalación, en intentos de 3 min (con caché) o 4 min (sin ella), hasta 3. Tras un intento cortado, cierra aparte ese `apt-get`, `dpkg --configure -a` y, desde el segundo intento, `apt` usa `archive.ubuntu.com` en vez del espejo de Azure. `apt` espera el bloqueo de `dpkg` hasta 2 min; el job tiene 30 min de margen | — |
 
 En la rama, la caché de los navegadores hace que solo se instalen los paquetes del sistema. Pero `main` no puede leer la caché de otra rama: su primera vez es una instalación completa, la más expuesta a un espejo lento. Desde `b434f25`, `main` ya tiene su caché.
 

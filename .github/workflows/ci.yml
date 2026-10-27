@@ -68,8 +68,10 @@ jobs:
       # hasta el límite de 10 min. Así, una descarga parada se corta a los 20 s y se reintenta.
       - name: apt con tiempo límite y reintentos
         run: |
+          # DPkg::Lock::Timeout: si un intento cortado aún tiene el bloqueo de dpkg, el siguiente espera.
           printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "20";' \
             'Acquire::https::Timeout "20";' 'Acquire::http::Pipeline-Depth "0";' \
+            'DPkg::Lock::Timeout "120";' \
             | sudo tee /etc/apt/apt.conf.d/99-torno-ci > /dev/null
 
       - name: Caché de los navegadores de Playwright
@@ -79,31 +81,18 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium-webkit
 
-      # Cada intento, con su tiempo límite, y hasta 3. A veces el espejo no se para del todo: sigue a
-      # cuentagotas, y eso no lo corta el tiempo límite de apt (así se colgó el CI de 79e3eed, el 27-10).
-      # `timeout` corta el grupo entero de procesos (npx, sudo y apt-get); antes de repetir, dpkg
-      # termina lo que hubiera quedado a medias.
+      # Cada instalación, en intentos con tiempo límite y hasta 3 (scripts/ci-playwright.sh): a veces
+      # el espejo no se para del todo, sino que sigue a cuentagotas, y eso no lo corta el tiempo
+      # límite de apt (así se colgó el CI de 79e3eed, el 27-10).
       - name: Navegadores y paquetes del sistema (sin caché)
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         timeout-minutes: 14
-        run: |
-          for attempt in 1 2 3; do
-            timeout -k 15 240 npx playwright install --with-deps chromium webkit && exit 0
-            echo "::warning title=Instalación cortada::Intento $attempt de 3 sin terminar en 4 min: se repite."
-            sudo dpkg --configure -a || true
-          done
-          exit 1
+        run: bash scripts/ci-playwright.sh 240 install --with-deps chromium webkit
 
       - name: Paquetes del sistema de los navegadores (con caché)
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         timeout-minutes: 11
-        run: |
-          for attempt in 1 2 3; do
-            timeout -k 15 180 npx playwright install-deps chromium webkit && exit 0
-            echo "::warning title=Instalación cortada::Intento $attempt de 3 sin terminar en 3 min: se repite."
-            sudo dpkg --configure -a || true
-          done
-          exit 1
+        run: bash scripts/ci-playwright.sh 180 install-deps chromium webkit
 
       # Los del build, contra `wrangler pages dev` (scripts/serve-pages.mjs), como en Pages.
       - run: npm run e2e
