@@ -311,9 +311,9 @@ También en `docs/PENDIENTES.md`:
 | 10 · Sugerencia: CORP `same-origin` y la imagen Open Graph | Anotada para la fase 7 (§9): es entonces cuando existirá esa imagen | — |
 | 11 · Sugerencia: el navegador de las capturas, fuera del `try`; `close()` con wrangler ya cerrado | Hecha: `chromium.launch()` dentro del `try`, y en Linux y macOS se mata siempre el grupo (ignorando `ESRCH`) | `540c29b` |
 | 12 · Sugerencia: el agente de usuario en las capturas del panel | Hecha: con `?captura=1`, «Oculto en las capturas». Las 2 capturas del panel, rehechas | `5d50530` |
-| 13 · Sugerencia: la prueba 1 con auriculares Bluetooth | Hecha: las pruebas 1 y 2 piden el altavoz o auriculares de cable, y esperar al panel antes de tocar | `__DOCS__` |
-| 14 · Sugerencia: proponer ya la precarga de ALFAR | Propuesta en §10.1, con las cifras de los tres sitios. Lo decide Iván | `__DOCS__` |
-| 15 · Sugerencia: dos frases del informe | Corregidas: el worklet hereda la política del documento, y son 57 los e2e contra `wrangler pages dev` | `__DOCS__` |
+| 13 · Sugerencia: la prueba 1 con auriculares Bluetooth | Hecha: las pruebas 1 y 2 piden el altavoz o auriculares de cable, y esperar al panel antes de tocar | `18a48ea` |
+| 14 · Sugerencia: proponer ya la precarga de ALFAR | Propuesta en §10.1, con las cifras de los tres sitios. Lo decide Iván | `18a48ea` |
+| 15 · Sugerencia: dos frases del informe | Corregidas: el worklet hereda la política del documento, y son 57 los e2e contra `wrangler pages dev` | `18a48ea` |
 
 Tras las correcciones:
 - `npm run check`: en verde (453 tests en Node y 67 en Angular).
