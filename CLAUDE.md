@@ -34,7 +34,7 @@ Buenas prácticas oficiales de Angular: @docs/angular-buenas-practicas.md
 - Sonidos propios en Re menor a 90 BPM, con nombres en español; Iván los escucha al final del bloque B.
 - Textos propios con `reviewed: false`; Iván los revisa en la fase 7.
 - Subdominio: el provisional de `site.config.ts`.
-- Si faltan los pasos manuales de Iván para la fase 4, se aplaza, se apunta en `DIARIO.md` y se sigue. Sus pruebas en móviles no bloquean la fusión de la fase 4, pero sí el inicio del bloque C.
+- Si faltan los secrets de Cloudflare para la fase 4, se aplaza, se apunta en `DIARIO.md` y se sigue. Sus pruebas en móviles no bloquean la fusión de la fase 4, pero sí el inicio del bloque C.
 
 ### Otras reglas del proceso
 - **Aplicar una revisión de bloque:** corrige en `main` (o en `fix/bloque-X` si los cambios son grandes) los Bloqueantes, los Importantes y los Menores rápidos; si no estás de acuerdo con un hallazgo, explica por qué. `npm run check`, la respuesta al final de la revisión y commit.
@@ -96,6 +96,12 @@ Buenas prácticas oficiales de Angular: @docs/angular-buenas-practicas.md
 - **Configuración del sitio:** en UN solo sitio, `src/app/core/site.config.ts`.
 - **Seguridad:** nunca subas credenciales ni las pidas por chat; los secrets los introduce Iván.
 - **Commits** pequeños en español: `feat:`, `fix:`, `test:`, `perf:`, `content:`, `docs:`, `chore:`.
+- **Hosting: Cloudflare Pages** (D19, decisión de Iván del 27-10), proyecto `torno`:
+  - un push a `main` con el CI en verde va a la vista previa `staging.torno.pages.dev`, y una etiqueta `v*`, a producción;
+  - se sube con `cloudflare/wrangler-action` fijado por SHA el build que ya probó el CI;
+  - `_headers` (y `_redirects` si hace falta) en lugar de `.htaccess`. Sin COOP/COEP mientras no se use `SharedArrayBuffer`;
+  - 25 MiB como máximo por archivo y sin Cloudflare Web Analytics;
+  - los secrets `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` los pone Iván, y también el CNAME de `torno.ivanchesa.es` al lanzar.
 - **No toques** el repo de ivanchesa.es (`../ivan-chesa.es`) ni el de tierra-luna-sol (`../tierra-luna-sol`, solo lectura como referencia de configuración), ni DNS, ni cPanel, ni el WordPress de producción.
 
 ## Skills disponibles (`.claude/skills/`, copiadas en la fase 0)

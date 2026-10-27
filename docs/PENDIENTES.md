@@ -11,17 +11,13 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 ## Antes del bloque B (fase 4)
 - [x] Repo en GitHub: `IvanChesa/torno`, público; se conecta en el bloque A (24-10).
 - [x] GitHub CLI instalado y `gh auth login` hecho (comprobado el 26-10).
-- [ ] **Staging en cPanel** (para la entrega 4.b; la 4.a, sin credenciales, ya está en la rama `fase-4-staging`):
-  1. Subdominio `staging-torno.ivanchesa.es` con AutoSSL (HTTPS).
-  2. Protección con contraseña de su carpeta («Privacidad de directorios»). Apunta la ruta del archivo de contraseñas que enseña cPanel (algo como `/home/USUARIO/.htpasswds/…/passwd`): cada despliegue sustituye el `.htaccess` de la carpeta, donde cPanel escribe la protección, y el despliegue la vuelve a poner con esa ruta.
-  3. Una cuenta FTP limitada a la carpeta del subdominio.
-  4. Los secrets, desde la carpeta del proyecto (cada orden pide el valor, que no se ve ni queda en el historial):
-     - `gh secret set STAGING_FTP_SERVER` (el servidor FTP, por ejemplo el que da cPanel en «Cuentas FTP»);
-     - `gh secret set STAGING_FTP_USERNAME`;
-     - `gh secret set STAGING_FTP_PASSWORD`;
-     - `gh secret set STAGING_AUTH_USER_FILE` (la ruta del paso 2).
+- [x] ~~Staging en cPanel (subdominio, contraseña, FTP y sus 4 secrets)~~: ya no hace falta. Desde el 27-10, el hosting es **Cloudflare Pages** (PLAN D19).
+- [x] **Secrets de Cloudflare en `IvanChesa/torno`** (para la entrega 4.b), como en tierra-luna-sol: puestos el 27-10 (`gh secret list`). Desde la carpeta `torno` (cada orden pide el valor, que no se ve):
+  - `gh secret set CLOUDFLARE_API_TOKEN`: un token con **solo** «Account → Cloudflare Pages → Edit». Vale el mismo de tierra-luna-sol si está limitado a tu cuenta y no a un proyecto;
+  - `gh secret set CLOUDFLARE_ACCOUNT_ID`: el *Account ID*, que sale en la columna derecha de la página de inicio de tu cuenta de Cloudflare.
 
-  Con eso, cada push a `main` con el CI en verde despliega solo (`.github/workflows/deploy-staging.yml`, cuando la 4.b llegue a `main`). El 26-10, el subdominio no resolvía y el repo no tenía secrets.
+  El proyecto `torno` lo crea el propio despliegue si no existe. Con los secrets, cada push a `main` con el CI en verde se publica en `staging.torno.pages.dev`.
+- [ ] (Opcional) Proteger la vista previa con Cloudflare Access (Pages → `torno` → Settings). Por defecto queda pública con `noindex`, porque el repo ya es público.
 - [ ] Conseguir un iPhone para probar (aunque sea prestado) y tener a mano unos auriculares, mejor con cable.
 
 ## Decisiones
@@ -36,7 +32,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 ## Revisiones y pruebas de Iván
 - [ ] Ver `docs/DISENO.md` y las capturas de la fase 0 (`docs/informes/img/fase-0/`): paleta «Barro», Fraunces con el eje SOFT y Geist Mono (revisión del bloque 0).
 - [x] **Escuchar los 12 sonidos y 3 combinaciones** (`npm run demo:sounds`): Iván los ha escuchado y «suenan bien», sin cambios (26-10).
-- [ ] Pruebas en Android e iPhone por el staging (fase 4; necesarias antes del bloque C), con la lista de **`docs/PRUEBAS-MOVIL.md`** y el panel de diagnóstico (`?diagnostico=1`).
+- [ ] Pruebas en Android e iPhone en la vista previa `staging.torno.pages.dev` (fase 4; necesarias antes del bloque C), con la lista de **`docs/PRUEBAS-MOVIL.md`** y el panel de diagnóstico (`?diagnostico=1`).
   - `TODO(ivan)`: en esas pruebas, calibrar la latencia y grabar varias tomas seguidas con auriculares, para ver si quedan alineadas entre sí. En Chromium, la latencia del camino del micrófono cambia en cada apertura de la pista (12–21 ms medidos en un retorno; informe de la fase 2, §10, propuesta 1).
   - `TODO(ivan)`: y una de 5 min con las 4 capas largas (tomas de 30–60 s) y el autoguardado activo, girando diales: sin cortes en el audio (revisión de la fase 2, #6).
 - [ ] Aprobar el diseño del instrumento (parada de la fase 5.a).
@@ -44,4 +40,8 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 - [ ] Visto bueno final en el móvil y en el iPhone (fase 8).
 
 ## Fase 9 (manual)
-- [ ] Subdominio de producción con AutoSSL, cuenta FTP limitada y secrets de producción.
+- [ ] **`torno.ivanchesa.es`:**
+  1. En Pages → `torno` → *Custom domains*, añadir `torno.ivanchesa.es`.
+  2. Un **CNAME** `torno` → `torno.pages.dev` en el DNS de ivanchesa.es: hoy en el *Zone Editor* del cPanel de Banahosting y, si ivanchesa.es ya ha pasado a Cloudflare, en su DNS.
+
+  Pages emite el certificado solo. Ya no hacen falta subdominio en cPanel, FTP ni secrets de producción.
