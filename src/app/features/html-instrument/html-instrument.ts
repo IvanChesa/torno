@@ -122,7 +122,7 @@ export class HtmlInstrument {
       case 'play':
       case 'record':
       case 'undo':
-        this.store.input({ type: 'press', control: shortcut.type });
+        this.store.input({ type: 'press', control: shortcut.type, at: event.timeStamp });
         return;
       case 'select':
         this.store.input({ type: 'select', layer: shortcut.layer });

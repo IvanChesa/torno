@@ -262,28 +262,62 @@ describe('SessionStore', () => {
     expect(engine.sent()).toEqual([{ type: 'stop' }]);
   });
 
+  /** Lo que dice el motor del transporte, ya publicado en los signals (≤ 10/s). */
+  async function transport(engine: FakeEngine, value: CoreStatus['transport']): Promise<void> {
+    engine.emit({ type: 'status', status: status({ transport: value }) });
+    await new Promise((resolve) => setTimeout(resolve, STATUS_INTERVAL_MS + 20));
+  }
+
   it('diagnóstico: con el panel abierto, cada «reproducir» mide cuánto tarda en sonar', async () => {
+    const { store, engine } = await setup();
+    store.enableDiagnostics();
+    engine.soundDelays = [180, null];
+    // La primera reproducción de la página es la «en frío».
+    store.input({ type: 'press', control: 'play', at: 100 });
+    await new Promise((resolve) => setTimeout(resolve));
+    // Con el transporte en marcha, el toque pausa: no mide.
+    await transport(engine, 'playing');
+    store.input({ type: 'press', control: 'play', at: 200 });
+    await new Promise((resolve) => setTimeout(resolve));
+    await transport(engine, 'stopped');
+    store.input({ type: 'press', control: 'play', at: 300 });
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(engine.sent()).toContainEqual({ type: 'pause' });
+    expect(engine.calls.filter((call) => call[0] === 'measureFirstSound')).toEqual([
+      ['measureFirstSound', 100],
+      ['measureFirstSound', 300],
+    ]);
+    expect(store.firstSounds()).toEqual([
+      { ms: 180, cold: true },
+      { ms: null, cold: false },
+    ]);
+    expect(store.diagnostics()).toEqual({ contextState: 'running' });
+  });
+
+  it('diagnóstico: si la primera reproducción fue sin el panel, ninguna medida sale «en frío»', async () => {
     const { store, engine } = await setup();
     // Sin el panel, no se mide.
     store.input({ type: 'press', control: 'play', at: 100 });
     await new Promise((resolve) => setTimeout(resolve));
     expect(engine.calls.some((call) => call[0] === 'measureFirstSound')).toBe(false);
+    // El panel llega después (va en un @defer): el motor, el worker y ALFAR ya están listos.
     store.enableDiagnostics();
-    engine.soundDelays = [9.5, null];
-    // La primera reproducción ya pasó (en el primer toque): pausar no mide; reproducir, sí.
+    engine.soundDelays = [9.5];
     store.input({ type: 'press', control: 'play', at: 200 });
     await new Promise((resolve) => setTimeout(resolve));
-    store.input({ type: 'press', control: 'play', at: 300 });
+    expect(store.firstSounds()).toEqual([{ ms: 9.5, cold: false }]);
+  });
+
+  it('el momento de una pulsación: el del evento, salvo que no sea del reloj de performance.now()', async () => {
+    const { store, engine } = await setup();
+    store.enableDiagnostics();
+    // jsdom y algunos navegadores antiguos dan en `event.timeStamp` la fecha: se usa el de ahora.
+    const date = Date.now();
+    store.input({ type: 'press', control: 'play', at: date });
     await new Promise((resolve) => setTimeout(resolve));
-    expect(engine.calls.filter((call) => call[0] === 'measureFirstSound')).toEqual([
-      ['measureFirstSound', 200],
-      ['measureFirstSound', 300],
-    ]);
-    expect(store.firstSounds()).toEqual([
-      { ms: 9.5, cold: true },
-      { ms: null, cold: false },
-    ]);
-    expect(store.diagnostics()).toEqual({ contextState: 'running' });
+    const [, at] = engine.calls.find((call) => call[0] === 'measureFirstSound') ?? [];
+    expect(at).toBeLessThan(date / 2);
+    expect(at).toBeLessThanOrEqual(performance.now());
   });
 
   it('cada pulsación lleva su momento (para el tempo por pulsaciones)', async () => {

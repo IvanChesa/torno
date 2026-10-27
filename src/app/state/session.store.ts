@@ -106,12 +106,22 @@ export interface Recovery {
 export interface FirstSound {
   /** En ms; `null` si no sonó en 5 s. */
   readonly ms: number | null;
-  /** La primera de la página: incluye arrancar el audio, crear el worker y renderizar el sonido. */
+  /**
+   * La primera reproducción de la página (se mida o no): incluye arrancar el audio, crear el worker
+   * y renderizar el sonido.
+   */
   readonly cold: boolean;
 }
 
 /** Medidas del primer sonido que se guardan (las últimas). */
 const FIRST_SOUNDS_KEPT = 8;
+
+/**
+ * El momento de un evento (`event.timeStamp`) va en el reloj de `performance.now()`. Uno de más de
+ * un minuto en el futuro es de otro reloj (jsdom y algunos navegadores antiguos dan la fecha): se
+ * usa el de ahora.
+ */
+const EVENT_CLOCK_SLACK_MS = 60_000;
 
 export interface StoreMessage extends MessageText {
   readonly id: number;
@@ -208,6 +218,8 @@ export class SessionStore {
   /** El panel de diagnóstico está abierto (`?diagnostico=1`) y si hay una medida en marcha. */
   #diagnosing = false;
   #measuring = false;
+  /** Ya ha habido una reproducción en la página (con el panel abierto o no). */
+  #played = false;
 
   constructor() {
     // En cuanto un gesto activa el sonido, deja de pedirse otro toque.
@@ -223,18 +235,27 @@ export class SessionStore {
 
   /** Un gesto o una tecla sobre el instrumento. Se llama dentro del propio evento. */
   input(input: InstrumentInput): void {
-    // Cada pulsación lleva su momento (el tempo por pulsaciones lo necesita).
-    if (input.type === 'press' && input.at === undefined)
-      input = { ...input, at: performance.now() };
+    // Cada pulsación lleva su momento: el del evento, si viene (el tempo por pulsaciones y el
+    // diagnóstico lo necesitan). Si no viene, o no es del reloj de `performance.now()`, el de ahora.
+    if (input.type === 'press') {
+      const now = performance.now();
+      if (input.at === undefined || !(input.at >= 0 && input.at <= now + EVENT_CLOCK_SLACK_MS))
+        input = { ...input, at: now };
+    }
     const before = this.#state();
     const { state, intents } = reduce(before, input, this.#audio());
     this.#state.set(state);
     for (const intent of intents) this.#apply(intent);
-    if (this.#diagnosing && input.type === 'press' && input.at !== undefined) {
-      const starts = intents.some(
-        (intent) => intent.type === 'play' || intent.type === 'start-with-sound',
-      );
-      if (starts) void this.#measureFirstSound(input.at);
+    const starts = intents.some(
+      (intent) => intent.type === 'play' || intent.type === 'start-with-sound',
+    );
+    if (starts) {
+      // La primera reproducción de la página es la «en frío», se mida o no.
+      const cold = !this.#played;
+      this.#played = true;
+      if (this.#diagnosing && input.type === 'press' && input.at !== undefined) {
+        void this.#measureFirstSound(input.at, cold);
+      }
     }
     if (state.settings !== before.settings) this.#autosave();
     // Lo que cambia al girar un control lo lee el propio control (su `aria-valuetext`): no se
@@ -260,10 +281,9 @@ export class SessionStore {
   }
 
   /** Mide del toque (`at`, reloj de `performance.now()`) al primer sonido; una medida a la vez. */
-  async #measureFirstSound(at: number): Promise<void> {
+  async #measureFirstSound(at: number, cold: boolean): Promise<void> {
     if (this.#measuring) return;
     this.#measuring = true;
-    const cold = this.#firstSounds().length === 0;
     try {
       const engine = await this.start();
       const ms = engine ? await engine.measureFirstSound(at) : null;
