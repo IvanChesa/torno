@@ -1,8 +1,8 @@
 # Informe: Fase 4 (staging, entrega continua y móviles reales)
 
 - **Rama:** `fase-4-staging`
-- **Fecha:** 2026-10-26
-- **Estado:** en curso (entrega 4.a, sin credenciales; la 4.b espera al staging)
+- **Fecha:** 2026-10-26 (4.a) y 2026-10-27 (4.b)
+- **Estado:** en curso (entrega 4.b: Cloudflare Pages)
 
 ## 0. Plan de la fase
 
@@ -44,6 +44,38 @@ La revisión del bloque B dividió la fase en dos entregas (PLAN, fase 4). Esta 
 - **La caché de los navegadores** no cubre los paquetes del sistema (`install-deps` sigue usando `apt`).
 
 **Skills consultadas:** `threejs-deployment` (la parte de cabeceras y caché de los archivos con hash, adaptada a Apache).
+
+**Entrega 4.b** (27-10). Iván cambia el hosting a **Cloudflare Pages** (D19) y pone los secrets `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` (comprobados con `gh secret list`). La 4.b pasa lo de la 4.a a Pages, lo despliega y cierra la fase:
+
+1. **El build, preparado para Pages** (tarea 2). `scripts/pages.mjs` sustituye a `scripts/htaccess.mjs` en el paso tras el build:
+   - las rutas, como `ruta.html` (Pages sirve `/sobre-el-proyecto` y redirige `/sobre-el-proyecto/`); `404.html` en la raíz; fuera `index.csr.html`;
+   - `_headers` desde la plantilla `public/_headers`, con los hashes de la CSP. Lleva las cabeceras de seguridad de la 4.a sin COOP (`CLAUDE.md`) y `X-Robots-Tag: noindex` para `torno.pages.dev`;
+   - caché: inmutable para lo que lleva hash; el HTML, con la de Pages (se revalida siempre). Se comprueba archivo a archivo con las reglas de `_headers`, por la URL de cada uno;
+   - se borran `public/.htaccess` y sus reglas de Apache;
+   - `check-bundles` añade los límites de Pages: 25 MiB por archivo y menos de 20 000 archivos.
+2. **En local, el servidor es Pages.** `wrangler` 4.149.0 entra en desarrollo (PLAN §1). `scripts/serve-pages.mjs` arranca `wrangler pages dev` sobre el build. Los e2e del build («estatico» y «webkit») y las capturas pasan a él, y se borra `scripts/serve-static.mjs`, que imitaba a Apache.
+3. **Comprobación como con `curl`** (tarea 4), en `scripts/verify-pages.mjs`:
+   - rutas, barra final, 404, cabeceras, MIME de los módulos y caché;
+   - `noindex`, cookies y Cloudflare Web Analytics;
+   - y que el HTML servido es el del build probado.
+
+   Corre en un e2e contra `wrangler pages dev` y, tras cada despliegue, contra la vista previa.
+4. **`deploy.yml`** (tarea 3), en lugar de `deploy-staging.yml`. Cuando el CI de un *push* a `main` termina en verde:
+   - descarga su artefacto;
+   - crea el proyecto `torno` si no existe;
+   - despliega con `--branch=staging` y comprueba la vista previa.
+
+   La versión de wrangler sale del `package.json` del commit probado: la misma que la de los e2e.
+5. **Fusión y verificación real.** El `workflow_run` solo se dispara con el flujo que está en `main`, así que la vista previa se despliega al fusionar. Después:
+   - `curl` en `staging.torno.pages.dev`, con los resultados en este informe (criterio 2);
+   - si Pages se comporta distinto de `wrangler pages dev`, se ajusta en `main`.
+6. **Documentos:**
+   - `docs/PRUEBAS-MOVIL.md`, con la dirección nueva (sin contraseña);
+   - el README, PLAN §3 (secrets ✅) y `docs/PENDIENTES.md`.
+
+**Riesgos de la 4.b:**
+- **Diferencias entre Pages y `wrangler pages dev`:** pueden estar en lo que Pages añade a las vistas previas (`noindex`, *Early Hints*) o en cómo une las cabeceras. Se ve en la comprobación tras el despliegue.
+- **`wrangler pages dev` en los e2e:** tarda unos segundos en arrancar y lanza `workerd`, que hay que cerrar entero en Windows.
 
 ## 1. Resumen (entrega 4.a)
 Todo lo de la fase 4 que no necesita credenciales está hecho en la rama `fase-4-staging`:
