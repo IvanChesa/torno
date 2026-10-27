@@ -83,13 +83,19 @@ export async function startPagesServer({ port = 0, root = ROOT, cli = false } = 
   /** @type {Promise<number | null>} el código de salida de wrangler */
   const exited = new Promise((resolve) => child.once('exit', resolve));
 
+  const running = () => child.exitCode === null && child.signalCode === null;
   const close = async () => {
-    if (child.exitCode === null && child.signalCode === null) {
-      // wrangler lanza otro node y workerd: hay que cerrar el árbol entero.
+    // wrangler lanza otro node y workerd: hay que cerrar el árbol entero.
+    if (detached && child.pid) {
+      // El grupo entero, aunque wrangler ya haya salido (podría quedar algún workerd).
+      try {
+        process.kill(-child.pid, 'SIGTERM');
+      } catch {
+        // ESRCH: ya no queda nadie en el grupo.
+      }
+    } else if (running()) {
       if (process.platform === 'win32') {
         spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
-      } else if (detached && child.pid) {
-        process.kill(-child.pid, 'SIGTERM');
       } else {
         child.kill('SIGTERM');
       }
@@ -99,7 +105,7 @@ export async function startPagesServer({ port = 0, root = ROOT, cli = false } = 
 
   const deadline = Date.now() + STARTUP_TIMEOUT_MS;
   for (;;) {
-    if (child.exitCode !== null) {
+    if (!running()) {
       throw new Error(`wrangler pages dev se ha cerrado al arrancar:\n${output}`);
     }
     const ready = await fetch(`http://${HOST}:${listen}/`, { signal: AbortSignal.timeout(2000) })

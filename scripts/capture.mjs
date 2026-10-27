@@ -59,8 +59,11 @@ async function openHome(page, url) {
 }
 
 const server = await startPagesServer();
-const browser = await chromium.launch();
+/** @type {import('@playwright/test').Browser | undefined} */
+let browser;
 try {
+  // Dentro del `try`: si el navegador no arranca, el servidor también se cierra.
+  browser = await chromium.launch();
   for (const viewport of VIEWPORTS) {
     const context = await browser.newContext({
       ...viewport.options,
@@ -175,6 +178,6 @@ try {
     await context.close();
   }
 } finally {
-  await browser.close();
+  await browser?.close();
   await server.close();
 }

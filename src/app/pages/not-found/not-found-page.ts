@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NOT_FOUND_CONTENT } from './not-found.content';
 
-/** Página de error (`noindex`). Se prerenderiza en /404 para el ErrorDocument de Apache. */
+/** Página de error (`noindex`). Se prerenderiza en /404 para el `404.html` de Cloudflare Pages. */
 @Component({
   selector: 'trn-not-found-page',
   imports: [RouterLink],
