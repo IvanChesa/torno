@@ -235,7 +235,10 @@ export class InstrumentStage {
             if (entry) engine.setSize(entry.contentRect.width, entry.contentRect.height);
           });
           observer.observe(box);
-          engine.setSize(box.clientWidth, box.clientHeight);
+          // Medido como lo mide el `ResizeObserver` (con decimales): si no, su primer aviso
+          // traería otro tamaño y otro fotograma.
+          const { width, height } = box.getBoundingClientRect();
+          engine.setSize(width, height);
           this.engine.set(engine);
           // Si el primer fotograma llegó antes que el motor (en la misma vuelta), las cifras ahora.
           if (capture && this.painted()) this.stats.set(JSON.stringify(engine.stats()));

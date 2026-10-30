@@ -144,7 +144,8 @@ test.describe('escenario 3D', () => {
     await expect(stage(page)).toHaveAttribute('data-contexto', 'perdido');
     await expect(page.getByText('El 3D se ha detenido')).toBeVisible();
     await panel.getByRole('button', { name: 'Recuperarlo' }).click();
-    await expect(stage(page)).toHaveAttribute('data-contexto', 'activo');
+    // Al recuperarlo se vuelven a compilar los shaders: por software, varios segundos.
+    await expect(stage(page)).toHaveAttribute('data-contexto', 'activo', { timeout: 30_000 });
     await expect(stage(page)).toHaveAttribute('data-listo', '');
 
     // Calidad: la de partida, 10 cambios y vuelta a ella; la memoria, igual que al principio.

@@ -30,7 +30,7 @@ import {
   type WebGLRenderTarget,
 } from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { BODY, type InstrumentPose } from '../instrument';
+import { BODY, samePose, type InstrumentPose } from '../instrument';
 import { FOV, frame, VIEW_ANGLES } from './camera/views';
 import { disposeObject } from './dispose';
 import {
@@ -239,6 +239,9 @@ export class SceneEngine {
 
   /** Lo que enseña cada pieza. Solo se repinta lo que cambia (la pantalla, si cambia su texto). */
   setPose(pose: InstrumentPose): void {
+    // La misma que ya enseña (la de `create()`, que el escenario vuelve a pasar al tener el motor):
+    // nada que pintar.
+    if (samePose(pose, this.#pose)) return;
     this.#pose = pose;
     const build = this.#build;
     if (!build) return;
@@ -263,6 +266,14 @@ export class SceneEngine {
   /** El tamaño del lienzo en píxeles CSS (el motor no toca su CSS). */
   setSize(width: number, height: number): void {
     if (this.#disposed || width <= 0 || height <= 0) return;
+    // El mismo tamaño otra vez (el `ResizeObserver` avisa siempre al empezar a observar), salvo
+    // decimales de píxel: nada que pintar.
+    const ratio = pixelRatioFor(this.#level, globalThis.devicePixelRatio || 1);
+    const same =
+      Math.abs(width - this.#width) < 0.5 &&
+      Math.abs(height - this.#height) < 0.5 &&
+      ratio === this.#renderer.getPixelRatio();
+    if (same) return;
     this.#width = width;
     this.#height = height;
     this.#applySize();
