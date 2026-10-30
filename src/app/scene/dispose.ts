@@ -2,11 +2,12 @@ import type { BufferGeometry, Material, Object3D, Texture } from 'three';
 
 /**
  * Libera todo lo que cuelga de un objeto: geometrías, materiales y sus texturas (PLAN §4.6:
- * `dispose()` completo). Lo compartido se libera una vez.
+ * `dispose()` completo), más los materiales de `extra` que no estén en ninguna pieza. Lo compartido
+ * se libera una vez.
  */
-export function disposeObject(root: Object3D): void {
+export function disposeObject(root: Object3D, extra: readonly Material[] = []): void {
   const geometries = new Set<BufferGeometry>();
-  const materials = new Set<Material>();
+  const materials = new Set<Material>(extra);
   root.traverse((object) => {
     const mesh = object as Partial<{ geometry: BufferGeometry; material: Material | Material[] }>;
     if (mesh.geometry) geometries.add(mesh.geometry);

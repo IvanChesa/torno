@@ -1,11 +1,12 @@
 /**
- * Las vistas de la maqueta (PLAN fase 5.a: capturas de 4 ángulos) y el encuadre: la cámara se
- * aleja o se acerca hasta que el aparato entero cabe con un margen, en cualquier proporción de la
- * pantalla, y se centra en lo que se ve (la bandeja de detrás lo descentra un poco).
+ * Las vistas del aparato (PLAN fase 5: el encuadre del escenario y las capturas de 4 ángulos) y el
+ * encuadre: la cámara se aleja o se acerca hasta que el aparato entero cabe con un margen, en
+ * cualquier proporción de la pantalla, y se centra en lo que se ve (la bandeja de detrás lo
+ * descentra un poco).
  */
 import { PerspectiveCamera, Vector3 } from 'three';
-import type { View } from '../mockup/options';
 import { rad } from '../model/geometry';
+import type { View } from '../options';
 
 /** Desde dónde mira la cámara: acimut (0° delante, positivo a la derecha) y elevación, en grados. */
 export interface ViewAngles {

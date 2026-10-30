@@ -1,15 +1,60 @@
 /**
- * Texturas de canvas de la maqueta (PLAN fase 5.a): la pantalla de fósforo, los rótulos de las
- * teclas y la sombra de contacto. Se pintan una vez, en el navegador.
+ * Las texturas del aparato (PLAN §4.6): las procedurales de datos (cerámica y moleteado, sin DOM) y
+ * las de canvas (rótulos de las teclas y sombra de contacto), que se pintan una vez, en el
+ * navegador. La pantalla y la cubierta impresa tienen su propio módulo.
  */
-import { CanvasTexture, SRGBColorSpace } from 'three';
-import { SCREEN, TRAY } from '../../instrument';
+import {
+  CanvasTexture,
+  DataTexture,
+  LinearFilter,
+  LinearMipmapLinearFilter,
+  RepeatWrapping,
+  RGBAFormat,
+  SRGBColorSpace,
+  UnsignedByteType,
+} from 'three';
 import { rad } from '../model/geometry';
-import { FIXED_COLORS } from './variants';
+import { PALETTE } from './palette';
+import { ceramicMaps, knurlNormal } from './procedural';
 
-const MONO = '"Geist Mono Variable", ui-monospace, Consolas, monospace';
+export const MONO = '"Geist Mono Variable", ui-monospace, Consolas, monospace';
 
-function canvas(
+/** Una textura de datos RGBA lineal que se repite en mosaico, con mipmaps. */
+function tiled(data: Uint8Array, width: number, height: number, name: string): DataTexture {
+  const texture = new DataTexture(data, width, height, RGBAFormat, UnsignedByteType);
+  texture.name = name;
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.generateMipmaps = true;
+  texture.minFilter = LinearMipmapLinearFilter;
+  texture.magFilter = LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+export interface CeramicTextures {
+  readonly color: DataTexture;
+  readonly roughness: DataTexture;
+  readonly normal: DataTexture;
+}
+
+/** La cerámica sin esmaltar: grano en el color y en la rugosidad, y poros en el relieve. */
+export function ceramicTextures(size: number): CeramicTextures {
+  const maps = ceramicMaps(size);
+  return {
+    color: tiled(maps.color, size, size, 'cerámica: grano'),
+    roughness: tiled(maps.roughness, size, size, 'cerámica: rugosidad'),
+    normal: tiled(maps.normal, size, size, 'cerámica: poros'),
+  };
+}
+
+/** El moleteado del faldón de los diales y del canto de la rueda (una estría por repetición). */
+export function knurlTexture(): DataTexture {
+  const width = 32;
+  return tiled(knurlNormal(width), width, 2, 'moleteado');
+}
+
+export function canvas(
   width: number,
   height: number,
 ): {
@@ -24,55 +69,34 @@ function canvas(
   return { element, context };
 }
 
-function texture(element: HTMLCanvasElement, color = true): CanvasTexture {
+export function canvasTexture(
+  element: HTMLCanvasElement,
+  name: string,
+  color = true,
+): CanvasTexture {
   const result = new CanvasTexture(element);
+  result.name = name;
   if (color) result.colorSpace = SRGBColorSpace;
   return result;
 }
 
-/** La proporción de la pantalla: su arco (a media altura) entre su alto (en la cara inclinada). */
-export function screenAspect(): number {
-  const middle = (SCREEN.bottom + SCREEN.top) / 2;
-  const radius = TRAY.innerRadius + middle * Math.tan(rad(TRAY.lean));
-  const arc = radius * rad(2 * SCREEN.halfAngle);
-  const height = (SCREEN.top - SCREEN.bottom) / Math.cos(rad(TRAY.lean));
-  return arc / height;
-}
-
-/** Espera a que la fuente de la pantalla esté cargada (si no, el canvas pintaría con otra). */
+/** Espera a que la fuente de la pantalla y de la cubierta esté cargada (si no, pintaría con otra). */
 export async function loadScreenFont(): Promise<void> {
   try {
     await document.fonts.load(`500 64px ${MONO}`);
   } catch {
-    // Sin la fuente, el canvas usa la de reserva: la maqueta se ve igual de bien.
+    // Sin la fuente, el canvas usa la de reserva: se ve igual de bien.
   }
-}
-
-/** El texto de la pantalla, en fósforo sobre negro, como la del instrumento HTML. */
-export function screenTexture(lines: readonly string[]): CanvasTexture {
-  const height = 320;
-  const width = Math.round((height * screenAspect()) / 64) * 64;
-  const { element, context } = canvas(width, height);
-  context.fillStyle = FIXED_COLORS.screen;
-  context.fillRect(0, 0, width, height);
-  context.fillStyle = FIXED_COLORS.phosphor;
-  context.font = `500 64px ${MONO}`;
-  context.textBaseline = 'middle';
-  const lineHeight = height / (lines.length + 0.6);
-  lines.forEach((line, i) => {
-    context.fillText(line, width * 0.035, lineHeight * (i + 0.8));
-  });
-  return texture(element);
 }
 
 export type LabelIcon = 'play' | 'record' | 'undo' | 'standby';
 
-/** El rótulo de una tecla: su icono en la tinta de la web, sobre transparente. */
+/** El rótulo de una tecla: su icono grabado en la tinta de la web, sobre transparente. */
 export function labelTexture(icon: LabelIcon): CanvasTexture {
   const size = 256;
   const { element, context } = canvas(size, size);
-  context.fillStyle = FIXED_COLORS.ink;
-  context.strokeStyle = FIXED_COLORS.ink;
+  context.fillStyle = PALETTE.ink;
+  context.strokeStyle = PALETTE.ink;
   context.lineWidth = 22;
   context.lineCap = 'round';
   context.lineJoin = 'round';
@@ -112,7 +136,7 @@ export function labelTexture(icon: LabelIcon): CanvasTexture {
       context.stroke();
       break;
   }
-  return texture(element);
+  return canvasTexture(element, `rótulo ${icon}`);
 }
 
 /**
@@ -131,5 +155,5 @@ export function contactShadowTexture(bodyFraction: number): CanvasTexture {
   gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
   context.fillStyle = gradient;
   context.fillRect(0, 0, size, size);
-  return texture(element);
+  return canvasTexture(element, 'sombra de contacto');
 }

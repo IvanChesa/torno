@@ -3,7 +3,14 @@
  * en un torno de verdad (`LatheGeometry`). Los perfiles se escriben en mm, como `instrument/layout`,
  * y aquí pasan a metros, la unidad de la escena.
  */
-import { BufferGeometry, LatheGeometry, Shape, ShapeGeometry, Vector2 } from 'three';
+import {
+  BufferGeometry,
+  Float32BufferAttribute,
+  LatheGeometry,
+  Shape,
+  ShapeGeometry,
+  Vector2,
+} from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /** La escena va en metros; las medidas, en mm. */
@@ -98,6 +105,55 @@ export function lathe(points: Vector2[], segments: number, from = 0, to = 360): 
 }
 
 /**
+ * Cómo se reparte una textura en mosaico sobre un torneado: `uRepeat` veces alrededor (entero en una
+ * pieza entera, para que no se note la junta) y, a lo largo del perfil, una vez cada `tile` metros.
+ */
+export interface LatheTiling {
+  readonly uRepeat: number;
+  readonly tile: number;
+}
+
+/**
+ * Las coordenadas de textura de un torneado, proporcionales a lo que mide el perfil (las de
+ * `LatheGeometry` reparten la v por puntos, no por longitud, y el mosaico se estiraría).
+ */
+export function tileLathe(
+  geometry: BufferGeometry,
+  points: readonly Vector2[],
+  segments: number,
+  { uRepeat, tile }: LatheTiling,
+): void {
+  const lengths = [0];
+  for (let j = 1; j < points.length; j++) {
+    lengths.push(lengths[j - 1]! + points[j]!.distanceTo(points[j - 1]!));
+  }
+  const uv = geometry.getAttribute('uv');
+  for (let i = 0; i <= segments; i++) {
+    for (let j = 0; j < points.length; j++) {
+      uv.setXY(i * points.length + j, (i / segments) * uRepeat, lengths[j]! / tile);
+    }
+  }
+  uv.needsUpdate = true;
+}
+
+/** Un color por vértice (gris: multiplica el del material), según su posición en metros. */
+export function shade(
+  geometry: BufferGeometry,
+  factor: (x: number, y: number, z: number) => number,
+): BufferGeometry {
+  const position = geometry.getAttribute('position');
+  const colors = new Float32Array(3 * position.count);
+  for (let i = 0; i < position.count; i++) {
+    const value = factor(position.getX(i), position.getY(i), position.getZ(i));
+    colors[3 * i] = value;
+    colors[3 * i + 1] = value;
+    colors[3 * i + 2] = value;
+  }
+  geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
+  return geometry;
+}
+
+/**
  * Un sector torneado cerrado: el torneado entre dos ángulos y sus dos tapas (la sección del perfil,
  * que tiene que ser cerrado). La tapa del principio mira hacia los ángulos menores; la del final,
  * hacia los mayores.
@@ -107,9 +163,19 @@ export function latheSector(
   segments: number,
   from: number,
   to: number,
+  tiling?: LatheTiling,
 ): BufferGeometry {
   const body = lathe(points, segments, from, to);
   const caps = [cap(points, rad(from), false), cap(points, rad(to), true)];
+  if (tiling) {
+    tileLathe(body, points, segments, tiling);
+    // Las tapas llevan de coordenadas su sección (r, y) en metros: al mismo mosaico.
+    for (const geometry of caps) {
+      const uv = geometry.getAttribute('uv');
+      for (let i = 0; i < uv.count; i++)
+        uv.setXY(i, uv.getX(i) / tiling.tile, uv.getY(i) / tiling.tile);
+    }
+  }
   const merged = mergeGeometries([body, ...caps]);
   body.dispose();
   for (const geometry of caps) geometry.dispose();
