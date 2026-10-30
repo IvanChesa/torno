@@ -46,17 +46,29 @@ export default defineConfig({
     {
       name: 'dev',
       use: { ...chromium, baseURL: `http://localhost:${DEV_PORT}` },
-      testIgnore: /(static|hydration|webkit|headers)\.spec\.ts$/,
+      testIgnore: /(static|hydration|webkit|headers|stage)\.spec\.ts$/,
     },
     {
       name: 'estatico',
       use: { ...chromium, baseURL: `http://localhost:${STATIC_PORT}` },
-      testIgnore: /webkit\.spec\.ts$/,
+      testIgnore: /(webkit|stage)\.spec\.ts$/,
     },
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'], baseURL: `http://localhost:${STATIC_PORT}` },
       testMatch: /webkit\.spec\.ts$/,
+    },
+    {
+      name: 'escena-dev',
+      use: { ...chromium, baseURL: `http://localhost:${DEV_PORT}` },
+      testMatch: /stage\.spec\.ts$/,
+      dependencies: ['dev', 'estatico'],
+    },
+    {
+      name: 'escena-estatico',
+      use: { ...chromium, baseURL: `http://localhost:${STATIC_PORT}` },
+      testMatch: /stage\.spec\.ts$/,
+      dependencies: ['dev', 'estatico'],
     },
   ],
   webServer: [

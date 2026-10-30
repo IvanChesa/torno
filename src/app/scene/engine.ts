@@ -5,22 +5,27 @@
  * y lo libera todo en `dispose()`. No sabe nada del audio ni de Angular: lo carga `scene/index.ts`
  * con `import()`.
  *
- * El arranque va por tramos (texturas, modelo, entorno y *shaders*, estos con `compileAsync`), con
+ * El arranque va por tramos (texturas, modelo, entorno, subida de las texturas y cada *shader*), con
  * una pausa entre ellos para que el navegador atienda lo demás: ninguna tarea larga.
  */
 import {
+  BufferGeometry,
   DirectionalLight,
+  Float32BufferAttribute,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
   NeutralToneMapping,
+  NoToneMapping,
+  OrthographicCamera,
   PerspectiveCamera,
   PlaneGeometry,
   PMREMGenerator,
   Scene,
   Vector3,
   WebGLRenderer,
-  type BufferGeometry,
+  type Material,
+  type Object3D,
   type Texture,
   type WebGLRenderTarget,
 } from 'three';
@@ -116,6 +121,15 @@ interface Build {
   readonly shadow: Mesh;
 }
 
+/** Lo que se usa de dentro de `PMREMGenerator` (three 0.186) para compilar sus *shaders* antes. */
+interface PmremInternals {
+  _setSize?(cubeSize: number): void;
+  _allocateTargets?(): WebGLRenderTarget;
+  _pingPongRenderTarget?: WebGLRenderTarget | null;
+  _blurMaterial?: Material | null;
+  _ggxMaterial?: Material | null;
+}
+
 /** Cede el hilo al navegador entre dos tramos del arranque. */
 const yieldToMain = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
@@ -185,7 +199,8 @@ export class SceneEngine {
     this.#pose = options.pose;
     this.#view = options.view ?? 'frente';
     const hints = deviceHints();
-    this.#level = options.capture ? 'high' : (options.quality ?? initialQuality(hints));
+    // En las capturas, alta salvo que pidan otra (`?calidad=`), para medir cada nivel.
+    this.#level = options.quality ?? (options.capture ? 'high' : initialQuality(hints));
     // El MSAA se decide al crear el contexto: con el nivel de partida.
     this.#antialias = antialiasFor(this.#level, hints.pixelRatio);
     this.#monitor = new FrameMonitor(this.#level);
@@ -368,8 +383,16 @@ export class SceneEngine {
     if (this.#environment?.size !== settings.environmentSize) {
       this.#environment?.target.dispose();
       this.#environment = null;
-      this.#environment = this.#makeEnvironment(settings.environmentSize);
+      this.#environment = await this.#makeEnvironment(settings.environmentSize);
       await yieldToMain();
+    }
+
+    // Antes de enseñarlo: las texturas a la GPU y los *shaders* compilados, de uno en uno y con una
+    // pausa entre ellos (mientras, se sigue viendo lo de antes).
+    await this.#prepare([model.root, shadow]);
+    if (this.#disposed) {
+      this.#disposeBuild({ level, model, materials, screen, shadow });
+      return;
     }
 
     const old = this.#build;
@@ -383,18 +406,113 @@ export class SceneEngine {
     model.root.updateMatrixWorld(true);
     this.#silhouette = silhouette(model);
     this.#applySize();
-    // Los *shaders*, sin bloquear (KHR_parallel_shader_compile donde lo haya).
-    await this.#renderer.compileAsync(this.#scene, this.#camera);
   }
 
-  #makeEnvironment(size: number): { target: WebGLRenderTarget; size: number } {
+  /**
+   * Sube las texturas y compila los *shaders* de lo nuevo, de uno en uno y sin bloquear (`#gpuIdle`
+   * y `compileAsync`): así la GPU tampoco se queda medio segundo sin pintar la página.
+   */
+  async #prepare(roots: readonly Object3D[]): Promise<void> {
+    const materials = new Set<Material>();
+    const firsts: Mesh[] = [];
+    for (const root of roots) {
+      root.traverse((object) => {
+        const mesh = object as Mesh;
+        if (!mesh.isMesh) return;
+        const material = mesh.material as Material;
+        if (materials.has(material)) return;
+        materials.add(material);
+        firsts.push(mesh);
+      });
+    }
+    const textures = new Set<Texture>();
+    for (const material of materials) {
+      for (const value of Object.values(material)) {
+        if ((value as Partial<Texture> | null)?.isTexture) textures.add(value as Texture);
+      }
+    }
+    for (const texture of textures) {
+      if (this.#disposed) return;
+      this.#renderer.initTexture(texture);
+      await this.#gpuIdle();
+    }
+    for (const mesh of firsts) {
+      if (this.#disposed) return;
+      await this.#renderer.compileAsync(mesh, this.#camera, this.#scene);
+      await yieldToMain();
+    }
+  }
+
+  /**
+   * Espera, sin bloquear, a que la GPU termine lo que tiene pendiente (subir una textura, pintar el
+   * entorno). Una valla de WebGL 2 solo cambia de estado entre tareas, así que preguntarle no espera.
+   */
+  async #gpuIdle(): Promise<void> {
+    const gl = this.#renderer.getContext() as WebGL2RenderingContext;
+    const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+    if (!sync) return;
+    gl.flush();
+    while (
+      !this.#disposed &&
+      !gl.isContextLost() &&
+      gl.getSyncParameter(sync, gl.SYNC_STATUS) !== gl.SIGNALED
+    ) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 8));
+    }
+    gl.deleteSync(sync);
+  }
+
+  /**
+   * El entorno: la habitación de `RoomEnvironment` pasada por PMREM. Sus *shaders* (los de la
+   * habitación y los del desenfoque y el GGX de PMREM) se compilan antes, con `compileAsync`: con la
+   * caché de *shaders* vacía (una primera visita), compilarlos al pintar el entorno era una tarea de
+   * más de 600 ms (medido con D3D11 en una RTX 3060), esperando a la GPU en `getUniforms`. Los dos
+   * últimos son de dentro de `PMREMGenerator` (three 0.186): si otra versión los cambia, se compilan
+   * al pintar, como antes.
+   */
+  async #makeEnvironment(size: number): Promise<{ target: WebGLRenderTarget; size: number }> {
     const pmrem = new PMREMGenerator(this.#renderer);
     const room = new RoomEnvironment();
-    const target = pmrem.fromScene(room, 0.04, 0.1, 100, { size });
+    const camera = new OrthographicCamera();
+    const internals = pmrem as unknown as PmremInternals;
+    const precompile: Object3D[] = [room];
+    // Solo con posición, como las mallas de PMREM: lo que tiene la geometría (posición, normales)
+    // entra en la clave del programa.
+    const quad = new BufferGeometry();
+    quad.setAttribute('position', new Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
+    if (
+      typeof internals._setSize === 'function' &&
+      typeof internals._allocateTargets === 'function'
+    ) {
+      // Con el mismo tamaño, `fromScene` reutiliza estos materiales: ya estarán compilados.
+      internals._setSize(size);
+      internals._allocateTargets().dispose();
+      for (const material of [internals._blurMaterial, internals._ggxMaterial]) {
+        if (material) precompile.push(new Mesh(quad, material));
+      }
+    }
+    // Igual que los pintará PMREM (en su destino lineal, sin tone mapping): si no, sus programas no
+    // coincidirían con estos y se volverían a compilar al pintar, bloqueando.
+    const renderer = this.#renderer;
+    const target = renderer.getRenderTarget();
+    const toneMapping = renderer.toneMapping;
+    for (const object of precompile) {
+      if (this.#disposed) break;
+      renderer.setRenderTarget(internals._pingPongRenderTarget ?? null);
+      renderer.toneMapping = NoToneMapping;
+      const compiled = renderer.compileAsync(object, camera);
+      renderer.setRenderTarget(target);
+      renderer.toneMapping = toneMapping;
+      await compiled;
+      await yieldToMain();
+    }
+    const environment = pmrem.fromScene(room, 0.04, 0.1, 100, { size });
     room.dispose();
     pmrem.dispose();
-    this.#scene.environment = target.texture;
-    return { target, size };
+    quad.dispose();
+    await this.#gpuIdle();
+    this.#scene.environment = environment.texture;
+    return { target: environment, size };
   }
 
   /** Las piezas, todos los materiales (los rótulos incluidos) y sus texturas, cada uno una vez. */
@@ -471,13 +589,22 @@ export class SceneEngine {
   readonly #onContextRestored = (): void => {
     if (this.#disposed) return;
     // `three` ya ha rehecho su estado: las geometrías y las texturas de datos y de canvas se vuelven
-    // a subir solas al pintar. Lo que se pintó en la GPU (el entorno) hay que hacerlo otra vez.
-    this.#lost = false;
+    // a subir solas al pintar. Lo que se pintó en la GPU (el entorno) hay que hacerlo otra vez; hasta
+    // entonces no se pinta (sigue «perdido»).
     const size = this.#environment?.size ?? QUALITY[this.#level].environmentSize;
     this.#environment?.target.dispose();
-    this.#environment = this.#makeEnvironment(size);
-    this.#onEvent?.({ type: 'context-restored' });
-    this.#invalidate();
+    this.#environment = null;
+    this.#scene.environment = null;
+    void this.#makeEnvironment(size).then((environment) => {
+      if (this.#disposed) {
+        environment.target.dispose();
+        return;
+      }
+      this.#environment = environment;
+      this.#lost = false;
+      this.#onEvent?.({ type: 'context-restored' });
+      this.#invalidate();
+    });
   };
 
   // --- Memoria -------------------------------------------------------------------------------------
