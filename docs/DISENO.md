@@ -202,41 +202,44 @@ Todos en `src/styles/base.css` (compartidos) o en el componente que los usa.
 
 ## 7. Materiales y colores del instrumento
 
-Valores **de partida** para la maqueta de la fase 5.a; las capturas de esa fase los ajustan y Iván los aprueba. Los colores se escriben en sRGB (como `three` espera con `ColorManagement` activo, que los pasa a lineal) y están en `tokens.css` para que el instrumento HTML (fase 2) use los mismos.
+Valores **definitivos** (fase 5.b), con la variante **Terracota**, la que eligió Iván el 30-10 tras la maqueta de la 5.a. Los colores se escriben en sRGB (como `three` espera con `ColorManagement` activo, que los pasa a lineal). Están en `tokens.css`, para que el instrumento HTML use los mismos, y en `src/app/scene/materials/palette.ts`, que un test compara con `tokens.css`.
 
 | Pieza | Material | Color base (sRGB) | `metalness` | `roughness` | Otros parámetros (`MeshPhysicalMaterial`) |
 |---|---|---|---|---|---|
-| **Cuerpo** | Terracota mate: barro cocido sin esmaltar | `--instrument-body` `#aa5c40` | 0 | 0,85 | Textura procedural de cerámica: grano fino en el color (±4 % de luminancia) y en la rugosidad (±0,08), mapa normal suave de poros. Sin `clearcoat`. Bisel generoso en los cantos. |
-| **Disco** | Cerámica vidriada (esmalte oliva) | `--instrument-glaze` `#626838` | 0 | 0,3 | `clearcoat` 1, `clearcoatRoughness` 0,06; el esmalte se oscurece un poco hacia el borde (acumulación). Anillo de latón alrededor. |
-| **Anillo del disco, diales, brazo, rueda y tornillos** | Latón envejecido | `--instrument-brass` `#c4a269` | 1 | 0,38 | `anisotropy` 0,4 en los anillos y el moleteado (cepillado circular); pátina: más rugosidad en los huecos. |
-| **Teclas de transporte** | Cerámica crema esmaltada | `--instrument-key` `#e7ddc8` | 0 | 0,45 | `clearcoat` 0,5, `clearcoatRoughness` 0,2; rótulos grabados en `--color-bg`. |
-| **Pantalla** | Vidrio sobre fósforo | fondo `--color-screen` `#0c1a0f`, texto `--color-phosphor` `#79f481` | 0 | 0,05 | Textura de canvas emisiva, alimentada por el modelo de pantalla (§4.5); `clearcoat` 1 para el reflejo del vidrio. |
-| **Pilotos** | Emisivos | capas: `--color-phosphor`; grabar: `--instrument-led-rec` `#f6623d` | 0 | 0,3 | `emissiveIntensity` según el estado; apagado = un tono apagado del mismo color, no negro. |
+| **Cuerpo, cubierta y bandeja** | Terracota mate: barro cocido sin esmaltar | `--instrument-body` `#aa5c40` | 0 | 0,85 ± 0,08 | Texturas procedurales en mosaico de 80 mm, sin juntas (`procedural.ts`): grano en el color (±4 %) y en la rugosidad, y poros hundidos en un mapa normal suave. Sin `clearcoat`. Biseles de 4, 10 y 30 mm en los cantos. |
+| **Disco** | Cerámica vidriada (esmalte oliva) | `--instrument-glaze` `#626838` | 0 | 0,3 | `clearcoat` 1, `clearcoatRoughness` 0,06; el brillo de la base, casi nada (`specularIntensity` 0,2), y el entorno al 0,85: así, desde arriba, la capa refleja las luces donde tocan y deja ver el oliva en el resto. Se oscurece un 20 % hacia el borde (colores por vértice). Anillo y cubo de latón. |
+| **Anillo del disco, cubo, tapas de los diales y tornillos** | Latón envejecido | `--instrument-brass` `#c4a269` | 1 | 0,38 | `anisotropy` 0,4: cepillado en círculo (sale de las coordenadas de textura del torneado). Pátina: el hombro de los diales, más oscuro (colores por vértice). |
+| **Faldón de los diales y canto de la rueda** | Latón moleteado | `--instrument-brass` | 1 | 0,44 | Mapa normal de estrías en V (una cada 1,6 mm). |
+| **Brazo** | Latón liso | `--instrument-brass` | 1 | 0,38 | El eje lleva un tornillo con su ranura. |
+| **Teclas de transporte y reposo** | Cerámica crema esmaltada | `--instrument-key` `#e7ddc8` | 0 | 0,45 | `clearcoat` 0,5, `clearcoatRoughness` 0,2; rótulos grabados en `--color-bg`. Se hunden 2 mm (1 el reposo) mientras reproducen, graban o reposan. |
+| **Lo impreso en la cubierta** | Engobe crema | `--instrument-key` | 0 | 0,7 | Escalas de los diales (11 marcas, de −135° a 135°), números de las capas, TEMPO, `+`, `−` y VOL de la rueda, el recorrido del brazo y un filete alrededor del disco (`print.ts`). |
+| **Pantalla** | Vidrio sobre fósforo | fondo `--color-screen` `#0c1a0f`, texto `--color-phosphor` `#79f481` | 0 | 0,05 | Textura de canvas emisiva, alimentada por el modelo de pantalla (§4.5) y repintada solo cuando cambia; `clearcoat` 1 para el reflejo del vidrio. |
+| **Pilotos** | Emisivos | capas: `--color-phosphor` (con sonido), `--color-warning` `#eec469` (en cola) o `--instrument-led-rec` `#f6623d` (grabando) | 0 | 0,3 | Apagado: un tono apagado del mismo color, no negro; en silencio, a media luz. Un anillo de fósforo rodea el dial de la capa elegida. |
 | **Patas** | Goma | `#1d1d19` | 0 | 0,9 | — |
 
-Luz y color (para decidir en la fase 5.a con capturas): `RoomEnvironment` + PMREM, una luz principal para los brillos del latón y del esmalte, sombra de contacto horneada; salida sRGB con *tone mapping* Khronos PBR Neutral o AgX. El riesgo de la dirección es que la cerámica no parezca real: la rugosidad alta y el grano del cuerpo frente al brillo del esmalte del disco y de las teclas es lo que la hace creíble.
+Luz y color: `RoomEnvironment` + PMREM (intensidad 0,55, girado 25° hacia el fondo: visto desde arriba, el esmalte reflejaba entera la luz del techo y se lavaba), una luz principal de 1,3 desde arriba, algo a la izquierda y detrás, y una sombra de contacto horneada. La salida, en sRGB con *tone mapping* **Khronos PBR Neutral** (decidido en la 5.a: AgX apagaba los colores). El riesgo de la dirección era que la cerámica no pareciera real; lo que la hace creíble es la rugosidad alta y el grano del cuerpo frente al brillo del esmalte del disco y de las teclas.
 
-**Variantes candidatas** para las tres de la fase 5.a (dentro de la dirección):
+**Variantes de la 5.a** (capturas en `docs/informes/img/fase-5/maqueta-*`):
 
-1. **Terracota** (la de esta tabla): cuerpo de barro rojo claro, disco de esmalte oliva, teclas crema.
-2. **Barro oscuro:** cuerpo más rojo y oscuro (`#8e4632`), disco de esmalte crema, latón más brillante.
-3. **Arcilla clara:** cuerpo de bizcocho claro (`#c9a27e`), disco de esmalte oliva oscuro, latón oscuro.
+1. **Terracota** (la de esta tabla, la elegida): cuerpo de barro rojo claro, disco de esmalte oliva, teclas crema.
+2. **Barro oscuro** (descartada): cuerpo más rojo y oscuro (`#8e4632`), disco de esmalte crema, latón más brillante.
+3. **Arcilla clara** (descartada): cuerpo de bizcocho claro (`#c9a27e`), disco de esmalte oliva oscuro, latón oscuro.
 
 ---
 
-### 7.1 El instrumento HTML (fase 2)
+### 7.1 El instrumento HTML (fases 2 y 5.b)
 
 La maqueta 2D que se toca hasta que llega el 3D (y que sigue siendo la alternativa sin WebGL, `?sin3d=1`). Usa los mismos materiales en plano, con una excepción:
 
 - **Cuerpo:** `--instrument-plate` `#864230`, un barro más oscuro que el del 3D (`--instrument-body`). Sobre el terracota claro, ni la tinta ni el latón llegaban al contraste AA (4,5:1 los rótulos, 3:1 los controles): con este tono, sí (tabla de §2.1).
 - **Diales de latón** con una aguja oscura que gira de −135° a 135° con el valor; la capa elegida lleva un anillo de tinta alrededor (forma, no solo color).
 - **Pilotos:** fósforo si la capa tiene sonido, aviso si hay un sonido en cola, rojo de grabación si se graba; vacíos (solo el aro) si la capa está vacía. El estado también está en la pantalla y en el nombre accesible.
-- **Teclas** de cerámica crema con icono y rótulo; hundidas (`aria-pressed`) mientras reproduce o graba.
-- **Disco:** esmalte oliva con anillo de latón y una marca crema que da una vuelta por compás (solo con el transporte en marcha y sin movimiento reducido).
+- **Teclas** de cerámica crema con su icono (el nombre va en el rótulo de fuera y en `aria-label`); hundidas (`aria-pressed`) mientras reproduce o graba.
+- **Disco:** esmalte oliva con anillo y cubo de latón, y una marca crema delante (como en el 3D) que da una vuelta por compás (solo con el transporte en marcha y sin movimiento reducido).
 - **Pantalla:** fósforo sobre negro, en mayúsculas, con la fila elegida invertida.
-- **Distribución:** pantalla y dial principal arriba; capas, teclas y disco en el centro; brazo, volumen y reposo en un lateral. En móvil se apila (pantalla, disco, capas, teclas y lateral). No es la del original ni la definitiva: la del 3D se decide en la fase 5.a.
+- **Distribución (desde la 5.b):** un **plato redondo** con las mismas posiciones que el aparato en 3D (`instrument/plate.ts`, sacado de `layout.ts`), en un panel de `--color-surface`. El disco va en el centro, las capas a la izquierda y las teclas delante (abajo). El brazo, a la derecha, es una ranura a lo largo del recorrido de su costilla. Detrás van el dial principal, la rueda de volumen (una ranura radial) y el reposo. La pantalla, encima del plato. Las piezas miden en milímetros del aparato (unidades de contenedor), con 44 px de toque como poco. En el escritorio, los rótulos van alrededor del plato; en el móvil, el plato va a todo el ancho y los rótulos pasan a una leyenda debajo.
 
-Capturas: `docs/informes/img/fase-2/instrumento-*.png`.
+Capturas: `docs/informes/img/fase-2/instrumento-*.png` (la distribución de antes) y `docs/informes/img/fase-5/instrumento-*.png` (el plato).
 
 ## 8. Comprobaciones
 
