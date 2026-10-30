@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-5-modelo-3d`
 - **Fecha:** 2026-10-30 (5.a)
-- **Estado:** entrega 5.a terminada. **Iván aprobó el diseño tal cual el 30-10** (§10). La 5.b sigue **PARADA** hasta que estén las pruebas del móvil (`docs/PRUEBAS-MOVIL.md`). La revisión y la fusión de la fase llegan al final de la 5.b.
+- **Estado:** entrega 5.a terminada; **Iván aprobó el diseño tal cual el 30-10** (§10). Las pruebas del móvil están en `docs/PRUEBAS-MOVIL.md` («funciona bien», sin cifras; las cifras pasan a la fase 8). **Entrega 5.b en curso.** La revisión y la fusión de la fase llegan al final de la 5.b.
 
 ## 0. Plan de la fase
 
@@ -35,7 +35,63 @@
 5. **Propuesta del instrumento HTML** con la distribución nueva (revisión de la fase 2, #20), en este informe.
 6. **Publicar** la maqueta en la vista previa de la rama y **PARAR** (`DIARIO.md` y chat). La 5.b no empieza sin la aprobación de Iván ni sin sus pruebas del móvil en `docs/PRUEBAS-MOVIL.md`.
 
-**Entrega 5.b** (después de la parada): el modelo definitivo, `SceneEngine`, calidad, pérdida de contexto e `instrument-stage` (PLAN, fase 5). Su plan se escribe aquí al empezarla.
+**Entrega 5.b: modelo definitivo** (tras la parada). Iván aprobó el 30-10 la distribución redonda, la variante Terracota, el mapeo Neutral y el plato HTML. Va en los dos pasos de §10.5.
+
+*Paso 1: el modelo definitivo.*
+1. **Una sola variante:** Terracota (`tokens.css`) con Neutral. Se quitan las otras dos variantes, AgX, `?maqueta=1` y su visor.
+2. **Piezas con detalle** (PLAN §4.6):
+   - la cubierta, aparte del cuerpo (UV planas, sin pellizco en el centro), con los **rótulos** y las **escalas** de los diales impresos en una textura de canvas;
+   - el **moleteado** del faldón de los diales, con un mapa normal procedural;
+   - los tornillos, con su ranura;
+   - los **pilotos** (LED), con su estado, y un anillo de luz en la capa elegida;
+   - las teclas, que se hunden.
+3. **Materiales y texturas procedurales**, generados al arrancar (DISENO §7):
+   - la cerámica del cuerpo, con grano en el color (±4 %) y en la rugosidad (±0,08) y poros en el mapa normal. Es un ruido periódico, en mosaico;
+   - el esmalte, más oscuro hacia el borde (colores por vértice). Desde arriba, sin el reflejo que lo lavaba (nota de la sesión de plan): menos *clearcoat* y la capa algo más rugosa;
+   - el latón, con pátina: más rugosidad en los huecos del perfil;
+   - el entorno y la sombra de contacto, como en la 5.a.
+4. **La pantalla**, una textura de canvas alimentada por el modelo de pantalla (`instrument/display.ts`), repintada solo cuando cambia.
+5. **La pose del aparato** (`instrument/pose.ts`, TS puro): del estado del instrumento, el del audio y la pantalla sale lo que enseña el 3D (diales, brazo, rueda, teclas, pilotos y capa elegida). Se prueba en Node.
+
+*Paso 2: el motor y el escenario.*
+
+6. **`SceneEngine`** (`scene/engine.ts`; la API, en `scene/index.ts` con `import()`):
+   - entrada: la pose;
+   - cámara: el encuadre completo y las vistas de las capturas;
+   - también la calidad, el tamaño, la captura y `dispose()`;
+   - eventos: listo, contexto perdido o recuperado, y cambio de calidad.
+7. **Calidad** (`scene/quality.ts`, lógica pura con tests):
+   - tres niveles, `low`, `medium` y `high`, que fijan el DPR, los segmentos, el tamaño del entorno y de las texturas, y el antialiasing (este, al crear el contexto);
+   - el nivel inicial sale del dispositivo, y baja solo si los FPS no llegan;
+   - una estimación de la VRAM.
+8. **Pérdida del contexto:** al recuperarlo, se rehace el entorno (PMREM) y se vuelve a pintar. Sin WebGL, el instrumento HTML sigue ahí.
+9. **`instrument-stage`** en la portada:
+   - va en `@defer` (al acercarse o en reposo), con un **póster provisional** (una captura del propio motor) y un **fundido** al primer fotograma, en la misma caja (CLS 0);
+   - bucle bajo demanda (0 fps quieto), `?captura=1`, y `?sin3d=1` para no cargar el 3D;
+   - en desarrollo, un indicador de FPS y `renderer.info`, con botones para forzar la calidad y perder el contexto.
+
+   Hasta la fase 6 (la capa de controles), el 3D enseña el estado y se toca con el instrumento HTML, que va debajo.
+10. **El instrumento HTML como plato redondo** (aprobado): las mismas posiciones que el 3D (`instrument/layout.ts`) y la pantalla encima. Los rótulos van alrededor en el escritorio y en una leyenda en el móvil. Los e2e del instrumento hacen de red.
+11. **e2e:**
+    - el escenario carga, pasa axe y no da errores;
+    - `?sin3d=1` no carga three;
+    - sin WebGL, se queda el instrumento HTML;
+    - el contexto se pierde y se recupera;
+    - 10 cambios de calidad sin que crezca `renderer.info.memory`;
+    - 0 fotogramas en reposo.
+
+    Los e2e del audio pasan a `?sin3d=1`.
+12. **Capturas** (`npm run capturas -- --fase=5`): el escenario en escritorio y móvil, los 4 ángulos con el modelo definitivo, el plato HTML y las demás páginas.
+13. **Cifras de §5:**
+    - el peso del chunk 3D, el tiempo de generación y las tareas largas;
+    - la VRAM estimada por nivel y las llamadas de dibujo;
+    - los FPS en el escritorio, con GPU.
+
+**Riesgos de la 5.b:**
+- **WebGL por software en los e2e, que es lento:** por eso los e2e del audio van con `?sin3d=1`, y los del 3D esperan a `data-listo`.
+- **La VRAM al subir el DPR:** el antialiasing (MSAA) solo se usa con un DPR por debajo de 1,5, porque con más píxeles no hace falta.
+- **Tareas largas al compilar los *shaders*:** se usa `compileAsync` y el arranque va por tramos.
+- **Los FPS en el móvil:** sin el móvil no se pueden medir, así que van a la fase 8, con las pruebas de Iván.
 
 **Riesgos:**
 - **Que la cerámica no parezca real** (`DISENO.md` §7): en la 5.a solo se valoran la forma, la distribución y la paleta; el grano, los poros y la pátina llegan con las texturas de la 5.b.
@@ -142,7 +198,7 @@ Iván lo aprobó el 30-10: se hace en la 5.b, con los e2e del instrumento HTML c
 | 5.a.3 Prueba de *tone mapping* | hecha | §2.2 |
 | 5.a.4 Propuesta del instrumento HTML | hecha (aprobada el 30-10) | §2.3; se implementa en la 5.b |
 | 5.a.5 PARADA | hecha | |
-| 5.b | sin empezar | El diseño ya está aprobado (30-10); espera las pruebas del móvil |
+| 5.b | en curso | Plan en §0; el diseño, aprobado, y las pruebas del móvil, hechas (30-10) |
 
 ## 4. Desviaciones del plan y motivo
 - **Las medidas van en `instrument/`, no en `scene/model/`.** El plan pide medidas reales en mm, documentadas (§4.6), y un único modelo del instrumento (D11). Si las medidas fueran del 3D, el instrumento HTML y la guía tendrían que copiarlas. `scene/` las lee de `instrument/`, como permite §4.2.
