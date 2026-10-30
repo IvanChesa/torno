@@ -24,6 +24,23 @@ describe('Transport', () => {
     }
   });
 
+  it('los compases caen en su muestra exacta cuando es entera (a 40 BPM, en la 288 000)', () => {
+    const transport = new Transport(48_000, 40);
+    expect(transport.beatAt(288_000)).toBe(4);
+    expect(transport.frameAtBeat(4)).toBe(288_000);
+    // Cualquier tempo entero y frecuencia en la que el compás dura un número entero de muestras.
+    for (const rate of RATES) {
+      for (let bpm = 40; bpm <= 240; bpm++) {
+        const bar = (4 * 60 * rate) / bpm;
+        if (!Number.isInteger(bar)) continue;
+        const clock = new Transport(rate, bpm);
+        for (const bars of [1, 2, 7, 64]) {
+          expect(clock.frameAtBeat(4 * bars), `${bpm} BPM a ${rate} Hz`).toBe(bars * bar);
+        }
+      }
+    }
+  });
+
   it('frameAtBeat de un pulso ya pasado es la muestra actual', () => {
     const transport = new Transport(48_000, 90);
     transport.advance(100_000);
