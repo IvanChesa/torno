@@ -131,7 +131,7 @@ La 5.a propone el aparato y lo enseña en 3D para que Iván lo apruebe:
 - **Las cifras de §5, medidas** (§6), en el PC de Iván (RTX 3060):
   - 144 fps (el refresco de la pantalla) en los tres niveles, y 71–76 ms para generar el modelo;
   - VRAM estimada de 61,2 MB en alto y 36,3 MB en bajo en el escritorio (19,5 MB en el móvil);
-  - chunk 3D de 622,4 kB y primera visita de 1,22 MB con el 3D (594 kB sin él);
+  - chunk 3D de 622,6 kB y primera visita de 1,22 MB con el 3D (594 kB sin él);
   - los FPS en un móvil de gama media quedan para la fase 8, con el móvil de Iván (§10, propuesta 6).
 - **Una corrección en el núcleo de audio:** a algunos tempos, como 40 BPM, el compás entraba una muestra tarde. La destapó un e2e (§4).
 
@@ -152,7 +152,7 @@ Criterios de la fase (se cierran en la 5.b):
 | Criterio | Estado | Evidencia |
 |---|---|---|
 | Diseño aprobado por Iván (5.a) y capturas finales coherentes con él | ✅ | Aprobado tal cual el 30-10 (§10). Capturas finales en `escenario-*` (4 ángulos, escritorio y móvil) e `instrumento-*` (el plato), §7 |
-| Peso, VRAM, FPS, tiempo de generación y tamaño del chunk según §5 (cifras) | ⚠️ Parcial: los FPS en un móvil de gama media, a la fase 8 (§10, propuesta 6) | §6: primera visita de 594 kB sin el 3D (≤ 600) y 1,22 MB con él (≤ 1,5 MB); VRAM de 61,2 MB en alto (≤ 96) y 36,3 MB en bajo (≤ 48); 144 fps en alto en el escritorio (≥ 55); generación de 71–85 ms (≤ 150) y ninguna tarea de más de 63 ms (≤ 200); chunk 3D de 622,4 kB (aviso a 800) |
+| Peso, VRAM, FPS, tiempo de generación y tamaño del chunk según §5 (cifras) | ⚠️ Parcial: los FPS en un móvil de gama media, a la fase 8 (§10, propuesta 6) | §6: primera visita de 594 kB sin el 3D (≤ 600) y 1,22 MB con él (≤ 1,5 MB); VRAM de 61,2 MB en alto (≤ 96) y 36,3 MB en bajo (≤ 48); 144 fps en alto en el escritorio (≥ 55); generación de 71–85 ms (≤ 150) y ninguna tarea de más de 63 ms (≤ 200); chunk 3D de 622,6 kB (aviso a 800) |
 | 0 fps en reposo; pérdida y recuperación del contexto probadas; sin fugas en 10 cambios de calidad | ✅ | e2e en desarrollo (`e2e/stage.spec.ts`): 0 fotogramas en 2 s quieto; contexto perdido y recuperado (vuelve a pintar); tras 10 cambios de calidad, las geometrías y texturas de `renderer.info.memory`, iguales que al empezar |
 
 ### 2.1 La distribución: un torno de alfarero
@@ -338,7 +338,7 @@ npm run check            → 0 errores ni avisos
   cobertura (TS puro)      → 98,39 % de sentencias
   presupuestos:
     JS inicial de /           303,7 kB (aviso > 330)
-    Chunk 3D (three + escena) 622,4 kB (aviso > 800)   ← 631,8 la maqueta (sin OrbitControls)
+    Chunk 3D (three + escena) 622,6 kB (aviso > 800)   ← 631,8 la maqueta (sin OrbitControls)
     Fuentes 144,1 kB · desbloqueo 1,9 kB · worklet 40,8 kB · motor 23,0 kB
 npm run e2e              → 105 en verde y 2 saltados a propósito (los de desarrollo, en el
                            proyecto del build), en 2,3 min
@@ -353,7 +353,7 @@ npm run e2e              → 105 en verde y 2 saltados a propósito (los de desa
 |---|---|---|---|
 | Primera visita sin el 3D | ≤ 600 kB | **594 kB** en la portada sin el chunk 3D ni el escenario: HTML, JS inicial, el plato, las fuentes y el póster. Con `?sin3d=1`, 675 kB: el plato está a la vista desde el principio y pide la precarga del audio (motor, worklet y worker de síntesis, 81 kB), y el póster se descarga antes de que la hidratación lo quite (44 kB). §10, propuesta 7 | Suma de `decodedBodySize` (Resource Timing) |
 | Primera visita con el 3D | ≤ 1,5 MB | **1,22 MB** | Lo mismo, con el chunk 3D y el escenario |
-| Chunk 3D | aviso > 800 kB | **622,4 kB** | `check-bundles` |
+| Chunk 3D | aviso > 800 kB | **622,6 kB** | `check-bundles` |
 | Generación del modelo y las texturas | ≤ 150 ms | **71–85 ms** en alto; 39–83 ms por nivel | `stats().buildMs` (sin las pausas entre tramos) |
 | Tareas largas al arrancar el 3D | ninguna > 200 ms | **53–63 ms** la más larga, en frío y en caliente. Antes de la corrección (§5): 610–630 ms en frío | `PerformanceObserver('longtask')`, 3 visitas; traza y perfil de CPU para encontrarla |
 | Primer fotograma | — | 2,6–2,8 s en frío y 0,86 s en caliente, con el póster mientras | `data-listo` |
@@ -485,7 +485,7 @@ Revisión en `docs/revisiones/fase-5.md`: CAMBIOS NECESARIOS, sin Bloqueantes (2
 | 2 | Importante | **Corregido.** La sombra, más ceñida: densa bajo la base y a alfa 0 a 8 mm del canto. Su borde entra en la silueta del encuadre, así que el aparato sale un 4 % más pequeño. Medido en los cuatro bordes del lienzo, escritorio y móvil: dentro, el color del fondo de la página (37, 39, 18). Póster y capturas, otra vez. | `18cf48b` |
 | 3 | Menor | **Corregido.** El entorno nuevo se hace aparte y entra en la escena a la vez que el aparato, y el viejo se libera después. Los *shaders* del aparato nuevo se compilan con ese entorno y las mismas luces. Justo antes del cambio se aplican la pose y la pantalla de ahora. El e2e de los 10 cambios de calidad sigue en verde. | `2975cc8` |
 | 4 | Menor | **Corregido.** El panel, en un `@defer` con sus textos aparte: un trozo propio (`stage-dev`, 3,5 kB) que producción solo pide con `?diagnostico=1`. «Medir 5 s» ya solo está en ese trozo. | `2629f91` |
-| 5 | Menor | **Corregido.** El criterio, como parcial, con el aplazamiento propuesto en §10 (propuesta 6). Prueba 15 en `PRUEBAS-MOVIL.md` (con el panel de `?diagnostico=1`, que ya sale en la vista previa) y su `TODO(ivan)` en `PENDIENTES.md`. El chunk 3D, el de `check-bundles`: 622,4 kB, tras sacar el panel a su trozo. Además, al llevar la medida a un script salió que la primera visita con `?sin3d=1` pesa 675 kB (la precarga del audio y el póster): está en §6 y en la propuesta 7. | `2629f91` y este informe |
+| 5 | Menor | **Corregido.** El criterio, como parcial, con el aplazamiento propuesto en §10 (propuesta 6). Prueba 15 en `PRUEBAS-MOVIL.md` (con el panel de `?diagnostico=1`, que ya sale en la vista previa) y su `TODO(ivan)` en `PENDIENTES.md`. El chunk 3D, el de `check-bundles`: 622,6 kB, tras sacar el panel a su trozo. Además, al llevar la medida a un script salió que la primera visita con `?sin3d=1` pesa 675 kB (la precarga del audio y el póster): está en §6 y en la propuesta 7. | `2629f91` y este informe |
 | 6 | Menor | **Corregido.** Un test con las filas del menú en objetos nuevos (la misma pose) y con cambios de cursor, edición, valor y rótulo (otra pose). | `dd55961` |
 | 7 | Menor | **Corregido.** Un test en Node falla si three cambia lo de dentro de `PMREMGenerator` que usa el motor (se crea sin WebGL). La medida, en el repo: `npm run capturas -- --medir` repite las cifras de §6 con la GPU de verdad. | `dd55961` y `e968fe4` |
 | 8 | Sugerencia | **Hecho:** `dispose()` termina con `forceContextLoss()`. | `2975cc8` |
