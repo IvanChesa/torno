@@ -307,3 +307,10 @@ Además, el e2e del tempo por pulsaciones comprueba ahora el tempo con el moment
 - **Las pruebas del móvil** (`docs/PRUEBAS-MOVIL.md`), que hacen falta antes de la 5.b. La prueba 1 ya da la cifra de antes y la de después de la precarga.
 
 **Siguiente.** Con la aprobación y las pruebas del móvil, la 5.b en la misma rama: el modelo definitivo con la variante elegida, `SceneEngine`, la calidad, la pérdida de contexto e `instrument-stage`. Después vienen la revisión de la fase 5, la fusión y la fase 6.
+
+**Después de la parada (30-10).** Iván aprueba el diseño tal cual:
+- la distribución redonda;
+- la variante Terracota y el mapeo de tonos Neutral;
+- el instrumento HTML como plato redondo con la pantalla encima.
+
+La 5.b sigue parada: falta lo otro que pide, las pruebas del móvil en `docs/PRUEBAS-MOVIL.md`, que siguen sin rellenar.

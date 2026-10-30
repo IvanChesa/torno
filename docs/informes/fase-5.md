@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-5-modelo-3d`
 - **Fecha:** 2026-10-30 (5.a)
-- **Estado:** entrega 5.a terminada y **PARADA** (prevista). Espera a que Iván apruebe el diseño y haga las pruebas del móvil (`docs/PRUEBAS-MOVIL.md`) antes de la 5.b. La revisión y la fusión de la fase llegan al final de la 5.b.
+- **Estado:** entrega 5.a terminada. **Iván aprobó el diseño tal cual el 30-10** (§10). La 5.b sigue **PARADA** hasta que estén las pruebas del móvil (`docs/PRUEBAS-MOVIL.md`). La revisión y la fusión de la fase llegan al final de la 5.b.
 
 ## 0. Plan de la fase
 
@@ -58,7 +58,7 @@ La 5.a propone el aparato y lo enseña en 3D para que Iván lo apruebe:
 - **Capturas** de las 3 variantes desde 4 ángulos y la **prueba de mapeo de tonos**, en escritorio y móvil, y **propuesta del instrumento HTML** con la distribución nueva.
 - Antes, en `main`: la precarga de ALFAR (la primera reproducción en frío baja de **200–272 ms a 68–93 ms** en el escritorio) y las vistas previas de las ramas de fase.
 
-**Para Iván (la parada):** aprobar la distribución, elegir la variante y el mapeo de tonos, y dar el visto bueno a la propuesta del instrumento HTML (§10). Mi recomendación: **Terracota con Neutral**.
+**Para Iván (la parada):** aprobar la distribución, elegir la variante y el mapeo de tonos, y dar el visto bueno a la propuesta del instrumento HTML (§10). Mi recomendación: **Terracota con Neutral**. Iván lo aprobó tal cual el 30-10.
 
 ## 2. Criterios de aceptación
 Los criterios de la fase 5 se cierran al final de la 5.b. Esto es lo que pide la 5.a, con su evidencia:
@@ -76,7 +76,7 @@ Criterios de la fase (se cierran en la 5.b):
 
 | Criterio | Estado | Nota |
 |---|---|---|
-| Diseño aprobado por Iván (5.a) y capturas finales coherentes con él | ⏳ | Pendiente de Iván |
+| Diseño aprobado por Iván (5.a) y capturas finales coherentes con él | ⏳ (5.b) | Aprobado tal cual el 30-10 (§10); las capturas finales, en la 5.b |
 | Peso, VRAM, FPS, tiempo de generación y tamaño del chunk según §5 (cifras) | ⏳ (5.b) | Adelanto de la maqueta en §6 |
 | 0 fps en reposo; pérdida y recuperación del contexto probadas; sin fugas en 10 cambios de calidad | ⏳ (5.b) | La maqueta ya pinta solo cuando algo cambia |
 
@@ -130,7 +130,7 @@ Los bocetos `propuesta-html-escritorio.png` y `propuesta-html-movil.png` están 
 - **Zonas táctiles:** con el plato a todo el ancho de un móvil de 360 px (330 px de plato), la separación es la misma del test: 49,9 px desde arriba. En una pantalla de 320 px se quedaría justo por debajo de 44 px; ahí, el plato tendría que llegar al borde de la pantalla.
 - **Contraste:** el plato sigue en `--instrument-plate` (#864230), con el que los rótulos y los controles ya cumplen AA (`DISENO.md` §2.1).
 
-Si Iván lo aprueba, se hace en la 5.b, con los e2e del instrumento HTML como red.
+Iván lo aprobó el 30-10: se hace en la 5.b, con los e2e del instrumento HTML como red.
 
 ## 3. Tareas del plan
 | Tarea | Estado | Notas |
@@ -140,9 +140,9 @@ Si Iván lo aprueba, se hace en la 5.b, con los e2e del instrumento HTML como re
 | 5.a.1 Medidas y distribución | hecha | `instrument/layout.ts` |
 | 5.a.2 Modelo de bloques y 3 variantes | hecha | `scene/model/`, `scene/materials/`, `scene/camera/` y `scene/mockup/` |
 | 5.a.3 Prueba de *tone mapping* | hecha | §2.2 |
-| 5.a.4 Propuesta del instrumento HTML | hecha (propuesta) | §2.3; la implementación, tras la aprobación |
+| 5.a.4 Propuesta del instrumento HTML | hecha (aprobada el 30-10) | §2.3; se implementa en la 5.b |
 | 5.a.5 PARADA | hecha | |
-| 5.b | sin empezar | Espera la aprobación y las pruebas del móvil |
+| 5.b | sin empezar | El diseño ya está aprobado (30-10); espera las pruebas del móvil |
 
 ## 4. Desviaciones del plan y motivo
 - **Las medidas van en `instrument/`, no en `scene/model/`.** El plan pide medidas reales en mm, documentadas (§4.6), y un único modelo del instrumento (D11). Si las medidas fueran del 3D, el instrumento HTML y la guía tendrían que copiarlas. `scene/` las lee de `instrument/`, como permite §4.2.
@@ -210,10 +210,12 @@ En `docs/informes/img/fase-5/`, con `?captura=1` y el build servido por `wrangle
 
 ## 9. Pendientes y `TODO(ivan)`
 También en `docs/PENDIENTES.md`:
-- **Aprobar el diseño** (la parada): la distribución redonda, la variante, el mapeo de tonos y la propuesta del instrumento HTML (§10).
-- **Las pruebas del móvil** (`docs/PRUEBAS-MOVIL.md`): hacen falta antes de la 5.b. La prueba 1 ya puede dar la cifra de antes y la de después de la precarga de ALFAR.
+- **El diseño** (la parada): aprobado tal cual el 30-10 (§10).
+- **Las pruebas del móvil** (`docs/PRUEBAS-MOVIL.md`): son lo único que falta para la 5.b. La prueba 1 ya puede dar la cifra de antes y la de después de la precarga de ALFAR.
 
 ## 10. Propuestas de cambio al plan (para la aprobación de Iván)
+**Decisión de Iván (30-10): las aprueba tal cual.** Quedan aprobadas las cuatro decisiones de la parada (1 a 4); la 5.b se hace con ellas y en los dos pasos del punto 5.
+
 1. **Aprobar la distribución redonda** de §2.1.
 2. **Variante: Terracota** (la 1). Contraste de los colores planos, antes de la luz (WCAG):
 
