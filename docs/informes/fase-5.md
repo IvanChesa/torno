@@ -125,13 +125,14 @@ La 5.a propone el aparato y lo enseña en 3D para que Iván lo apruebe:
 - **`SceneEngine`:**
   - pinta la pose de la sesión solo cuando algo cambia (0 fps quieto);
   - tres niveles de calidad (baja sola si los FPS no llegan), recupera el contexto perdido y lo libera todo;
-  - arranca sin ninguna tarea larga, también en una primera visita: la que había de 610–630 ms queda en 53–62 ms.
+  - arranca sin ninguna tarea larga, también en una primera visita: la que había de 610–630 ms queda en 53–63 ms.
 - **El escenario en la portada**, en `@defer`, con su póster (43 kB) y un fundido al primer fotograma.
 - **El instrumento HTML, como plato redondo** (aprobado en la 5.a), con la pantalla encima.
 - **Las cifras de §5, medidas** (§6), en el PC de Iván (RTX 3060):
   - 144 fps (el refresco de la pantalla) en los tres niveles, y 71–76 ms para generar el modelo;
   - VRAM estimada de 61,2 MB en alto y 36,3 MB en bajo en el escritorio (19,5 MB en el móvil);
-  - chunk 3D de 623,9 kB y primera visita de 1,19 MB con el 3D.
+  - chunk 3D de 622,4 kB y primera visita de 1,22 MB con el 3D (594 kB sin él);
+  - los FPS en un móvil de gama media quedan para la fase 8, con el móvil de Iván (§10, propuesta 6).
 - **Una corrección en el núcleo de audio:** a algunos tempos, como 40 BPM, el compás entraba una muestra tarde. La destapó un e2e (§4).
 
 ## 2. Criterios de aceptación
@@ -151,7 +152,7 @@ Criterios de la fase (se cierran en la 5.b):
 | Criterio | Estado | Evidencia |
 |---|---|---|
 | Diseño aprobado por Iván (5.a) y capturas finales coherentes con él | ✅ | Aprobado tal cual el 30-10 (§10). Capturas finales en `escenario-*` (4 ángulos, escritorio y móvil) e `instrumento-*` (el plato), §7 |
-| Peso, VRAM, FPS, tiempo de generación y tamaño del chunk según §5 (cifras) | ✅ (FPS del móvil, en la fase 8) | §6: primera visita 580 kB sin el 3D (≤ 600) y 1,19 MB con él (≤ 1,5 MB); VRAM 61,2 MB en alto (≤ 96) y 36,3 MB en bajo (≤ 48); 144 fps en alto (≥ 55); generación de 71–76 ms (≤ 150) y ninguna tarea de más de 62 ms (≤ 200); chunk 3D 623,9 kB (aviso a 800) |
+| Peso, VRAM, FPS, tiempo de generación y tamaño del chunk según §5 (cifras) | ⚠️ Parcial: los FPS en un móvil de gama media, a la fase 8 (§10, propuesta 6) | §6: primera visita de 594 kB sin el 3D (≤ 600) y 1,22 MB con él (≤ 1,5 MB); VRAM de 61,2 MB en alto (≤ 96) y 36,3 MB en bajo (≤ 48); 144 fps en alto en el escritorio (≥ 55); generación de 71–85 ms (≤ 150) y ninguna tarea de más de 63 ms (≤ 200); chunk 3D de 622,4 kB (aviso a 800) |
 | 0 fps en reposo; pérdida y recuperación del contexto probadas; sin fugas en 10 cambios de calidad | ✅ | e2e en desarrollo (`e2e/stage.spec.ts`): 0 fotogramas en 2 s quieto; contexto perdido y recuperado (vuelve a pintar); tras 10 cambios de calidad, las geometrías y texturas de `renderer.info.memory`, iguales que al empezar |
 
 ### 2.1 La distribución: un torno de alfarero
@@ -251,7 +252,7 @@ Capturas en `escenario-*-escritorio.jpg` y `-movil.jpg` (§7). Terracota con Neu
   - mientras llega el primer fotograma se ve el **póster** (`public/img/escenario.webp`, 43 kB, una captura del propio motor), y luego se funden;
   - si no hay WebGL o se pierde el contexto, lo dice, y el instrumento de debajo sigue funcionando;
   - con `?sin3d=1` no se monta, y con `?captura=1` se fijan la vista y la calidad y da sus cifras;
-  - en desarrollo, un panel con `renderer.info`, la VRAM estimada y botones para la calidad, el contexto y medir los FPS.
+  - en desarrollo y con `?diagnostico=1`, un panel con `renderer.info`, la VRAM estimada y botones para la calidad, el contexto y medir los FPS (en su propio trozo).
 
   Hasta la fase 6 el 3D enseña lo que se toca, y se toca con el instrumento HTML de debajo.
 
@@ -297,7 +298,7 @@ En la 5.b:
 - **El e2e de la cola, a 40 BPM:** un compás de 6 s deja ver «EN COLA» aunque la máquina vaya cargada (a 90, a veces el compás llegaba antes de poder verlo).
 - **Una corrección en el núcleo de audio, fuera de la fase** (`0436ee0`). A 40 BPM, el e2e de la cola destapó que el compás entraba una muestra tarde (288 001 en lugar de 288 000). El transporte multiplicaba por los pulsos por muestra precalculados, que no son exactos. Ahora sigue la fórmula de PLAN §4.4 en su orden, con una sola división al final, y un test prueba cada tempo entero de 40 a 240 BPM a 44,1, 48 y 96 kHz. §5 pide colas «exactas a la muestra»: no se podía dejar.
 - **Se usa algo de dentro de `PMREMGenerator`** (`_setSize`, `_allocateTargets` y sus materiales), para compilar sus *shaders* antes de usarlos (§5). Si otra versión de three lo cambia, se compilan al pintar, como antes (más lento, pero igual de correcto).
-- **El panel de desarrollo hace de gancho de los e2e** (contexto, calidad, fotogramas), y solo existe en desarrollo: el build de producción no lleva nada para los tests.
+- **El panel de la escena hace de gancho de los e2e** (contexto, calidad, fotogramas). Va en su propio trozo (`@defer`): el build de producción solo lo pide con `?diagnostico=1`, para medir los FPS en el móvil (revisión, #4 y #5).
 
 ## 5. Decisiones técnicas nuevas
 - **Todo torneado (`LatheGeometry`), desde perfiles en mm** con esquinas redondeadas (`scene/model/geometry.ts`):
@@ -331,13 +332,13 @@ En la 5.b:
 ### 6.1 La 5.b
 ```
 npm run check            → 0 errores ni avisos
-  tests en Node            → 516 (antes 473: la pose, la calidad, las texturas, lo impreso, la
+  tests en Node            → 518 (antes 473: la pose, la calidad, las texturas, lo impreso, la
                              pantalla, el plato, el 3D y el transporte)
   tests de Angular         → 70 (antes 74: fuera los 5 del modo maqueta, +1 del modo sin 3D)
-  cobertura (TS puro)      → 98,34 % de sentencias · 94,77 % de ramas · 99,78 % de funciones
+  cobertura (TS puro)      → 98,39 % de sentencias
   presupuestos:
     JS inicial de /           303,7 kB (aviso > 330)
-    Chunk 3D (three + escena) 625,2 kB (aviso > 800)   ← 631,8 la maqueta (sin OrbitControls)
+    Chunk 3D (three + escena) 622,4 kB (aviso > 800)   ← 631,8 la maqueta (sin OrbitControls)
     Fuentes 144,1 kB · desbloqueo 1,9 kB · worklet 40,8 kB · motor 23,0 kB
 npm run e2e              → 105 en verde y 2 saltados a propósito (los de desarrollo, en el
                            proyecto del build), en 2,3 min
@@ -350,20 +351,22 @@ npm run e2e              → 105 en verde y 2 saltados a propósito (los de desa
 
 | Medida (PLAN §5) | Presupuesto | Medido | Cómo |
 |---|---|---|---|
-| Primera visita sin el 3D | ≤ 600 kB | **580 kB** | Suma de `decodedBodySize` (Resource Timing): HTML, JS inicial, el plato, las fuentes y el póster |
-| Primera visita con el 3D | ≤ 1,5 MB | **1,19 MB** | Lo mismo, con el chunk 3D y el escenario |
-| Chunk 3D | aviso > 800 kB | **625,2 kB** | `check-bundles` |
-| Generación del modelo y las texturas | ≤ 150 ms | **71–76 ms** en alto; 39–83 ms por nivel | `stats().buildMs` (sin las pausas entre tramos) |
-| Tareas largas al arrancar el 3D | ninguna > 200 ms | **53–62 ms** la más larga, en frío y en caliente. Antes de la corrección (§5): 610–630 ms en frío | `PerformanceObserver('longtask')`, 3 visitas; traza y perfil de CPU para encontrarla |
-| Primer fotograma | — | 3,4 s en frío y 0,86 s en caliente, con el póster mientras | `data-listo` |
+| Primera visita sin el 3D | ≤ 600 kB | **594 kB** en la portada sin el chunk 3D ni el escenario: HTML, JS inicial, el plato, las fuentes y el póster. Con `?sin3d=1`, 675 kB: el plato está a la vista desde el principio y pide la precarga del audio (motor, worklet y worker de síntesis, 81 kB), y el póster se descarga antes de que la hidratación lo quite (44 kB). §10, propuesta 7 | Suma de `decodedBodySize` (Resource Timing) |
+| Primera visita con el 3D | ≤ 1,5 MB | **1,22 MB** | Lo mismo, con el chunk 3D y el escenario |
+| Chunk 3D | aviso > 800 kB | **622,4 kB** | `check-bundles` |
+| Generación del modelo y las texturas | ≤ 150 ms | **71–85 ms** en alto; 39–83 ms por nivel | `stats().buildMs` (sin las pausas entre tramos) |
+| Tareas largas al arrancar el 3D | ninguna > 200 ms | **53–63 ms** la más larga, en frío y en caliente. Antes de la corrección (§5): 610–630 ms en frío | `PerformanceObserver('longtask')`, 3 visitas; traza y perfil de CPU para encontrarla |
+| Primer fotograma | — | 2,6–2,8 s en frío y 0,86 s en caliente, con el póster mientras | `data-listo` |
 | VRAM estimada, alto | ≤ 96 MB | **61,2 MB** en el escritorio (con MSAA); 43 MB en el móvil (Pixel 7, DPR 2) | `stats().vramMb` |
 | VRAM estimada, bajo | ≤ 48 MB | **36,3 MB** en el escritorio; 19,5 MB en el móvil | Lo mismo |
-| FPS en el escritorio, alto | ≥ 55 | **144** (el refresco de la pantalla), p95 de 7 ms; igual en medio y bajo | Panel de desarrollo, «Medir 5 s» (el disco gira y se pinta seguido) |
-| FPS en un móvil de gama media, bajo | ≥ 30 | pendiente (fase 8) | Hace falta el móvil |
+| FPS en el escritorio, alto | ≥ 55 | **144** (el refresco de la pantalla), p95 de 7 ms; 143–144 en medio y bajo | Panel de la escena, «Medir 5 s» (el disco gira y se pinta seguido) |
+| FPS en un móvil de gama media, bajo | ≥ 30 | pendiente (fase 8) | Hace falta el móvil: el panel de la escena sale también con `?diagnostico=1` en la vista previa, para que Iván lo mida (prueba 15 de `PRUEBAS-MOVIL.md`) |
 | Reposo | 0 fps | **0** fotogramas en 2 s | e2e |
 | Memoria 3D tras 10 cambios de calidad | sin crecer | geometrías y texturas **iguales** | e2e (`renderer.info.memory`) |
 
 Además: 51 llamadas de dibujo, 51 geometrías, 13 texturas y 10 programas. En alto, 49 158 triángulos; en medio, 36 498, y en bajo, 25 454.
+
+**Repetible** con `npm run capturas -- --medir` (tras `npm run build`): tres primeras visitas en frío con la GPU de verdad (Chromium en el modo nuevo sin interfaz), el peso con el 3D y sin él, y los FPS de cada nivel con el panel de la escena. Las de esta tabla salen de ahí y de un desglose por archivo (Resource Timing) de la portada.
 
 ### 6.2 La 5.a
 ```
@@ -396,6 +399,7 @@ En `docs/informes/img/fase-5/`, con `?captura=1` y el build servido por `wrangle
 
 **La 5.b:**
 - **El aparato definitivo desde 4 ángulos:** `escenario-<frente|tres-cuartos|cenital|perfil>-<escritorio|movil>.jpg` (8) y sus hojas, `escenario-vistas-escritorio.jpg` y `-movil.jpg`.
+- **El aparato con pose** (revisión, #9): `escenario-sonando-escritorio.jpg` y `-movil.jpg`, con ALFAR sonando en la capa 1 y un bajo en cola en la 2.
 - **Las páginas:** `inicio-*.png`, con el escenario 3D y el plato; `sobre-el-proyecto-*.png` y `404-*.png`.
 - **El plato de cerca, con sus avisos** (`?sin3d=1`): `instrumento-<reposo|menu|atajos|diagnostico|sonido|marcar-tempo|cargando|error|recuperar|en-cola|recuperar-dos|recuperar-confirmar>-<escritorio|movil>.png` (24).
 - **El póster:** `public/img/escenario.webp`.
@@ -430,6 +434,7 @@ También en `docs/PENDIENTES.md`:
 - **Las pruebas del móvil:** hechas el 30-10 («funciona bien», sin cifras); las cifras pasan a la fase 8, con el iPhone.
 - **Los FPS en un móvil de gama media** (§5: ≥ 30 en bajo): sin el móvil no se pueden medir; van a la fase 8, con las pruebas de Iván. En bajo, el aparato pinta 25 454 triángulos con un DPR de 1,25.
 - **El póster definitivo** (fase 7): `scripts/render-poster.mjs` con `sharp`, como dice el plan; el de ahora es provisional.
+- **Una carrera en el autoguardado, de antes de esta fase** (vista una vez en el e2e de `files.spec.ts:287`, con la máquina cargada; luego, 8 de 8 en verde). Con los dos huecos ofrecidos, si se toca algo y se tarda más de 1,5 s en recuperar «lo que tocaste después», el autoguardado de lo tocado sobrescribe ese hueco antes. Propuesta: mientras está abierta la confirmación de recuperar, que no se autoguarde (y cancelar el autoguardado que espera). Va a la fase 6, como corrección pequeña.
 - **En la fase 6**, lo que el 3D aún no hace: tocarlo (la capa de controles), el disco girando con el transporte, los medidores y las formas de onda en la pantalla, y el parpadeo del piloto de grabar en la cuenta previa.
 
 ## 10. Propuestas de cambio al plan (para la aprobación de Iván)
@@ -453,14 +458,46 @@ También en `docs/PENDIENTES.md`:
    - primero, el modelo definitivo con sus materiales y texturas;
    - después, `SceneEngine`, la calidad, la pérdida de contexto e `instrument-stage`.
 
+Tras la 5.b (pendientes de Iván):
+
+6. **Aplazar a la fase 8 los FPS en un móvil de gama media** (PLAN §5: ≥ 30 en bajo, tocando). Sin el móvil no se pueden medir, y «tocando» no existe hasta la fase 6. El panel de la escena sale con `?diagnostico=1` para medirlo (prueba 15 de `PRUEBAS-MOVIL.md`; `TODO(ivan)` en `PENDIENTES.md`).
+7. **Que el peso «sin el 3D» no cuente la precarga del audio.** Con `?sin3d=1`, el plato está a la vista desde el principio y pide la precarga de ALFAR (motor, worklet y worker de síntesis, 81 kB; decidida en la revisión del bloque B), y la primera visita llega a 675 kB. La portada, con el 3D diferido, se queda en 594 kB. Propuesta: el presupuesto de 600 kB, para lo que se descarga sin que el usuario se acerque al instrumento.
+
 ## 11. Cómo probarlo
 - **En el móvil o en cualquier navegador:** `https://fase-5-modelo-3d.torno.pages.dev`, la vista previa de esta rama (tras la fusión, `https://staging.torno.pages.dev`).
   - Debajo del título, el aparato en 3D. Toca el plato de debajo (reproduce, gira un dial, abre el menú): el 3D lo enseña.
   - `?sin3d=1`: solo el plato.
   - `?captura=1&vista=cenital` (o `tres-cuartos`, `perfil`) y `&calidad=low` (o `medium`): otro ángulo u otro nivel, todo fijo.
-- **En local, en desarrollo:** `npm start` y `http://localhost:4200`. Debajo del 3D aparece el panel de la escena, con las cifras de `renderer.info`, la VRAM, los botones de calidad, perder y recuperar el contexto y «Medir 5 s».
+- **En local, en desarrollo** (o en cualquier sitio con `?diagnostico=1`): `npm start` y `http://localhost:4200`. Debajo del 3D aparece el panel de la escena, con las cifras de `renderer.info`, la VRAM, los botones de calidad, perder y recuperar el contexto y «Medir 5 s».
 - **En local, el build:** `npm run build`, después `node scripts/serve-pages.mjs` y `http://localhost:4300`.
 - **Las capturas otra vez,** tras `npm run build`:
   - `npm run capturas -- --fase=5`: las páginas y el plato;
   - `npm run capturas -- --fase=5 --solo=escenario`: el 3D desde 4 ángulos, con sus cifras por nivel;
-  - `npm run capturas -- --poster`: el póster.
+  - `npm run capturas -- --poster`: el póster;
+  - `npm run capturas -- --medir`: las cifras de §5 con la GPU de verdad.
+
+## 12. Respuesta a la revisión
+Revisión en `docs/revisiones/fase-5.md`: CAMBIOS NECESARIOS, sin Bloqueantes (2 Importantes, 5 Menores y 4 Sugerencias). Todo corregido salvo la #11, que queda para la fase 6:
+
+| # | Severidad | Respuesta | Commit |
+|---|---|---|---|
+| 1 | Importante | **Corregido.** En el plato, el medidor va por fuera de su dial y el piloto, a 89 mm (más cerca del disco que en el 3D). En el móvil, los diales de 44 px llegan más adentro que sus 30 mm. Un e2e mide, a 375 y a 1440 px, que el piloto queda fuera del dial con su anillo y fuera del disco, y que no toca el medidor (falló con el build de antes). Capturas del plato, otra vez. | `552f73b` |
+| 2 | Importante | **Corregido.** La sombra, más ceñida: densa bajo la base y a alfa 0 a 8 mm del canto. Su borde entra en la silueta del encuadre, así que el aparato sale un 4 % más pequeño. Medido en los cuatro bordes del lienzo, escritorio y móvil: dentro, el color del fondo de la página (37, 39, 18). Póster y capturas, otra vez. | `18cf48b` |
+| 3 | Menor | **Corregido.** El entorno nuevo se hace aparte y entra en la escena a la vez que el aparato, y el viejo se libera después. Los *shaders* del aparato nuevo se compilan con ese entorno y las mismas luces. Justo antes del cambio se aplican la pose y la pantalla de ahora. El e2e de los 10 cambios de calidad sigue en verde. | `2975cc8` |
+| 4 | Menor | **Corregido.** El panel, en un `@defer` con sus textos aparte: un trozo propio (`stage-dev`, 3,5 kB) que producción solo pide con `?diagnostico=1`. «Medir 5 s» ya solo está en ese trozo. | `2629f91` |
+| 5 | Menor | **Corregido.** El criterio, como parcial, con el aplazamiento propuesto en §10 (propuesta 6). Prueba 15 en `PRUEBAS-MOVIL.md` (con el panel de `?diagnostico=1`, que ya sale en la vista previa) y su `TODO(ivan)` en `PENDIENTES.md`. El chunk 3D, el de `check-bundles`: 622,4 kB, tras sacar el panel a su trozo. Además, al llevar la medida a un script salió que la primera visita con `?sin3d=1` pesa 675 kB (la precarga del audio y el póster): está en §6 y en la propuesta 7. | `2629f91` y este informe |
+| 6 | Menor | **Corregido.** Un test con las filas del menú en objetos nuevos (la misma pose) y con cambios de cursor, edición, valor y rótulo (otra pose). | `dd55961` |
+| 7 | Menor | **Corregido.** Un test en Node falla si three cambia lo de dentro de `PMREMGenerator` que usa el motor (se crea sin WebGL). La medida, en el repo: `npm run capturas -- --medir` repite las cifras de §6 con la GPU de verdad. | `dd55961` y `e968fe4` |
+| 8 | Sugerencia | **Hecho:** `dispose()` termina con `forceContextLoss()`. | `2975cc8` |
+| 9 | Sugerencia | **Hecho:** `escenario-sonando-*.jpg`, con ALFAR sonando en la capa 1 (piloto encendido) y un bajo en cola en la 2 (piloto en aviso y su anillo). | `e968fe4` |
+| 10 | Sugerencia | **Hecho:** fuera el texto que no se usaba. | `dd55961` |
+| 11 | Sugerencia | **Para la fase 6:** un commit por pieza (capa de controles, gestos, cámara, sincronía…). | — |
+
+Además, al repetir los e2e tras las correcciones:
+- **Un fotograma de más al arrancar** (el e2e del reposo veía 2 en lugar de 1, a veces). Venía de dos sitios:
+  - el primer `setSize` medía con `clientHeight` (redondeado) y el `ResizeObserver`, con decimales, así que su primer aviso traía otro tamaño;
+  - el escenario volvía a pasar al motor la misma pose con la que se creó.
+
+  Ahora el motor ignora un tamaño igual (salvo decimales de píxel) y una pose igual (`samePose`). El e2e del reposo, 24 de 24 en verde (los dos proyectos, tres veces).
+- **Recuperar el contexto vuelve a compilar los *shaders***: por software tarda varios segundos, y el e2e espera hasta 30 s.
+- **Una carrera del autoguardado, de antes de esta fase** (§9): vista una vez con la máquina cargada; 8 de 8 en verde al repetirla. Se corrige en la fase 6.
