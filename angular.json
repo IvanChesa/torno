@@ -83,7 +83,8 @@
               "app/audio/files/**",
               "app/audio/worklet/**",
               "app/audio/workers/**",
-              "app/instrument/**"
+              "app/instrument/**",
+              "app/scene/**"
             ]
           }
         },

@@ -15,6 +15,7 @@
     "src/app/audio/synth/**/*.spec.ts",
     "src/app/audio/files/**/*.spec.ts",
     "src/app/instrument/**/*.spec.ts",
+    "src/app/scene/**/*.spec.ts",
     "src/app/audio/worklet/**/*.spec.ts",
     "src/app/audio/worklet/**/*.d.ts",
     "scripts/**/*.ts",

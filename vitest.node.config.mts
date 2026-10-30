@@ -16,6 +16,8 @@ export default defineConfig({
       ...PURE_LAYERS.map((layer) => `src/app/${layer}/**/*.spec.ts`),
       // El adaptador del worklet, con el AudioWorkletGlobalScope simulado.
       'src/app/audio/worklet/**/*.spec.ts',
+      // La geometría del 3D (sin WebGL ni DOM: las texturas de canvas no entran en estos tests).
+      'src/app/scene/**/*.spec.ts',
       'scripts/**/*.spec.ts',
     ],
     coverage: {
