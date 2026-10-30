@@ -1,8 +1,8 @@
 # Informe: Fase 5 (diseño del instrumento y modelo 3D)
 
 - **Rama:** `fase-5-modelo-3d`
-- **Fecha:** 2026-10-30 (5.a)
-- **Estado:** entrega 5.a terminada; **Iván aprobó el diseño tal cual el 30-10** (§10). Las pruebas del móvil están en `docs/PRUEBAS-MOVIL.md` («funciona bien», sin cifras; las cifras pasan a la fase 8). **Entrega 5.b en curso.** La revisión y la fusión de la fase llegan al final de la 5.b.
+- **Fecha:** 2026-10-30 (5.a y 5.b)
+- **Estado:** entregas 5.a y 5.b terminadas (el diseño, aprobado por Iván tal cual el 30-10; las pruebas del móvil, en `docs/PRUEBAS-MOVIL.md`). Pendiente de la revisión de la fase y de la fusión.
 
 ## 0. Plan de la fase
 
@@ -116,6 +116,24 @@ La 5.a propone el aparato y lo enseña en 3D para que Iván lo apruebe:
 
 **Para Iván (la parada):** aprobar la distribución, elegir la variante y el mapeo de tonos, y dar el visto bueno a la propuesta del instrumento HTML (§10). Mi recomendación: **Terracota con Neutral**. Iván lo aprobó tal cual el 30-10.
 
+**La 5.b** hace el aparato definitivo y lo pone en la portada:
+- **El modelo**, en Terracota con Neutral:
+  - cerámica con grano y poros, y latón cepillado, moleteado y con pátina;
+  - lo impreso en la cubierta (escalas, números y rótulos), tornillos con ranura, pilotos con su estado y la capa elegida con un anillo de luz;
+  - la pantalla, con el texto del modelo de pantalla del instrumento;
+  - el esmalte ya no se lava visto desde arriba.
+- **`SceneEngine`:**
+  - pinta la pose de la sesión solo cuando algo cambia (0 fps quieto);
+  - tres niveles de calidad (baja sola si los FPS no llegan), recupera el contexto perdido y lo libera todo;
+  - arranca sin ninguna tarea larga, también en una primera visita: la que había de 610–630 ms queda en 53–62 ms.
+- **El escenario en la portada**, en `@defer`, con su póster (43 kB) y un fundido al primer fotograma.
+- **El instrumento HTML, como plato redondo** (aprobado en la 5.a), con la pantalla encima.
+- **Las cifras de §5, medidas** (§6), en el PC de Iván (RTX 3060):
+  - 144 fps (el refresco de la pantalla) en los tres niveles, y 71–76 ms para generar el modelo;
+  - VRAM estimada de 61,2 MB en alto y 36,3 MB en bajo en el escritorio (19,5 MB en el móvil);
+  - chunk 3D de 623,9 kB y primera visita de 1,19 MB con el 3D.
+- **Una corrección en el núcleo de audio:** a algunos tempos, como 40 BPM, el compás entraba una muestra tarde. La destapó un e2e (§4).
+
 ## 2. Criterios de aceptación
 Los criterios de la fase 5 se cierran al final de la 5.b. Esto es lo que pide la 5.a, con su evidencia:
 
@@ -130,11 +148,11 @@ Los criterios de la fase 5 se cierran al final de la 5.b. Esto es lo que pide la
 
 Criterios de la fase (se cierran en la 5.b):
 
-| Criterio | Estado | Nota |
+| Criterio | Estado | Evidencia |
 |---|---|---|
-| Diseño aprobado por Iván (5.a) y capturas finales coherentes con él | ⏳ (5.b) | Aprobado tal cual el 30-10 (§10); las capturas finales, en la 5.b |
-| Peso, VRAM, FPS, tiempo de generación y tamaño del chunk según §5 (cifras) | ⏳ (5.b) | Adelanto de la maqueta en §6 |
-| 0 fps en reposo; pérdida y recuperación del contexto probadas; sin fugas en 10 cambios de calidad | ⏳ (5.b) | La maqueta ya pinta solo cuando algo cambia |
+| Diseño aprobado por Iván (5.a) y capturas finales coherentes con él | ✅ | Aprobado tal cual el 30-10 (§10). Capturas finales en `escenario-*` (4 ángulos, escritorio y móvil) e `instrumento-*` (el plato), §7 |
+| Peso, VRAM, FPS, tiempo de generación y tamaño del chunk según §5 (cifras) | ✅ (FPS del móvil, en la fase 8) | §6: primera visita 580 kB sin el 3D (≤ 600) y 1,19 MB con él (≤ 1,5 MB); VRAM 61,2 MB en alto (≤ 96) y 36,3 MB en bajo (≤ 48); 144 fps en alto (≥ 55); generación de 71–76 ms (≤ 150) y ninguna tarea de más de 62 ms (≤ 200); chunk 3D 623,9 kB (aviso a 800) |
+| 0 fps en reposo; pérdida y recuperación del contexto probadas; sin fugas en 10 cambios de calidad | ✅ | e2e en desarrollo (`e2e/stage.spec.ts`): 0 fotogramas en 2 s quieto; contexto perdido y recuperado (vuelve a pintar); tras 10 cambios de calidad, las geometrías y texturas de `renderer.info.memory`, iguales que al empezar |
 
 ### 2.1 La distribución: un torno de alfarero
 Vista desde arriba en `maqueta-*-cenital-*.jpg`. El ángulo se mide desde delante (0°, hacia quien toca), y es positivo hacia la derecha:
@@ -188,6 +206,62 @@ Los bocetos `propuesta-html-escritorio.png` y `propuesta-html-movil.png` están 
 
 Iván lo aprobó el 30-10: se hace en la 5.b, con los e2e del instrumento HTML como red.
 
+### 2.4 La 5.b: el aparato definitivo
+Capturas en `escenario-*-escritorio.jpg` y `-movil.jpg` (§7). Terracota con Neutral; los valores, en `DISENO.md` §7.
+
+- **La cerámica** (`scene/materials/procedural.ts`): tres texturas en mosaico de 80 mm, de ruido periódico (sin juntas), que se generan al arrancar.
+  - el grano en el color (±4 %) y en la rugosidad (0,85 ± 0,08);
+  - poros hundidos en un mapa normal suave, con la misma fuerza en todos los tamaños;
+  - el cuerpo y la bandeja llevan coordenadas proporcionales a lo que mide el perfil, y la cubierta va aparte, en planta (sin el pellizco del centro).
+- **La cubierta impresa** (`print.ts`): en engobe crema, una textura de canvas sobre la parte plana.
+  - las escalas de los diales y el número de cada capa;
+  - TEMPO, y `+`, `−` y VOL junto a la rueda;
+  - los puntos del recorrido del brazo y un filete alrededor del disco.
+
+  Las marcas se calculan en mm y un test comprueba que caen en la parte plana y que ninguna queda debajo de una pieza.
+- **El latón:**
+  - **cepillado en círculo** (anisotropía) en el anillo, el cubo y las tapas;
+  - **moleteado** en el faldón de los diales y en el canto de la rueda (un mapa normal de estrías en V);
+  - **pátina** en el hombro de los diales;
+  - tornillos con su ranura, y el eje del brazo con su tornillo.
+- **El esmalte:** más oscuro hacia el borde. Visto desde arriba ya no se lava (nota de la sesión de plan): el brillo es el de la capa de encima (`clearcoat` 1, liso), con la base casi sin brillo (`specularIntensity` 0,2), y la luz del techo del entorno, girada 25° hacia el fondo. Compárense `escenario-cenital-*.jpg` con `maqueta-terracota-cenital-*.jpg`.
+- **La pose** (`instrument/pose.ts`, TS puro, y `scene/model/pose.ts`): lo que enseña cada pieza sale del estado de la sesión.
+  - los diales giran con su nivel, y el principal con el tempo;
+  - el brazo, con el filtro de la capa elegida, y la rueda, con el volumen;
+  - reproducir, grabar y reposo se hunden mientras duran;
+  - los pilotos se encienden en fósforo, aviso o rojo de grabación, y un anillo de fósforo rodea la capa elegida;
+  - la pantalla (`screen.ts`) pinta el modelo de pantalla del instrumento y solo se repinta cuando cambia su texto.
+- **Detalle por calidad:** el mismo aparato en tres niveles (49 158, 36 498 y 25 454 triángulos), con las mismas piezas (test).
+
+### 2.5 El escenario en la portada
+- **`SceneEngine`** (`scene/engine.ts`), cargado con `import()` desde `scene/index.ts`:
+  - recibe la pose, la vista, la calidad y el tamaño, y avisa de listo, contexto perdido o recuperado y cambio de calidad;
+  - pinta solo cuando algo cambia;
+  - arranca por tramos, sin tareas largas (§6);
+  - recupera el contexto rehaciendo el entorno, y lo libera todo en `dispose()`.
+- **Calidad** (`scene/quality.ts`): el escritorio empieza en alta y el móvil en baja (como mide §5), y baja sola si, pintando seguido, los FPS no llegan a 50 (alta) o 40 (media). Nunca sube sola: subir y bajar en bucle sería peor.
+
+  | Nivel | DPR máx. | MSAA | Segmentos (grandes · pequeños) | Entorno | Cubierta impresa | Grano |
+  |---|---|---|---|---|---|---|
+  | `high` | 2 | si el DPR < 1,5 | 160 · 48 | 256 | 2048 | 512 |
+  | `medium` | 1,5 | si el DPR < 1,5 | 112 · 36 | 128 | 1024 | 512 |
+  | `low` | 1,25 | sí | 72 · 24 | 64 | 1024 | 256 |
+- **`instrument-stage`** (`features/instrument-stage/`):
+  - va en `@defer` (al acercarse o en reposo), en una caja de 5:4 que no pasa del 78 % del alto de la pantalla;
+  - mientras llega el primer fotograma se ve el **póster** (`public/img/escenario.webp`, 43 kB, una captura del propio motor), y luego se funden;
+  - si no hay WebGL o se pierde el contexto, lo dice, y el instrumento de debajo sigue funcionando;
+  - con `?sin3d=1` no se monta, y con `?captura=1` se fijan la vista y la calidad y da sus cifras;
+  - en desarrollo, un panel con `renderer.info`, la VRAM estimada y botones para la calidad, el contexto y medir los FPS.
+
+  Hasta la fase 6 el 3D enseña lo que se toca, y se toca con el instrumento HTML de debajo.
+
+### 2.6 El instrumento HTML como plato redondo
+Capturas en `instrumento-*-escritorio.png` y `-movil.png` (§7). La propuesta aprobada en §2.3, hecha:
+- **Las mismas posiciones que el 3D:** `instrument/plate.ts` las saca de `layout.ts`, y un test lo comprueba. Las piezas miden en milímetros del aparato con unidades de contenedor (`100cqi / 300`), con 44 px de toque como poco.
+- **El brazo y la rueda** son ranuras rectas a lo largo de su recorrido. Arrastrar a lo largo de la ranura sube o baja el valor: la directiva tiene ahora un eje de arrastre (`trnAxis`).
+- **La pantalla va encima del plato.** Los rótulos van alrededor en el escritorio y, en el móvil, en una leyenda debajo.
+- **El orden del tabulador no cambia**, y los e2e del instrumento pasan igual.
+
 ## 3. Tareas del plan
 | Tarea | Estado | Notas |
 |---|---|---|
@@ -198,13 +272,32 @@ Iván lo aprobó el 30-10: se hace en la 5.b, con los e2e del instrumento HTML c
 | 5.a.3 Prueba de *tone mapping* | hecha | §2.2 |
 | 5.a.4 Propuesta del instrumento HTML | hecha (aprobada el 30-10) | §2.3; se implementa en la 5.b |
 | 5.a.5 PARADA | hecha | |
-| 5.b | en curso | Plan en §0; el diseño, aprobado, y las pruebas del móvil, hechas (30-10) |
+| 5.b.1 Piezas con detalle | hecha | §2.4: biseles, moleteado, rótulos y escalas, tornillos con ranura, pilotos |
+| 5.b.2 Materiales y texturas procedurales; entorno y sombra | hecha | §2.4; `DISENO.md` §7 con los valores definitivos |
+| 5.b.3 Pantalla como textura alimentada por el modelo de pantalla | hecha | `scene/materials/screen.ts`; solo se repinta si cambia |
+| 5.b.4 `SceneEngine` con API estrecha | hecha | §2.5 |
+| 5.b.5 Calidad con bajada automática; pérdida del contexto | hecha | §2.5; e2e en desarrollo |
+| 5.b.6 `instrument-stage` con `@defer`, póster y fundido, bucle bajo demanda, `?captura=1` e indicador en desarrollo | hecha | §2.5 |
+| El instrumento HTML como plato redondo (§2.3) | hecha | §2.6 |
 
 ## 4. Desviaciones del plan y motivo
 - **Las medidas van en `instrument/`, no en `scene/model/`.** El plan pide medidas reales en mm, documentadas (§4.6), y un único modelo del instrumento (D11). Si las medidas fueran del 3D, el instrumento HTML y la guía tendrían que copiarlas. `scene/` las lee de `instrument/`, como permite §4.2.
 - **La maqueta va en la portada con `?maqueta=1`**, no en una ruta propia. Así no cambian las rutas ni sus comprobaciones (prerenderizado, Pages y `verify-pages`). En la 5.b, el escenario de verdad la sustituye.
 - **Las capturas de la maqueta van en JPEG**, con hojas de contactos. Un render 3D en PNG pesa varias veces más: así, las 38 imágenes de la 5.a suman 3,2 MB. Las de interfaz siguen en PNG. Las hojas las compone el propio navegador de las capturas, sin dependencias nuevas.
 - **`npm run capturas -- --fase=5 --solo=maqueta`:** la 5.a no toca el instrumento HTML ni las páginas, así que esta vez no se repiten sus 30 capturas, que saldrían idénticas a las de la fase 4.
+
+En la 5.b:
+- **Fuera la maqueta de la 5.a** (`?maqueta=1`, las variantes y AgX): el escenario la sustituye.
+- **Un `<img>` en lugar de `NgOptimizedImage` para el póster.** La directiva entra en el trozo común del bundle inicial (esbuild reparte por módulos, y `@angular/common` ya está ahí) y lo pasaba de los 300 kB de Angular. Un solo póster, sin `srcset`, no la necesita.
+- **El póster lo codifica Chromium** (`npm run capturas -- --poster`): una captura del propio motor, llevada a 1200×960 y pasada a WebP en una página en blanco, sin `sharp`. Es provisional: el definitivo, con su script, es de la fase 7.
+- **El esmalte y el entorno, ajustados** (nota de la sesión de plan sobre la vista cenital): `specularIntensity` 0,2 en el esmalte y el entorno girado 25° hacia el fondo. `DISENO.md` §7 lo recoge.
+- **La pátina del latón va en el color, no en la rugosidad:** el hombro de los diales, más oscuro (colores por vértice). DISENO pedía «más rugosidad en los huecos», pero eso necesitaría otra textura por dial, y a la distancia del escenario no se distingue.
+- **Hasta la fase 6, el 3D solo enseña:** se toca con el plato de debajo. Los dos van en la portada.
+- **Los e2e del audio abren la portada con `?sin3d=1`**, y los del escenario van en sus propios proyectos de Playwright, **después** de los demás. Su WebGL por software ocupaba la máquina y frenaba los e2e que miden tiempos: el de la cola falló 5 de 6 veces en el servidor de desarrollo.
+- **El e2e de la cola, a 40 BPM:** un compás de 6 s deja ver «EN COLA» aunque la máquina vaya cargada (a 90, a veces el compás llegaba antes de poder verlo).
+- **Una corrección en el núcleo de audio, fuera de la fase** (`0436ee0`). A 40 BPM, el e2e de la cola destapó que el compás entraba una muestra tarde (288 001 en lugar de 288 000). El transporte multiplicaba por los pulsos por muestra precalculados, que no son exactos. Ahora sigue la fórmula de PLAN §4.4 en su orden, con una sola división al final, y un test prueba cada tempo entero de 40 a 240 BPM a 44,1, 48 y 96 kHz. §5 pide colas «exactas a la muestra»: no se podía dejar.
+- **Se usa algo de dentro de `PMREMGenerator`** (`_setSize`, `_allocateTargets` y sus materiales), para compilar sus *shaders* antes de usarlos (§5). Si otra versión de three lo cambia, se compilan al pintar, como antes (más lento, pero igual de correcto).
+- **El panel de desarrollo hace de gancho de los e2e** (contexto, calidad, fotogramas), y solo existe en desarrollo: el build de producción no lleva nada para los tests.
 
 ## 5. Decisiones técnicas nuevas
 - **Todo torneado (`LatheGeometry`), desde perfiles en mm** con esquinas redondeadas (`scene/model/geometry.ts`):
@@ -219,7 +312,60 @@ Iván lo aprobó el 30-10: se hace en la 5.b, con los e2e del instrumento HTML c
 - **Los tests del 3D corren en Node** (Vitest, como las capas de TS puro): la geometría se construye sin DOM ni WebGL, y las texturas de canvas las pone el visor.
 - **La variante Terracota es la de `tokens.css`** (lo comprueba un test): los colores siguen teniendo una sola fuente.
 
+En la 5.b:
+- **El arranque sin tareas largas.** En una primera visita (sin caché de *shaders*) había una tarea de 610–630 ms (medido con D3D11 en una RTX 3060). La traza y el perfil de CPU la llevaban a `getUniforms`, esperando a que la GPU compilara el *shader* de convolución GGX de PMREM mientras pintaba el entorno. Ahora:
+  - los *shaders* del entorno se compilan antes, con `compileAsync` y en el mismo estado en el que PMREM los pintará (su destino lineal, sin *tone mapping* y una geometría solo con posición). Si no, la clave del programa no coincide y se compila otra vez al pintar;
+  - los del aparato, uno a uno con `compileAsync`;
+  - las texturas se suben antes, esperando a la GPU con una valla de WebGL 2, que solo cambia entre tareas.
+
+  Resultado: la tarea más larga del arranque es de 53–62 ms, con la caché vacía o llena.
+- **Calidad con techo de DPR y MSAA solo por debajo de 1,5:** el MSAA multiplica la memoria del lienzo, y con más píxeles por píxel CSS los bordes ya salen suaves.
+- **El nivel baja, nunca sube solo**, y solo se mide pintando seguido: los huecos entre animaciones no cuentan como fotogramas lentos (test).
+- **La VRAM, estimada**, a partir de las texturas (con sus mipmaps), las geometrías, el entorno (RGBA de media precisión) y el lienzo (búferes de color y profundidad, por las muestras de MSAA). Va en `stats()`.
+- **`samePose`:** la pose solo pasa al motor si cambia algo que se ve. Mientras suena, el estado del audio llega diez veces por segundo; sin esto, el 3D pintaría a 10 fps sin moverse nada.
+- **Las texturas procedurales, en datos** (sin DOM, con tests en Node), y las de canvas (cubierta, pantalla y rótulos), en el navegador.
+- **El pulso, con la fórmula exacta** (`(f − f₀) × bpm / (60 · sampleRate)`): el compás cae en su muestra a cualquier tempo (§4).
+
 ## 6. Salida de los checks
+
+### 6.1 La 5.b
+```
+npm run check            → 0 errores ni avisos
+  tests en Node            → 516 (antes 473: la pose, la calidad, las texturas, lo impreso, la
+                             pantalla, el plato, el 3D y el transporte)
+  tests de Angular         → 70 (antes 74: fuera los 5 del modo maqueta, +1 del modo sin 3D)
+  cobertura (TS puro)      → 98,34 % de sentencias · 94,77 % de ramas · 99,78 % de funciones
+  presupuestos:
+    JS inicial de /           303,7 kB (aviso > 330)
+    Chunk 3D (three + escena) 625,2 kB (aviso > 800)   ← 631,8 la maqueta (sin OrbitControls)
+    Fuentes 144,1 kB · desbloqueo 1,9 kB · worklet 40,8 kB · motor 23,0 kB
+npm run e2e              → 105 en verde y 2 saltados a propósito (los de desarrollo, en el
+                           proyecto del build), en 2,3 min
+```
+
+**Las cifras de §5.** Medidas en el PC de Iván (RTX 3060, pantalla de 144 Hz):
+- en el build de producción, con Chromium sin interfaz y la GPU de verdad (ANGLE, D3D11);
+- 1440×900 de ventana, con el lienzo a 877×702 px;
+- salvo que se diga otra cosa, en primeras visitas con un perfil nuevo (sin caché de *shaders*).
+
+| Medida (PLAN §5) | Presupuesto | Medido | Cómo |
+|---|---|---|---|
+| Primera visita sin el 3D | ≤ 600 kB | **580 kB** | Suma de `decodedBodySize` (Resource Timing): HTML, JS inicial, el plato, las fuentes y el póster |
+| Primera visita con el 3D | ≤ 1,5 MB | **1,19 MB** | Lo mismo, con el chunk 3D y el escenario |
+| Chunk 3D | aviso > 800 kB | **625,2 kB** | `check-bundles` |
+| Generación del modelo y las texturas | ≤ 150 ms | **71–76 ms** en alto; 39–83 ms por nivel | `stats().buildMs` (sin las pausas entre tramos) |
+| Tareas largas al arrancar el 3D | ninguna > 200 ms | **53–62 ms** la más larga, en frío y en caliente. Antes de la corrección (§5): 610–630 ms en frío | `PerformanceObserver('longtask')`, 3 visitas; traza y perfil de CPU para encontrarla |
+| Primer fotograma | — | 3,4 s en frío y 0,86 s en caliente, con el póster mientras | `data-listo` |
+| VRAM estimada, alto | ≤ 96 MB | **61,2 MB** en el escritorio (con MSAA); 43 MB en el móvil (Pixel 7, DPR 2) | `stats().vramMb` |
+| VRAM estimada, bajo | ≤ 48 MB | **36,3 MB** en el escritorio; 19,5 MB en el móvil | Lo mismo |
+| FPS en el escritorio, alto | ≥ 55 | **144** (el refresco de la pantalla), p95 de 7 ms; igual en medio y bajo | Panel de desarrollo, «Medir 5 s» (el disco gira y se pinta seguido) |
+| FPS en un móvil de gama media, bajo | ≥ 30 | pendiente (fase 8) | Hace falta el móvil |
+| Reposo | 0 fps | **0** fotogramas en 2 s | e2e |
+| Memoria 3D tras 10 cambios de calidad | sin crecer | geometrías y texturas **iguales** | e2e (`renderer.info.memory`) |
+
+Además: 51 llamadas de dibujo, 51 geometrías, 13 texturas y 10 programas. En alto, 49 158 triángulos; en medio, 36 498, y en bajo, 25 454.
+
+### 6.2 La 5.a
 ```
 npm run check            → 0 errores
   lint (tsc de las capas, ng lint y prettier) → sin errores
@@ -246,7 +392,21 @@ Son cifras de la maqueta. La 5.b añade detalle (moleteado, rótulos y texturas 
 **El e2e del tempo por pulsaciones** (`e2e/sounds.spec.ts`) falló 2 de 4 veces en el servidor de desarrollo con la precarga de ALFAR. La página está ocupada justo cuando el test pulsa, y Playwright espacia las pulsaciones algo más de 500 ms: salían 97 BPM, por debajo del mínimo de 100. No es un fallo de la aplicación, porque el tempo sale del momento de cada evento. Ahora el test lee esos momentos en la página y comprueba que el tempo es exactamente el de su intervalo medio: 18 de 18 en verde (`7afbd79`).
 
 ## 7. Capturas
-En `docs/informes/img/fase-5/`, con `?captura=1` y el build servido por `wrangler pages dev`:
+En `docs/informes/img/fase-5/`, con `?captura=1` y el build servido por `wrangler pages dev`.
+
+**La 5.b:**
+- **El aparato definitivo desde 4 ángulos:** `escenario-<frente|tres-cuartos|cenital|perfil>-<escritorio|movil>.jpg` (8) y sus hojas, `escenario-vistas-escritorio.jpg` y `-movil.jpg`.
+- **Las páginas:** `inicio-*.png`, con el escenario 3D y el plato; `sobre-el-proyecto-*.png` y `404-*.png`.
+- **El plato de cerca, con sus avisos** (`?sin3d=1`): `instrumento-<reposo|menu|atajos|diagnostico|sonido|marcar-tempo|cargando|error|recuperar|en-cola|recuperar-dos|recuperar-confirmar>-<escritorio|movil>.png` (24).
+- **El póster:** `public/img/escenario.webp`.
+
+![El aparato definitivo desde los cuatro ángulos, en el escritorio](img/fase-5/escenario-vistas-escritorio.jpg)
+
+![El instrumento HTML como plato redondo, en el escritorio](img/fase-5/instrumento-reposo-escritorio.png)
+
+![El plato en el móvil, con la leyenda debajo](img/fase-5/instrumento-reposo-movil.png)
+
+**La 5.a:**
 - **Hojas de contactos:** `maqueta-variantes-escritorio.jpg` y `-movil.jpg` (3 variantes × 4 vistas); `maqueta-tono-escritorio.jpg` y `-movil.jpg` (Neutral frente a AgX).
 - **Cada imagen:** `maqueta-<variante>-<vista>-<escritorio|movil>.jpg` (24) y `maqueta-tono-agx-<variante>-<escritorio|movil>.jpg` (6).
 - **La sección entera**, con los botones y las medidas: `maqueta-seccion-escritorio.png` y `-movil.png`.
@@ -267,7 +427,10 @@ En `docs/informes/img/fase-5/`, con `?captura=1` y el build servido por `wrangle
 ## 9. Pendientes y `TODO(ivan)`
 También en `docs/PENDIENTES.md`:
 - **El diseño** (la parada): aprobado tal cual el 30-10 (§10).
-- **Las pruebas del móvil** (`docs/PRUEBAS-MOVIL.md`): son lo único que falta para la 5.b. La prueba 1 ya puede dar la cifra de antes y la de después de la precarga de ALFAR.
+- **Las pruebas del móvil:** hechas el 30-10 («funciona bien», sin cifras); las cifras pasan a la fase 8, con el iPhone.
+- **Los FPS en un móvil de gama media** (§5: ≥ 30 en bajo): sin el móvil no se pueden medir; van a la fase 8, con las pruebas de Iván. En bajo, el aparato pinta 25 454 triángulos con un DPR de 1,25.
+- **El póster definitivo** (fase 7): `scripts/render-poster.mjs` con `sharp`, como dice el plan; el de ahora es provisional.
+- **En la fase 6**, lo que el 3D aún no hace: tocarlo (la capa de controles), el disco girando con el transporte, los medidores y las formas de onda en la pantalla, y el parpadeo del piloto de grabar en la cuenta previa.
 
 ## 10. Propuestas de cambio al plan (para la aprobación de Iván)
 **Decisión de Iván (30-10): las aprueba tal cual.** Quedan aprobadas las cuatro decisiones de la parada (1 a 4); la 5.b se hace con ellas y en los dos pasos del punto 5.
@@ -291,9 +454,13 @@ También en `docs/PENDIENTES.md`:
    - después, `SceneEngine`, la calidad, la pérdida de contexto e `instrument-stage`.
 
 ## 11. Cómo probarlo
-- **En el móvil o en cualquier navegador:** `https://fase-5-modelo-3d.torno.pages.dev/?maqueta=1`, la vista previa de esta rama.
-  - La maqueta va justo debajo del título. Los botones cambian la variante, el mapeo de tonos y la vista.
-  - Para girarla, arrastra; para acercarla, usa la rueda o pellizca.
-  - Lo elegido queda en la dirección, así que se puede enviar un enlace a una variante concreta (`&variante=barro-oscuro&tono=agx&vista=cenital`).
-- **En local:** `npm run build`, después `node scripts/serve-pages.mjs` y abrir `http://localhost:4300/?maqueta=1`.
-- **Las capturas otra vez:** `npm run capturas -- --fase=5 --solo=maqueta`, tras `npm run build`.
+- **En el móvil o en cualquier navegador:** `https://fase-5-modelo-3d.torno.pages.dev`, la vista previa de esta rama (tras la fusión, `https://staging.torno.pages.dev`).
+  - Debajo del título, el aparato en 3D. Toca el plato de debajo (reproduce, gira un dial, abre el menú): el 3D lo enseña.
+  - `?sin3d=1`: solo el plato.
+  - `?captura=1&vista=cenital` (o `tres-cuartos`, `perfil`) y `&calidad=low` (o `medium`): otro ángulo u otro nivel, todo fijo.
+- **En local, en desarrollo:** `npm start` y `http://localhost:4200`. Debajo del 3D aparece el panel de la escena, con las cifras de `renderer.info`, la VRAM, los botones de calidad, perder y recuperar el contexto y «Medir 5 s».
+- **En local, el build:** `npm run build`, después `node scripts/serve-pages.mjs` y `http://localhost:4300`.
+- **Las capturas otra vez,** tras `npm run build`:
+  - `npm run capturas -- --fase=5`: las páginas y el plato;
+  - `npm run capturas -- --fase=5 --solo=escenario`: el 3D desde 4 ángulos, con sus cifras por nivel;
+  - `npm run capturas -- --poster`: el póster.
