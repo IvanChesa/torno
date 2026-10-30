@@ -11,6 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { isCaptureMode } from '../../core/capture-mode';
+import { isDiagnosticsMode } from '../../core/diagnostics-mode';
 import { isHtmlOnlyMode } from '../../core/html-only-mode';
 import { instrumentPose, samePose } from '../../instrument';
 import {
@@ -38,8 +39,9 @@ function pick<T extends string>(value: string | null, options: readonly T[]): T 
  *
  * Hasta la fase 6 (la capa de controles) el 3D solo enseña: se toca con el instrumento HTML de
  * debajo. Con `?sin3d=1` no se monta. Con `?captura=1`, todo fijo y las cifras en
- * `data-estadisticas` (y `?vista=` y `?calidad=` eligen ángulo y nivel). En desarrollo, un panel
- * con los FPS, `renderer.info` y botones para forzar la calidad y perder el contexto.
+ * `data-estadisticas` (y `?vista=` y `?calidad=` eligen ángulo y nivel). En desarrollo y con
+ * `?diagnostico=1`, un panel con los FPS, `renderer.info` y botones para forzar la calidad y perder
+ * el contexto.
  */
 @Component({
   selector: 'trn-instrument-stage',
@@ -76,9 +78,15 @@ function pick<T extends string>(value: string | null, options: readonly T[]): T 
           </p>
         }
       </div>
-      @if (dev) {
+      <!--
+        El panel de la escena, en su propio trozo: el build de producción solo lo pide con
+        ?diagnostico=1 (para medir los FPS en el móvil, PRUEBAS-MOVIL.md).
+      -->
+      @if (panel) {
         @if (engine(); as engine) {
-          <trn-stage-dev [engine]="engine" />
+          @defer (on immediate) {
+            <trn-stage-dev [engine]="engine" />
+          }
         }
       }
     }
@@ -148,7 +156,8 @@ function pick<T extends string>(value: string | null, options: readonly T[]): T 
 export class InstrumentStage {
   protected readonly text = INSTRUMENT_STAGE_CONTENT;
   protected readonly poster = STAGE_POSTER;
-  protected readonly dev = isDevMode();
+  /** El panel de la escena: en desarrollo y con `?diagnostico=1`. */
+  protected readonly panel = isDevMode() || isDiagnosticsMode(globalThis.location?.search ?? '');
   /**
    * `?sin3d=1`. El escenario va en `@defer` (solo en el navegador), así que la dirección ya se puede
    * leer al crearlo.

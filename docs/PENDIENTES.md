@@ -47,6 +47,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
   - `TODO(ivan)`: el **primer sonido en frío con la precarga** (prueba 1, con la cifra de antes y la de después). En la fase 8 también se mide en la primera visita real, por red y con la pestaña visible, además de en local. La sesión de plan vio 803 ms en el escritorio, pero con la pestaña en segundo plano: no es una cifra fiable;
   - `TODO(ivan)`: **calibrar la latencia y grabar varias tomas seguidas** con auriculares (pruebas 5 y 7), para ver si quedan alineadas entre sí. En Chromium, la latencia del camino del micrófono cambia en cada apertura de la pista (12–21 ms medidos en un retorno; informe de la fase 2, §10, propuesta 1);
   - `TODO(ivan)`: una de **5 min con las 4 capas largas** (tomas de 30–60 s) y el autoguardado activo, girando diales: sin cortes en el audio (prueba 10; revisión de la fase 2, #6).
+  - `TODO(ivan)`: los **FPS del 3D** en el móvil, con el panel «Escena 3D» de `?diagnostico=1` y su botón «Medir 5 s» (prueba 15). PLAN §5 pide 30 o más en un móvil de gama media, en calidad baja y tocando (revisión de la fase 5, #5).
 
 ## Fase 9 (manual)
 - [ ] **`torno.ivanchesa.es`:**

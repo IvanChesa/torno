@@ -14,7 +14,7 @@ import {
   type SceneEngine,
   type SceneStats,
 } from '../../scene';
-import { INSTRUMENT_STAGE_CONTENT } from './instrument-stage.content';
+import { STAGE_DEV_CONTENT } from './stage-dev.content';
 
 /** Cada cuánto se leen las cifras (2 veces por segundo: los signals, por debajo de 10/s). */
 const STATS_MS = 500;
@@ -22,9 +22,10 @@ const STATS_MS = 500;
 const BENCHMARK_MS = 5000;
 
 /**
- * El panel de la escena **solo en desarrollo** (PLAN fase 5.b): FPS y `renderer.info`, y botones
- * para forzar la calidad, perder y recuperar el contexto y medir los FPS pintando seguido. Lo usan
- * los e2e del servidor de desarrollo (memoria tras 10 cambios de calidad, contexto y reposo).
+ * El panel de la escena (PLAN fase 5.b): FPS y `renderer.info`, y botones para forzar la calidad,
+ * perder y recuperar el contexto y medir los FPS pintando seguido. Sale en desarrollo y con
+ * `?diagnostico=1` (en su propio trozo: `@defer`). Lo usan los e2e del servidor de desarrollo
+ * (memoria tras 10 cambios de calidad, contexto y reposo) y la medida de los FPS en el móvil.
  */
 @Component({
   selector: 'trn-stage-dev',
@@ -105,7 +106,7 @@ const BENCHMARK_MS = 5000;
 export class StageDev {
   readonly engine = input.required<SceneEngine>();
 
-  protected readonly text = INSTRUMENT_STAGE_CONTENT.dev;
+  protected readonly text = STAGE_DEV_CONTENT;
   protected readonly levels = QUALITY_LEVELS;
   protected readonly stats = signal<SceneStats | null>(null);
   protected readonly result = signal<FrameStats | null>(null);

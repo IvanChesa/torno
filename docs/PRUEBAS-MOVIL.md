@@ -49,6 +49,7 @@ Marca ✅ o ❌ y apunta las cifras y lo raro que veas u oigas.
 | 12 | Guardar, cargar y exportar | SESIÓN → GUARDAR (un `.torno`), SESIÓN NUEVA y SESIÓN → CARGAR ese archivo. Luego EXPORTAR MEZCLA y EXPORTAR PISTAS: ¿se abren los WAV en el móvil? | sin dato | sin dato |
 | 13 | Recargar y recuperar | Recarga la página: «Recuperar la sesión anterior» la devuelve tal cual. | sin dato | sin dato |
 | 14 | Reposo | Pulsa REPOSO: el audio para y el micrófono se suelta. Vuelve a pulsarlo: sigue donde estaba. | sin dato | sin dato |
+| 15 | **FPS del 3D** (desde la fase 5) | Con `?diagnostico=1`, baja hasta el aparato en 3D. Debajo sale el panel «Escena 3D»: apunta la calidad con la que empieza (en el móvil, «low») y pulsa «Medir 5 s» sin tocar nada. Apunta los fps y el p95. Tiene que dar **30 fps o más** (PLAN §5). Desde la fase 6, repítelo tocando (el disco girando). | — (fase 8) | — (fase 8) |
 
 ## Lo que no ha ido bien
 
