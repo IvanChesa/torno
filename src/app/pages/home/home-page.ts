@@ -1,9 +1,11 @@
 import { afterNextRender, Component, signal } from '@angular/core';
 import { noteInstrumentTap, preloadAudioEngine } from '../../audio/engine';
 import { isDiagnosticsMode } from '../../core/diagnostics-mode';
+import { isMockupMode } from '../../core/mockup-mode';
 import { DesignSample } from '../../features/design-sample/design-sample';
 import { DiagnosticsPanel } from '../../features/diagnostics/diagnostics-panel';
 import { HtmlInstrument } from '../../features/html-instrument/html-instrument';
+import { MockupStage } from '../../features/mockup/mockup-stage';
 import { HOME_CONTENT } from './home.content';
 
 /**
@@ -17,11 +19,12 @@ import { HOME_CONTENT } from './home.content';
  * sonido»). Es una escucha de la página, no un control: los controles están dentro.
  *
  * Con `?diagnostico=1`, debajo del instrumento va el panel de diagnóstico del audio (las pruebas en
- * los móviles, PLAN fase 4). Solo se sabe en el navegador; también va en `@defer`.
+ * los móviles, PLAN fase 4). Con `?maqueta=1`, antes del instrumento va la maqueta 3D (PLAN fase
+ * 5.a). Los dos solo se saben en el navegador; también van en `@defer`.
  */
 @Component({
   selector: 'trn-home-page',
-  imports: [DesignSample, DiagnosticsPanel, HtmlInstrument],
+  imports: [DesignSample, DiagnosticsPanel, HtmlInstrument, MockupStage],
   host: { '(click)': 'tap($event)' },
   template: `
     <section class="hero">
@@ -34,6 +37,12 @@ import { HOME_CONTENT } from './home.content';
         }}</a>
       </p>
     </section>
+
+    @if (mockup()) {
+      @defer (on immediate) {
+        <trn-mockup-stage />
+      }
+    }
 
     <section class="section" id="instrumento" aria-labelledby="instrumento-titulo">
       <h2 id="instrumento-titulo">{{ text.instrument.title }}</h2>
@@ -115,9 +124,13 @@ import { HOME_CONTENT } from './home.content';
 export class HomePage {
   protected readonly text = HOME_CONTENT;
   protected readonly diagnostics = signal(false);
+  protected readonly mockup = signal(false);
 
   constructor() {
-    afterNextRender(() => this.diagnostics.set(isDiagnosticsMode(location.search)));
+    afterNextRender(() => {
+      this.diagnostics.set(isDiagnosticsMode(location.search));
+      this.mockup.set(isMockupMode(location.search));
+    });
   }
 
   protected preload(): void {
