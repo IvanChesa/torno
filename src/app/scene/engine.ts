@@ -334,6 +334,8 @@ export class SceneEngine {
     this.#environment?.target.dispose();
     this.#environment = null;
     this.#renderer.dispose();
+    // El contexto también, sin esperar al recolector: Chrome pierde el más antiguo pasados 16.
+    this.#renderer.forceContextLoss();
   }
 
   // --- Construcción -----------------------------------------------------------------------------
@@ -385,28 +387,36 @@ export class SceneEngine {
       return;
     }
 
-    if (this.#environment?.size !== settings.environmentSize) {
-      this.#environment?.target.dispose();
-      this.#environment = null;
-      this.#environment = await this.#makeEnvironment(settings.environmentSize);
-      await yieldToMain();
-    }
+    // El entorno nuevo, si cambia de tamaño, aparte: el de ahora sigue en la escena hasta el cambio.
+    const previous = this.#environment;
+    const environment =
+      previous?.size === settings.environmentSize
+        ? previous
+        : await this.#makeEnvironment(settings.environmentSize);
+    await yieldToMain();
 
-    // Antes de enseñarlo: las texturas a la GPU y los *shaders* compilados, de uno en uno y con una
-    // pausa entre ellos (mientras, se sigue viendo lo de antes).
-    await this.#prepare([model.root, shadow]);
+    // Antes de enseñarlo: las texturas a la GPU y los *shaders* compilados (con el entorno nuevo), de
+    // uno en uno y con una pausa entre ellos. Mientras, se sigue viendo lo de antes.
+    await this.#prepare([model.root, shadow], environment.target.texture);
     if (this.#disposed) {
       this.#disposeBuild({ level, model, materials, screen, shadow });
+      if (environment !== previous) environment.target.dispose();
       return;
     }
 
+    // La pose de ahora (pudo cambiar mientras se construía) y, a la vez, el aparato y el entorno.
+    applyPose(model, materials, this.#pose);
+    screen.paint(this.#pose.display);
     const old = this.#build;
     this.#build = { level, model, materials, screen, shadow };
     this.#scene.add(model.root, shadow);
+    this.#environment = environment;
+    this.#scene.environment = environment.target.texture;
     if (old) {
       this.#scene.remove(old.model.root, old.shadow);
       this.#disposeBuild(old);
     }
+    if (previous && previous !== environment) previous.target.dispose();
     this.#level = level;
     model.root.updateMatrixWorld(true);
     this.#silhouette = [...silhouette(model), ...shadowRing()];
@@ -417,7 +427,7 @@ export class SceneEngine {
    * Sube las texturas y compila los *shaders* de lo nuevo, de uno en uno y sin bloquear (`#gpuIdle`
    * y `compileAsync`): así la GPU tampoco se queda medio segundo sin pintar la página.
    */
-  async #prepare(roots: readonly Object3D[]): Promise<void> {
+  async #prepare(roots: readonly Object3D[], environment: Texture): Promise<void> {
     const materials = new Set<Material>();
     const firsts: Mesh[] = [];
     for (const root of roots) {
@@ -441,9 +451,13 @@ export class SceneEngine {
       this.#renderer.initTexture(texture);
       await this.#gpuIdle();
     }
+    // Una escena con lo que entra en la clave de los programas: el entorno nuevo y las mismas luces.
+    const target = new Scene();
+    target.environment = environment;
+    target.add(new DirectionalLight());
     for (const mesh of firsts) {
       if (this.#disposed) return;
-      await this.#renderer.compileAsync(mesh, this.#camera, this.#scene);
+      await this.#renderer.compileAsync(mesh, this.#camera, target);
       await yieldToMain();
     }
   }
@@ -516,7 +530,6 @@ export class SceneEngine {
     pmrem.dispose();
     quad.dispose();
     await this.#gpuIdle();
-    this.#scene.environment = environment.texture;
     return { target: environment, size };
   }
 
@@ -606,6 +619,7 @@ export class SceneEngine {
         return;
       }
       this.#environment = environment;
+      this.#scene.environment = environment.target.texture;
       this.#lost = false;
       this.#onEvent?.({ type: 'context-restored' });
       this.#invalidate();
