@@ -3,18 +3,21 @@
 //
 // Uso: npm run capturas -- --fase=2   (después de `npm run build`)
 //      → docs/informes/img/fase-2/<página>-<escritorio|movil>.png
-//        y, desde la fase 2, el instrumento HTML de cerca, con sus avisos: en reposo, con el menú
-//        abierto, con la chuleta de atajos, cargando el audio, con el error de «Reintentar» y
-//        ofreciendo recuperar la sesión anterior; desde la fase 3, el menú SONIDO con la colección,
-//        MARCAR TEMPO, un cambio EN COLA y el panel de recuperar con los dos huecos y su
-//        confirmación; desde la fase 4, el panel de diagnóstico (`?diagnostico=1`).
+//        y, desde la fase 2, el instrumento HTML de cerca (con `?sin3d=1`), con sus avisos: en
+//        reposo, con el menú abierto, con la chuleta de atajos, cargando el audio, con el error de
+//        «Reintentar» y ofreciendo recuperar la sesión anterior; desde la fase 3, el menú SONIDO con
+//        la colección, MARCAR TEMPO, un cambio EN COLA y el panel de recuperar con los dos huecos y
+//        su confirmación; desde la fase 4, el panel de diagnóstico (`?diagnostico=1`).
 //
-//      npm run capturas -- --fase=5 --solo=maqueta
-//      → solo la maqueta 3D (`?maqueta=1`, fase 5.a): las 3 variantes desde 4 ángulos y la prueba
-//        de mapeo de tonos (Neutral frente a AgX), en JPEG, más una hoja de contactos de cada cosa
-//        y la sección de la maqueta entera. Escribe en la consola lo que cuesta pintarla.
-/* global document, AudioWorklet -- se usan dentro de page.evaluate() y addInitScript(), en la página */
-import { mkdir, readFile } from 'node:fs/promises';
+//      npm run capturas -- --fase=5 --solo=escenario
+//      → solo el escenario 3D (fase 5.b): el aparato desde 4 ángulos, en JPEG, con una hoja de
+//        contactos. Escribe en la consola lo que cuesta pintarlo, por nivel de calidad.
+//
+//      npm run capturas -- --poster
+//      → el póster provisional del escenario (public/img/escenario.webp, 1200×960): una captura del
+//        propio motor, para que el fundido al primer fotograma no mueva nada.
+/* global document, AudioWorklet, Image -- se usan dentro de page.evaluate() y addInitScript(), en la página */
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, devices } from '@playwright/test';
@@ -31,40 +34,39 @@ const VIEWPORTS = [
   { name: 'movil', options: { ...devices['Pixel 7'], deviceScaleFactor: 2 } },
 ];
 
-/** La maqueta (fase 5.a): variantes, vistas y mapeos de tonos, con sus nombres en la interfaz. */
-const MOCKUP = {
-  variants: [
-    ['terracota', 'Terracota'],
-    ['barro-oscuro', 'Barro oscuro'],
-    ['arcilla-clara', 'Arcilla clara'],
-  ],
-  views: [
-    ['frente', 'Frente'],
-    ['tres-cuartos', 'Tres cuartos'],
-    ['cenital', 'Cenital'],
-    ['perfil', 'Perfil'],
-  ],
-  tones: [
-    ['neutral', 'Neutral'],
-    ['agx', 'AgX'],
-  ],
-  /** La vista de la prueba de mapeo de tonos. */
-  toneView: 'tres-cuartos',
-};
+/** Las vistas del escenario 3D (fase 5.b), con sus nombres para la hoja de contactos. */
+const STAGE_VIEWS = [
+  ['frente', 'Frente'],
+  ['tres-cuartos', 'Tres cuartos'],
+  ['cenital', 'Cenital'],
+  ['perfil', 'Perfil'],
+];
+/** El póster: 1200×960 (5:4, como el lienzo). */
+const POSTER = { file: 'public/img/escenario.webp', width: 1200, height: 960, quality: 0.8 };
 
 const onlyArg = process.argv.find((arg) => arg.startsWith('--solo='))?.slice('--solo='.length);
+const posterArg = process.argv.includes('--poster');
 const phaseArg = process.argv.find((arg) => arg.startsWith('--fase='));
-if (!phaseArg) {
-  console.error('Indica la fase: npm run capturas -- --fase=N');
+if (!phaseArg && !posterArg) {
+  console.error('Indica la fase: npm run capturas -- --fase=N (o --poster)');
   process.exit(1);
 }
-const outDir = path.join(ROOT, 'docs/informes/img', `fase-${phaseArg.slice('--fase='.length)}`);
-await mkdir(outDir, { recursive: true });
+const outDir = path.join(ROOT, 'docs/informes/img', `fase-${phaseArg?.slice('--fase='.length)}`);
+if (phaseArg) await mkdir(outDir, { recursive: true });
 
-/** Espera a que la página esté quieta: fuentes cargadas y, en la portada, el instrumento. */
+/**
+ * Espera a que la página esté quieta: fuentes cargadas y, en la portada, el instrumento y (sin
+ * `?sin3d=1`) el primer fotograma del escenario 3D.
+ */
 async function settle(page, url) {
   await page.waitForLoadState('networkidle');
-  if (new URL(url).pathname === '/') await page.locator('[data-control="main"]').waitFor();
+  const { pathname, searchParams } = new URL(url);
+  if (pathname === '/') {
+    await page.locator('[data-control="main"]').waitFor();
+    if (searchParams.get('sin3d') !== '1') {
+      await page.locator('.stage3d[data-listo]').waitFor({ timeout: 60_000 });
+    }
+  }
   await page.evaluate(() => document.fonts.ready);
 }
 
@@ -86,37 +88,16 @@ async function openHome(page, url) {
 }
 
 /**
- * Una imagen de la maqueta: la página con `?captura=1` y lo elegido en la URL; se espera a que el
- * visor haya pintado (`data-listo`). Devuelve lo que costó pintarla (`data-estadisticas`).
+ * El escenario 3D con `?captura=1` y lo elegido en la URL (vista y calidad): se espera a su primer
+ * fotograma (`data-listo`). Devuelve el escenario y lo que costó pintarlo (`data-estadisticas`).
  */
-async function shootMockup(page, base, choice, file) {
-  const viewer = await openMockup(page, base, choice);
-  await viewer.screenshot({
-    path: file,
-    type: 'jpeg',
-    quality: 88,
-    animations: 'disabled',
-    caret: 'hide',
-  });
-  console.log(`✔ ${path.relative(ROOT, file)}`);
-  return viewer.getAttribute('data-estadisticas');
-}
-
-/** Abre la portada con la maqueta y lo elegido, y espera a que el visor haya pintado. */
-async function openMockup(page, base, { variant, view, tone }) {
-  const params = new URLSearchParams({
-    captura: '1',
-    maqueta: '1',
-    variante: variant,
-    vista: view,
-    tono: tone,
-  });
-  await page.goto(`${base}/?${params}`);
+async function openStage(page, base, params) {
+  await page.goto(`${base}/?${new URLSearchParams({ captura: '1', ...params })}`);
   await page.evaluate(() => document.fonts.ready);
-  const viewer = page.locator('trn-mockup-stage .viewer[data-listo]');
-  await viewer.waitFor({ timeout: 60_000 });
-  await viewer.scrollIntoViewIfNeeded();
-  return viewer;
+  const stage = page.locator('.stage3d[data-listo]');
+  await stage.waitFor({ timeout: 60_000 });
+  await stage.scrollIntoViewIfNeeded();
+  return { stage, stats: await stage.getAttribute('data-estadisticas') };
 }
 
 /**
@@ -148,56 +129,68 @@ async function contactSheet(browser, cells, columns, file) {
   console.log(`✔ ${path.relative(ROOT, file)}`);
 }
 
-/** La maqueta en un tamaño de pantalla: variantes × vistas, mapeo de tonos y la sección entera. */
-async function captureMockup(browser, context, base, viewport) {
+/** El escenario 3D en un tamaño de pantalla: el aparato desde 4 ángulos y su hoja de contactos. */
+async function captureStage(browser, context, base, viewport) {
   const page = await context.newPage();
-  const variants = [];
-  let stats = null;
-  for (const [variant, variantName] of MOCKUP.variants) {
-    for (const [view, viewName] of MOCKUP.views) {
-      const file = path.join(outDir, `maqueta-${variant}-${view}-${viewport}.jpg`);
-      const shot = await shootMockup(page, base, { variant, view, tone: 'neutral' }, file);
-      stats ??= shot;
-      variants.push({ file, label: `${variantName} · ${viewName}` });
-    }
+  const cells = [];
+  for (const [view, viewName] of STAGE_VIEWS) {
+    const { stage, stats } = await openStage(page, base, { vista: view });
+    const file = path.join(outDir, `escenario-${view}-${viewport}.jpg`);
+    await stage.screenshot({ path: file, type: 'jpeg', quality: 88, animations: 'disabled' });
+    console.log(`✔ ${path.relative(ROOT, file)}`);
+    if (view === 'frente') console.log(`  Coste de pintarlo (${viewport}, alta): ${stats}`);
+    cells.push({ file, label: viewName });
   }
-  const tones = [];
-  for (const [tone, toneName] of MOCKUP.tones) {
-    for (const [variant, variantName] of MOCKUP.variants) {
-      const file = path.join(outDir, `maqueta-tono-${tone}-${variant}-${viewport}.jpg`);
-      if (tone === 'neutral') {
-        // La misma que la de la vista de tres cuartos: no hace falta otra.
-        tones.push({
-          file: path.join(outDir, `maqueta-${variant}-${MOCKUP.toneView}-${viewport}.jpg`),
-          label: `${toneName} · ${variantName}`,
-        });
-        continue;
-      }
-      await shootMockup(page, base, { variant, view: MOCKUP.toneView, tone }, file);
-      tones.push({ file, label: `${toneName} · ${variantName}` });
-    }
+  await contactSheet(browser, cells, 2, path.join(outDir, `escenario-vistas-${viewport}.jpg`));
+  for (const quality of ['medium', 'low']) {
+    const { stats } = await openStage(page, base, { calidad: quality });
+    console.log(`  Coste de pintarlo (${viewport}, ${quality}): ${stats}`);
   }
-  await contactSheet(
-    browser,
-    variants,
-    MOCKUP.views.length,
-    path.join(outDir, `maqueta-variantes-${viewport}.jpg`),
-  );
-  await contactSheet(
-    browser,
-    tones,
-    MOCKUP.variants.length,
-    path.join(outDir, `maqueta-tono-${viewport}.jpg`),
-  );
-  // La sección entera, con los botones y las medidas.
-  await openMockup(page, base, { variant: 'terracota', view: 'frente', tone: 'neutral' });
-  const section = path.join(outDir, `maqueta-seccion-${viewport}.png`);
-  await page
-    .locator('trn-mockup-stage')
-    .screenshot({ path: section, animations: 'disabled', caret: 'hide' });
-  console.log(`✔ ${path.relative(ROOT, section)}`);
-  console.log(`  Coste de pintar la maqueta (${viewport}): ${stats}`);
   await page.close();
+}
+
+/**
+ * El póster del escenario: el lienzo en `?captura=1` (con el fondo de la página), llevado a
+ * 1200×960 y codificado en WebP por el propio navegador (sin dependencias para imágenes).
+ */
+async function capturePoster(browser, base) {
+  const page = await browser.newPage({
+    viewport: { width: 1440, height: 1100 },
+    deviceScaleFactor: 2,
+    reducedMotion: 'reduce',
+    colorScheme: 'dark',
+  });
+  const { stage } = await openStage(page, base, {});
+  const png = await stage.locator('canvas').screenshot({ type: 'png', animations: 'disabled' });
+  await page.close();
+  // En una página en blanco: la de Torno no deja cargar imágenes `data:` (CSP, `img-src 'self'`).
+  const encoder = await browser.newPage();
+  await encoder.setContent('<!doctype html><title>póster</title>');
+  const webp = await encoder.evaluate(
+    async ({ src, width, height, quality }) => {
+      const image = new Image();
+      image.src = src;
+      await image.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(image, 0, 0, width, height);
+      return canvas.toDataURL('image/webp', quality).split(',')[1];
+    },
+    {
+      src: `data:image/png;base64,${png.toString('base64')}`,
+      width: POSTER.width,
+      height: POSTER.height,
+      quality: POSTER.quality,
+    },
+  );
+  const file = path.join(ROOT, POSTER.file);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, Buffer.from(webp, 'base64'));
+  console.log(`✔ ${POSTER.file} (${Math.round(Buffer.from(webp, 'base64').length / 1024)} kB)`);
+  await encoder.close();
 }
 
 const server = await startPagesServer();
@@ -206,7 +199,10 @@ let browser;
 try {
   // Dentro del `try`: si el navegador no arranca, el servidor también se cierra.
   browser = await chromium.launch();
-  for (const viewport of VIEWPORTS) {
+  if (posterArg) {
+    await capturePoster(browser, server.url);
+  }
+  for (const viewport of phaseArg ? VIEWPORTS : []) {
     const context = await browser.newContext({
       ...viewport.options,
       locale: 'es-ES',
@@ -214,8 +210,8 @@ try {
       reducedMotion: 'reduce',
       colorScheme: 'dark',
     });
-    if (onlyArg === 'maqueta') {
-      await captureMockup(browser, context, server.url, viewport.name);
+    if (onlyArg === 'escenario') {
+      await captureStage(browser, context, server.url, viewport.name);
       await context.close();
       continue;
     }
@@ -228,8 +224,9 @@ try {
       await page.screenshot({ path: file, fullPage: true, animations: 'disabled', caret: 'hide' });
       console.log(`✔ ${path.relative(ROOT, file)}`);
     }
-    // El instrumento de cerca: en reposo, con el menú abierto (BUCLE) y con la chuleta de atajos.
-    const home = `${server.url}/?captura=1`;
+    // El instrumento HTML de cerca (sin el 3D): en reposo, con el menú abierto (BUCLE) y con la
+    // chuleta de atajos.
+    const home = `${server.url}/?captura=1&sin3d=1`;
     let main = await openHome(page, home);
     await shootInstrument(page, 'reposo', viewport.name);
     await main.focus();

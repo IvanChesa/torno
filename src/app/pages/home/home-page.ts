@@ -1,30 +1,33 @@
 import { afterNextRender, Component, signal } from '@angular/core';
 import { noteInstrumentTap, preloadAudioEngine } from '../../audio/engine';
 import { isDiagnosticsMode } from '../../core/diagnostics-mode';
-import { isMockupMode } from '../../core/mockup-mode';
+import { isHtmlOnlyMode } from '../../core/html-only-mode';
 import { DesignSample } from '../../features/design-sample/design-sample';
 import { DiagnosticsPanel } from '../../features/diagnostics/diagnostics-panel';
 import { HtmlInstrument } from '../../features/html-instrument/html-instrument';
-import { MockupStage } from '../../features/mockup/mockup-stage';
+import { InstrumentStage } from '../../features/instrument-stage/instrument-stage';
+import { STAGE_POSTER } from '../../features/instrument-stage/stage-poster';
 import { HOME_CONTENT } from './home.content';
 
 /**
- * Portada. Hasta la fase 7 es la página base: presentación, instrumento (HTML hasta las fases 5 y
- * 6) y muestrario.
+ * Portada. Hasta la fase 7 es la página base: presentación, instrumento y muestrario.
  *
- * El instrumento va en `@defer`: su JS no entra en la primera visita. El escenario que lo rodea
- * lleva `data-audio-unlock` (el desbloqueo nativo actúa en el gesto real aunque la página no esté
- * hidratada). La página escucha los `click` (Angular los repite tras la hidratación): si un toque
- * sobre el escenario llegó antes que el JS, el instrumento pide otro («Toca para activar el
+ * El aparato en 3D (PLAN §4.9) va en `@defer`, al acercarse o en reposo: mientras, su póster, en
+ * la misma caja (sin mover nada al llegar). Hasta la fase 6 solo enseña lo que se toca; se toca con
+ * el instrumento HTML de debajo.
+ *
+ * El instrumento también va en `@defer`: su JS no entra en la primera visita. El escenario que lo
+ * rodea lleva `data-audio-unlock` (el desbloqueo nativo actúa en el gesto real aunque la página no
+ * esté hidratada). La página escucha los `click` (Angular los repite tras la hidratación): si un
+ * toque sobre el escenario llegó antes que el JS, el instrumento pide otro («Toca para activar el
  * sonido»). Es una escucha de la página, no un control: los controles están dentro.
  *
  * Con `?diagnostico=1`, debajo del instrumento va el panel de diagnóstico del audio (las pruebas en
- * los móviles, PLAN fase 4). Con `?maqueta=1`, antes del instrumento va la maqueta 3D (PLAN fase
- * 5.a). Los dos solo se saben en el navegador; también van en `@defer`.
+ * los móviles, PLAN fase 4). Solo se sabe en el navegador; también va en `@defer`.
  */
 @Component({
   selector: 'trn-home-page',
-  imports: [DesignSample, DiagnosticsPanel, HtmlInstrument, MockupStage],
+  imports: [DesignSample, DiagnosticsPanel, HtmlInstrument, InstrumentStage],
   host: { '(click)': 'tap($event)' },
   template: `
     <section class="hero">
@@ -38,15 +41,30 @@ import { HOME_CONTENT } from './home.content';
       </p>
     </section>
 
-    @if (mockup()) {
-      @defer (on immediate) {
-        <trn-mockup-stage />
-      }
-    }
-
     <section class="section" id="instrumento" aria-labelledby="instrumento-titulo">
       <h2 id="instrumento-titulo">{{ text.instrument.title }}</h2>
       <p class="section__intro">{{ text.instrument.intro }}</p>
+      @if (!htmlOnly()) {
+        @defer (on viewport; on idle) {
+          <trn-instrument-stage />
+        } @placeholder {
+          <div class="stage3d-placeholder">
+            <!--
+              Un <img> sin NgOptimizedImage: la directiva entra en el trozo común del bundle
+              inicial (esbuild reparte por módulos) y lo pasaba de 300 kB. Un solo póster, sin
+              srcset, no la necesita.
+            -->
+            <img
+              [src]="poster.src"
+              [width]="poster.width"
+              [height]="poster.height"
+              [alt]="text.instrument.poster"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+        }
+      }
       <div class="stage" data-audio-unlock>
         @defer (on idle; on viewport; on interaction) {
           <trn-html-instrument />
@@ -104,6 +122,17 @@ import { HOME_CONTENT } from './home.content';
       max-inline-size: var(--measure);
     }
 
+    /* El póster ocupa lo mismo que el escenario 3D (5:4): al llegar el lienzo, nada se mueve. */
+    .stage3d-placeholder {
+      aspect-ratio: 5 / 4;
+    }
+
+    .stage3d-placeholder img {
+      inline-size: 100%;
+      block-size: 100%;
+      object-fit: contain;
+    }
+
     /* El esqueleto ocupa lo mismo que el instrumento: al cargarlo, nada se mueve. */
     .stage__placeholder {
       display: grid;
@@ -123,13 +152,15 @@ import { HOME_CONTENT } from './home.content';
 })
 export class HomePage {
   protected readonly text = HOME_CONTENT;
+  protected readonly poster = STAGE_POSTER;
   protected readonly diagnostics = signal(false);
-  protected readonly mockup = signal(false);
+  /** `?sin3d=1`: sin el escenario 3D (ni su póster). Solo se sabe en el navegador. */
+  protected readonly htmlOnly = signal(false);
 
   constructor() {
     afterNextRender(() => {
       this.diagnostics.set(isDiagnosticsMode(location.search));
-      this.mockup.set(isMockupMode(location.search));
+      this.htmlOnly.set(isHtmlOnlyMode(location.search));
     });
   }
 

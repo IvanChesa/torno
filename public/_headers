@@ -49,10 +49,13 @@ https://:project.pages.dev/*
 /audio/*
   Cache-Control: public, max-age=31536000, immutable
 
-# Sin hash (el favicon y las licencias): un día. El HTML lleva la de Pages, que se revalida siempre
-# (`max-age=0, must-revalidate`): cada build cambia los nombres de lo que carga.
+# Sin hash (el favicon, las licencias y el póster del 3D): un día. El HTML lleva la de Pages, que
+# se revalida siempre (`max-age=0, must-revalidate`): cada build cambia los nombres de lo que carga.
 /favicon.svg
   Cache-Control: public, max-age=86400
 
 /licencias/*
+  Cache-Control: public, max-age=86400
+
+/img/*
   Cache-Control: public, max-age=86400

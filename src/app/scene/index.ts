@@ -1,19 +1,18 @@
 /**
  * scene: API pública del 3D (PLAN §4.6). Three.js sin Angular ni audio; es el único sitio donde se
- * importa `three`. Los componentes solo llegan aquí: tipos, las opciones de la maqueta (sin `three`)
- * y funciones diminutas que cargan la implementación con `import()`, para que `three` nunca entre
- * en el bundle inicial.
- *
- * Fase 5.a: la maqueta (`mockup/`). El motor definitivo (`SceneEngine`) llega en la 5.b.
+ * importa `three`. Los componentes solo llegan aquí: tipos, las opciones (sin `three`) y una función
+ * diminuta que carga el motor con `import()`, para que `three` nunca entre en el bundle inicial.
  */
-import type { MockupOptions, MockupViewer } from './mockup/viewer';
+import type { SceneEngine, SceneOptions } from './engine';
 
-export { TONE_MAPPINGS, VARIANTS, VIEWS } from './mockup/options';
-export type { ToneMapping, Variant, View } from './mockup/options';
-export type { MockupOptions, MockupState, MockupStats, MockupViewer } from './mockup/viewer';
+export { VIEWS } from './options';
+export type { View } from './options';
+export { QUALITY_LEVELS } from './quality';
+export type { QualityLevel } from './quality';
+export type { FrameStats, SceneEngine, SceneEvent, SceneOptions, SceneStats } from './engine';
 
-/** Carga `three` y la maqueta, y la monta en el lienzo. Falla si el navegador no tiene WebGL. */
-export async function createMockupViewer(options: MockupOptions): Promise<MockupViewer> {
-  const mockup = await import('./mockup/viewer');
-  return mockup.MockupViewer.create(options);
+/** Carga `three` y el motor, y monta el aparato en el lienzo. Falla si no hay WebGL. */
+export async function createSceneEngine(options: SceneOptions): Promise<SceneEngine> {
+  const scene = await import('./engine');
+  return scene.SceneEngine.create(options);
 }
