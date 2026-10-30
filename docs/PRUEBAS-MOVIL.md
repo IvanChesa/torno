@@ -1,6 +1,6 @@
 # Pruebas en el móvil (fase 4.b)
 
-Lista para probar Torno en un Android y en un iPhone en la vista previa de Cloudflare Pages (el staging). Los resultados desbloquean el bloque C: si el audio falla en iOS, se arregla antes de construir el 3D (PLAN, fase 4).
+Lista para probar Torno en un Android y en un iPhone en la vista previa de Cloudflare Pages (el staging). Los resultados desbloquean la entrega 5.b (decisión de Iván del 30-10: el bloque C empieza antes): si el audio falla en iOS, se arregla en el motor antes de seguir con el 3D (PLAN, fase 4).
 
 Rellena las casillas y los huecos. Cuando la lista diga **«copia el informe»**, pulsa «Copiar el informe» en el panel de diagnóstico y pégalo al final de esta página, en «Informes del panel». Ni el panel ni la web envían nada: todo se queda en el móvil hasta que tú lo pegues aquí.
 
@@ -29,7 +29,7 @@ Marca ✅ o ❌ y apunta las cifras y lo raro que veas u oigas.
 
 | # | Prueba | Cómo | Android | iPhone |
 |---|---|---|---|---|
-| 1 | **Primera reproducción en frío** | Con el altavoz del móvil o auriculares de cable (los Bluetooth añaden por sí solos más de 150 ms). Abre la dirección en una pestaña nueva (mejor tras cerrar el navegador) y espera a que cargue del todo: el panel de diagnóstico aparece debajo del instrumento (si pulsas antes, esa reproducción no se mide). Sin tocar nada más, pulsa REPRODUCIR una vez. Tiene que sonar la batería ALFAR enseguida, y la capa 2 tiene que quedar elegida. Apunta «Del toque al primer sonido» (la primera cifra, «en frío»). Si pasa de **150 ms**, se precargará ALFAR al acercarse al instrumento (PLAN §5, «Síntesis»). | … ms | … ms |
+| 1 | **Primera reproducción en frío** | Con el altavoz del móvil o auriculares de cable (los Bluetooth añaden por sí solos más de 150 ms). Abre la dirección en una pestaña nueva (mejor tras cerrar el navegador) y espera a que cargue del todo: el panel de diagnóstico aparece debajo del instrumento (si pulsas antes, esa reproducción no se mide). Sin tocar nada más, pulsa REPRODUCIR una vez. Tiene que sonar la batería ALFAR enseguida, y la capa 2 tiene que quedar elegida. Apunta «Del toque al primer sonido» (la primera cifra, «en frío»): tiene que quedar por debajo de **150 ms** (PLAN §5, «Síntesis»). Desde el 30-10, ALFAR se prepara en silencio al acercarse al instrumento: espera unos 3 s con el instrumento a la vista antes de tocar. **La cifra de antes**, la misma prueba en `https://a769d658.torno.pages.dev/?diagnostico=1` (el despliegue sin la precarga). | antes … ms · después … ms | antes … ms · después … ms |
 | 2 | Reproducir, pausar y parar | Igual que en la 1, sin Bluetooth. Pausa y reproduce otra vez: apunta la segunda cifra del panel. Mantén REPRODUCIR para parar. | … ms | … ms |
 | 3 | Con el interruptor de silencio (iPhone) | Con el interruptor activado, ¿suena? | — | |
 | 4 | Sonidos y cola | Con la batería sonando, elige en la capa 2 un bajo (SONIDO → BAJO). Pone EN COLA y entra al empezar el compás. DESHACER antes del compás cancela la cola. | | |

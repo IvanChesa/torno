@@ -39,6 +39,9 @@ class FakeEngine {
   async start(): Promise<void> {
     this.#log('start');
   }
+  prepare(sounds: readonly string[]): void {
+    this.#log('prepare', [...sounds]);
+  }
   /** Si `retry` vuelve a cargar el audio (sin Web Audio no se puede). */
   retryable = true;
   async retry(): Promise<void> {
@@ -623,5 +626,55 @@ describe('SessionStore', () => {
     store.input({ type: 'press', control: 'main' });
     vi.advanceTimersByTime(700);
     expect(store.announcement()).toBe('Batería. Alfar: en uso. Toma libre.');
+  });
+
+  it('preparar: carga el motor y renderiza ALFAR en silencio, una vez y sin arrancar el audio', async () => {
+    const engine = new FakeEngine();
+    const autosave = new FakeAutosave();
+    let loads = 0;
+    let fail = true;
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: AUDIO_ENGINE_API,
+          useValue: {
+            load: async () => {
+              loads++;
+              if (fail) throw new Error('sin red');
+              return engine as unknown as AudioEngine;
+            },
+            ...autosave.api,
+          },
+        },
+      ],
+    });
+    const store = TestBed.inject(SessionStore);
+    // Si la carga falla (la red), el siguiente acercamiento lo intenta otra vez.
+    store.preload();
+    await new Promise((resolve) => setTimeout(resolve));
+    fail = false;
+    store.preload();
+    store.preload();
+    await new Promise((resolve) => setTimeout(resolve));
+    store.preload();
+    expect(loads).toBe(2);
+    expect(engine.calls).toEqual([['prepare', ['alfar']]]);
+  });
+
+  it('pausar justo después de arrancar pausa: la entrada lee el último estado del audio', async () => {
+    vi.useFakeTimers();
+    const { store, engine } = await setup();
+    engine.emit(withContent());
+    vi.advanceTimersByTime(STATUS_INTERVAL_MS);
+    store.input({ type: 'press', control: 'play' });
+    expect(engine.sent().at(-1)).toEqual({ type: 'play' });
+    // El audio ya dice «en marcha», pero los signals aún no lo saben (llega antes de 100 ms).
+    const playing = status({
+      transport: 'playing',
+      layers: [layer({ hasContent: true }), layer(), layer(), layer()],
+    });
+    engine.emit({ type: 'status', status: playing });
+    store.input({ type: 'press', control: 'play' });
+    expect(engine.sent().at(-1)).toEqual({ type: 'pause' });
   });
 });

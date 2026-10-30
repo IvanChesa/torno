@@ -17,7 +17,6 @@ import {
   loadAudioEngine,
   missedAudioGesture,
   onAudioUnlock,
-  preloadAudioEngine,
   promoteAutosave,
   type AudioEngine,
   type AutosaveDates,
@@ -33,6 +32,7 @@ import {
 } from '../audio/engine';
 import {
   displayModel,
+  FIRST_PLAY_SOUND,
   initialState,
   LAYER_COUNT,
   reduce,
@@ -220,6 +220,8 @@ export class SessionStore {
   #measuring = false;
   /** Ya ha habido una reproducción en la página (con el panel abierto o no). */
   #played = false;
+  /** La primera reproducción ya se está preparando en silencio (`preload`). */
+  #preloading = false;
 
   constructor() {
     // En cuanto un gesto activa el sonido, deja de pedirse otro toque.
@@ -235,6 +237,9 @@ export class SessionStore {
 
   /** Un gesto o una tecla sobre el instrumento. Se llama dentro del propio evento. */
   input(input: InstrumentInput): void {
+    // Con el último estado del audio, no con el de los signals (hasta 100 ms más viejo): pausar
+    // justo después de que empiece a sonar tiene que pausar, no pedir «reproducir» otra vez.
+    this.#flushStatus();
     // Cada pulsación lleva su momento: el del evento, si viene (el tempo por pulsaciones y el
     // diagnóstico lo necesitan). Si no viene, o no es del reloj de `performance.now()`, el de ahora.
     if (input.type === 'press') {
@@ -295,9 +300,18 @@ export class SessionStore {
 
   // --- Arranque ---------------------------------------------------------------------------------
 
-  /** Precarga el motor (el puntero o el foco se acercan al instrumento). */
+  /**
+   * Prepara en silencio la primera reproducción (el puntero, el foco o la vista se acercan al
+   * instrumento): carga el motor y renderiza ALFAR, sin crear el contexto ni sonar (PLAN §5,
+   * «Síntesis»). Una vez; si la carga falla, se intenta otra vez en la siguiente.
+   */
   preload(): void {
-    preloadAudioEngine();
+    if (this.#preloading) return;
+    this.#preloading = true;
+    this.#api.load().then(
+      (engine) => engine.prepare([FIRST_PLAY_SOUND]),
+      () => (this.#preloading = false),
+    );
   }
 
   /** Carga y arranca el motor (una vez). Se llama tras un gesto, que ya ha desbloqueado el audio. */
@@ -720,6 +734,14 @@ export class SessionStore {
       const status = this.#latest;
       if (status) this.#publish(status);
     }, STATUS_INTERVAL_MS);
+  }
+
+  /** El estado del audio que esperaba su turno pasa ya (una entrada del usuario lo necesita). */
+  #flushStatus(): void {
+    if (this.#statusTimer === undefined) return;
+    clearTimeout(this.#statusTimer);
+    this.#statusTimer = undefined;
+    if (this.#latest) this.#publish(this.#latest);
   }
 
   /** Pasa el último estado del audio a los signals (como mucho 10 veces por segundo). */

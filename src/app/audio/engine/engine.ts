@@ -110,6 +110,12 @@ export type EngineEvent =
   /** Algo no ha salido (el motor sigue funcionando): la interfaz lo cuenta. */
   | { readonly type: 'problem'; readonly code: EngineErrorCode };
 
+/** Un sonido de la biblioteca en la caché del motor. */
+interface CachedSound {
+  readonly pcm: Float32Array;
+  readonly lengthBeats: number;
+}
+
 export interface RecordOptions {
   readonly layer: number;
   readonly bars: 0 | 1 | 2 | 4;
@@ -118,6 +124,12 @@ export interface RecordOptions {
 }
 
 const MODULE_TIMEOUT_MS = 5000;
+/**
+ * La frecuencia que se supone al preparar sin contexto: la de los móviles (Android e iPhone) y la
+ * de la mayoría de los PC. Con otra (44,1 kHz en algunos Mac y en el CI de Linux), la primera
+ * reproducción renderiza otra vez, en caliente.
+ */
+const LIKELY_SAMPLE_RATE = 48_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 /** Antirrebote del autoguardado tras una edición. */
 const AUTOSAVE_DELAY_MS = 1500;
@@ -163,7 +175,10 @@ export class AudioEngine {
   #autosaveSlot: AutosaveSlot = 'main';
   /** Sube al cancelar: un autoguardado que ya estaba copiando la sesión no llega a escribir. */
   #autosaveGeneration = 0;
-  readonly #sounds = new Map<string, { pcm: Float32Array; lengthBeats: number }>();
+  /** Los sonidos renderizados (o renderizándose), por sonido y frecuencia: `alfar@48000`. */
+  readonly #sounds = new Map<string, Promise<CachedSound>>();
+  /** Ya se ha preparado en silencio (`prepare`). */
+  #prepared = false;
   /** Solo con el diagnóstico (`measureFirstSound`): lee lo que sale del núcleo. */
   #analyser: AnalyserNode | null = null;
   #analyserData: Float32Array<ArrayBuffer> | null = null;
@@ -569,18 +584,45 @@ export class AudioEngine {
 
   // --- Sonidos y sesión ------------------------------------------------------------------------
 
+  /**
+   * Prepara en silencio, antes del gesto, lo que necesita la primera reproducción (PLAN §5,
+   * «Síntesis»): el módulo del worklet, a la caché del navegador, y esos sonidos, renderizados en
+   * el worker de síntesis. No crea el contexto ni suena. Sin contexto, la frecuencia es una
+   * suposición (`LIKELY_SAMPLE_RATE`): si el contexto sale con otra, el sonido se renderiza otra
+   * vez al reproducir, ya con el worker en marcha y en caliente.
+   */
+  prepare(sounds: readonly string[]): void {
+    if (this.#prepared) return;
+    this.#prepared = true;
+    prefetchModule();
+    const rate = (this.#context ?? unlockedContext())?.sampleRate ?? LIKELY_SAMPLE_RATE;
+    for (const id of sounds) this.#cachedSound(id, rate).catch(() => undefined);
+  }
+
   /** Un sonido de la biblioteca a la frecuencia del contexto (renderizado una vez y guardado). */
   async loadSound(id: string): Promise<LibrarySound> {
     const rate = this.#context?.sampleRate;
     if (!rate) throw new EngineError('sound-failed');
-    let cached = this.#sounds.get(id);
-    if (!cached) {
-      const response = await this.#renderSound(id, rate);
-      cached = { pcm: response.pcm, lengthBeats: response.lengthBeats };
-      this.#sounds.set(id, cached);
+    // Lo preparado a otra frecuencia ya no sirve.
+    for (const key of this.#sounds.keys()) {
+      if (!key.endsWith(`@${rate}`)) this.#sounds.delete(key);
     }
+    const cached = await this.#cachedSound(id, rate);
     // El núcleo se queda con su copia (transferida): la de la caché sirve para la próxima vez.
     return { id, pcm: cached.pcm.slice(), lengthBeats: cached.lengthBeats };
+  }
+
+  /** El sonido renderizado a esa frecuencia, o el render en marcha (dos peticiones, un render). */
+  #cachedSound(id: string, rate: number): Promise<CachedSound> {
+    const key = `${id}@${rate}`;
+    let sound = this.#sounds.get(key);
+    if (!sound) {
+      sound = this.#renderSound(id, rate).then(({ pcm, lengthBeats }) => ({ pcm, lengthBeats }));
+      // Si falla, la próxima petición lo intenta otra vez.
+      sound.catch(() => this.#sounds.delete(key));
+      this.#sounds.set(key, sound);
+    }
+    return sound;
   }
 
   /** Cambia el sonido de una capa (o la apaga con `null`): en marcha, entra en el compás siguiente. */
@@ -880,6 +922,21 @@ function micCode(error: unknown): EngineErrorCode {
 }
 
 class ModuleTimeout extends Error {}
+
+let prefetching = false;
+
+/**
+ * Descarga el módulo del worklet antes de que exista el contexto: lleva hash y caché inmutable, así
+ * que `addModule` lo encuentra ya en la caché del navegador. Si falla, `addModule` lo vuelve a pedir.
+ */
+function prefetchModule(): void {
+  if (prefetching || typeof fetch !== 'function') return;
+  prefetching = true;
+  const url = new URL(WORKLET_PATH, document.baseURI).href;
+  fetch(url)
+    .then((response) => response.arrayBuffer())
+    .catch(() => (prefetching = false));
+}
 
 function loadModule(context: AudioContext): Promise<void> {
   let loading = modules.get(context);

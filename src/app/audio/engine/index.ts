@@ -57,13 +57,21 @@ export async function promoteAutosave(): Promise<boolean> {
   return (await import('./autosave')).promotePendingAutosave();
 }
 
-/** Carga el motor (una vez) y devuelve la instancia única. */
+/**
+ * Carga el motor (una vez) y devuelve la instancia única. Si la carga falla (la red), la siguiente
+ * llamada lo intenta otra vez.
+ */
 export function loadAudioEngine(): Promise<AudioEngine> {
-  loading ??= import('./engine').then((module) => module.audioEngine());
+  loading ??= import('./engine')
+    .then((module) => module.audioEngine())
+    .catch((error: unknown) => {
+      loading = undefined;
+      throw error;
+    });
   return loading;
 }
 
 /** Precarga el motor sin arrancarlo (al acercarse el puntero o el foco al instrumento). */
 export function preloadAudioEngine(): void {
-  void loadAudioEngine().catch(() => (loading = undefined));
+  loadAudioEngine().catch(() => undefined);
 }

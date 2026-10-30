@@ -28,6 +28,10 @@ import { InstrumentSide } from './instrument-side';
 
 /** Con movimiento reducido, los medidores se repintan como mucho cada 250 ms y el disco no gira. */
 const REDUCED_FRAME_MS = 250;
+/** «Acercarse» con la vista: el instrumento está a media pantalla de entrar en ella. */
+const APPROACH_MARGIN = '50% 0px';
+/** Lo más que se espera a que el navegador esté libre para preparar la primera reproducción. */
+const IDLE_TIMEOUT_MS = 2000;
 
 /**
  * Instrumento HTML (PLAN §4.7): todos los controles como elementos HTML enfocables, la pantalla, el
@@ -53,6 +57,7 @@ export class HtmlInstrument {
   protected readonly controls = CONTROLS;
   protected readonly layers = LAYER_CONTROLS.map((id, layer) => ({ id, layer, number: layer + 1 }));
 
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly fileInput = viewChild.required<ElementRef<HTMLInputElement>>('file');
   private readonly meters = viewChildren<ElementRef<HTMLElement>>('meter');
   private readonly disc = viewChild.required<ElementRef<HTMLElement>>('disc');
@@ -75,6 +80,7 @@ export class HtmlInstrument {
       this.store.setFilePicker(() => this.fileInput().nativeElement.click());
       void this.store.checkAutosave();
       this.paint(performance.now());
+      this.watchApproach(destroyRef);
     });
     // Los medidores y el disco se animan solo con el transporte en marcha o el disco agarrado
     // (sistema externo: requestAnimationFrame). En reposo, 0 fotogramas.
@@ -92,6 +98,29 @@ export class HtmlInstrument {
       cancelAnimationFrame(this.frame);
       this.store.setFilePicker(null);
     });
+  }
+
+  /**
+   * Acercarse al instrumento (PLAN §5, «Síntesis») es también verlo llegar: en el móvil no hay
+   * puntero que se acerque, y el primer toque ya es el gesto. Cuando está a punto de entrar en
+   * pantalla, la primera reproducción se prepara en silencio en cuanto el navegador está libre.
+   */
+  private watchApproach(destroyRef: DestroyRef): void {
+    if (typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        observer.disconnect();
+        if (typeof requestIdleCallback === 'function') {
+          requestIdleCallback(() => this.store.preload(), { timeout: IDLE_TIMEOUT_MS });
+        } else {
+          setTimeout(() => this.store.preload());
+        }
+      },
+      { rootMargin: APPROACH_MARGIN },
+    );
+    observer.observe(this.host.nativeElement);
+    destroyRef.onDestroy(() => observer.disconnect());
   }
 
   protected hintId(id: ControlId): string {

@@ -12,25 +12,35 @@ import {
 import { InstrumentDriver, MENU } from './support/instrument';
 import { hideTab } from './support/torno';
 
-// El instrumento HTML con el motor de audio de verdad (PLAN fase 2): nada se crea antes del gesto,
-// el contexto se crea y se reanuda dentro de él, suena lo que se toca y todo funciona con teclado.
+// El instrumento HTML con el motor de audio de verdad (PLAN fase 2): antes del gesto solo se prepara
+// en silencio, el contexto se crea y se reanuda dentro de él, suena lo que se toca y todo funciona
+// con teclado.
 
 const WORKLET = /\/audio\/processor\.[A-Z0-9]+\.js$/;
 /** Lo que se oye en el gesto (Playwright hace un clic con puntero: `pointerup` o `click`). */
 const GESTURE = /^(new|resume):(pointerup|click|keydown)$/;
 
 test.describe('instrumento HTML', () => {
-  test('nada se crea ni se carga antes del gesto', async ({ page }) => {
+  test('antes del gesto, ni contexto ni sonido: solo se prepara en silencio', async ({ page }) => {
     const workers: string[] = [];
     page.on('worker', (worker) => workers.push(worker.url()));
+    const fetched: string[] = [];
+    page.on('request', (request) => {
+      if (WORKLET.test(new URL(request.url()).pathname)) fetched.push(request.url());
+    });
     await instrumentAudio(page);
     const driver = new InstrumentDriver(page);
     await driver.open();
+    // Con el instrumento a la vista, la primera reproducción se prepara (PLAN §5, «Síntesis»): el
+    // worker de síntesis renderiza ALFAR y el módulo del worklet se descarga a la caché.
+    await expect.poll(() => workers.length).toBe(1);
+    await expect.poll(() => fetched.length).toBe(1);
     await page.waitForTimeout(500);
+    expect(workers).toHaveLength(1);
+    // Pero el módulo no se carga en ningún contexto, y no se crea ninguno: nada puede sonar.
     expect(await contextStates(page)).toEqual([]);
     expect(await audioCalls(page)).toEqual([]);
     expect(await loadedModules(page)).toEqual([]);
-    expect(workers).toEqual([]);
   });
 
   test('la instrumentación distingue un contexto creado fuera del gesto', async ({ page }) => {
