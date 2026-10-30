@@ -93,16 +93,30 @@ test.describe('sonidos', () => {
     const main = driver.control('main');
     for (let i = 0; i < MENU.loopItems.tapTempo; i++) await main.press('ArrowDown');
     await driver.expectScreen('MARCAR TEMPO');
+    // El momento de cada pulsación, tal como lo ve la página (el del evento).
+    await main.evaluate((element) => {
+      const taps: number[] = [];
+      (window as unknown as { __taps: number[] }).__taps = taps;
+      element.addEventListener('keydown', (event) => {
+        if ((event as KeyboardEvent).key === 'Enter') taps.push(event.timeStamp);
+      });
+    });
     for (let i = 0; i < 4; i++) {
       await main.press('Enter');
       if (i < 3) await page.waitForTimeout(500);
     }
+    const taps = await page.evaluate(() => (window as unknown as { __taps: number[] }).__taps);
+    expect(taps).toHaveLength(4);
+    const interval = (taps[3]! - taps[0]!) / 3;
     const screen = (await driver.screen.textContent()) ?? '';
     const bpm = Number(/MARCAR TEMPO\s*(\d+) BPM/.exec(screen)?.[1]);
-    console.info(`Tempo marcado: ${bpm} BPM`);
-    // Cada pulsación de Playwright tarda unas decenas de ms más que la espera: algo por debajo de 120.
-    expect(bpm).toBeGreaterThanOrEqual(100);
-    expect(bpm).toBeLessThanOrEqual(122);
+    console.info(`Tempo marcado: ${bpm} BPM (intervalo medio de ${interval.toFixed(0)} ms)`);
+    // El tempo es el de la media de los intervalos. Cada pulsación de Playwright tarda algo más que
+    // la espera (más si la página está ocupada, como al prepararse ALFAR en el servidor de
+    // desarrollo): unos 120 BPM o algo menos.
+    expect(bpm).toBe(Math.round(60_000 / interval));
+    expect(interval).toBeGreaterThanOrEqual(495);
+    expect(bpm).toBeGreaterThanOrEqual(80);
     await driver.closeMenu();
     await driver.expectScreen(`${bpm} BPM`);
   });
