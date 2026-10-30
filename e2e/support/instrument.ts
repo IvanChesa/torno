@@ -42,9 +42,15 @@ export class InstrumentDriver {
     return this.page.locator('trn-instrument-screen');
   }
 
-  /** Abre la portada y espera a que el instrumento (diferido) esté listo. */
-  async open(url = '/'): Promise<void> {
-    await this.page.goto(url);
+  /**
+   * Abre la portada y espera a que el instrumento (diferido) esté listo. Sin el escenario 3D
+   * (`?sin3d=1`): los e2e del audio no necesitan pintar el aparato, y el WebGL por software de
+   * Chromium sin interfaz los haría más lentos. `{ stage: true }` lo deja.
+   */
+  async open(url = '/', { stage = false }: { stage?: boolean } = {}): Promise<void> {
+    const target = new URL(url, 'http://torno.test');
+    if (!stage && !target.searchParams.has('sin3d')) target.searchParams.set('sin3d', '1');
+    await this.page.goto(`${target.pathname}${target.search}${target.hash}`);
     await this.control('main').waitFor();
   }
 

@@ -92,9 +92,14 @@ function pick<T extends string>(value: string | null, options: readonly T[]): T 
       display: none;
     }
 
-    /* La caja del póster y del lienzo: la misma que la del marcador de la portada. */
+    /*
+     * La caja del póster y del lienzo: la misma que la del marcador de la portada (5:4, y nunca más
+     * alta que la pantalla).
+     */
     .stage3d {
       position: relative;
+      inline-size: min(100%, 78svh * 1.25);
+      margin-inline: auto;
       aspect-ratio: 5 / 4;
     }
 

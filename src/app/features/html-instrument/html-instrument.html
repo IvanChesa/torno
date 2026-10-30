@@ -1,27 +1,40 @@
 <div class="instrument" data-audio-unlock role="group" [attr.aria-label]="text.label">
-  <trn-instrument-screen class="area-screen" [display]="store.display()" />
+  <trn-instrument-screen class="instrument__screen" [display]="store.display()" />
 
-  <div class="control area-main">
-    <div trnControl="main" class="knob knob--main" [attr.aria-describedby]="hintId('main')"></div>
-    <span class="label" aria-hidden="true">{{ text.labels.main }}</span>
-  </div>
+  <!--
+    El plato: las mismas posiciones que el aparato en 3D (instrument/plate.ts). El orden de los
+    controles en el documento (el del tabulador) es el de siempre: dial principal, capas, teclas,
+    disco, brazo, volumen y reposo.
+  -->
+  <div class="plate-wrap">
+    <div class="plate">
+      <div class="spot" [style.--x]="plate.controls.main.x" [style.--z]="plate.controls.main.z">
+        <div
+          trnControl="main"
+          class="knob knob--main"
+          [attr.aria-describedby]="hintId('main')"
+        ></div>
+      </div>
 
-  <div class="layers area-layers">
-    @for (layer of layers; track layer.id) {
-      @let pilot = pilots()[layer.layer];
-      <div
-        class="layer"
-        [class.is-selected]="selected() === layer.layer"
-        [class.is-muted]="pilot?.muted"
-      >
+      @for (layer of layers; track layer.id) {
+        @let pilot = pilots()[layer.layer];
+        @let light = plate.pilots[layer.layer]!;
         <span
-          class="pilot"
+          class="spot pilot"
           aria-hidden="true"
+          [style.--x]="light.x"
+          [style.--z]="light.z"
           [class.has-content]="pilot?.hasContent"
           [class.is-recording]="pilot?.recording"
           [class.is-pending]="pilot?.pending"
         ></span>
-        <div class="layer__controls">
+        <div
+          class="spot layer"
+          [style.--x]="plate.controls[layer.id].x"
+          [style.--z]="plate.controls[layer.id].z"
+          [class.is-selected]="selected() === layer.layer"
+          [class.is-muted]="pilot?.muted"
+        >
           <div
             [trnControl]="layer.id"
             class="knob"
@@ -29,47 +42,73 @@
           ></div>
           <span class="meter" aria-hidden="true"><span #meter class="meter__fill"></span></span>
         </div>
-        <span class="label" aria-hidden="true">{{ text.labels.layer(layer.number) }}</span>
+      }
+
+      <div class="spot" [style.--x]="plate.controls.play.x" [style.--z]="plate.controls.play.z">
+        <button
+          type="button"
+          trnControl="play"
+          class="key"
+          [attr.aria-describedby]="hintId('play')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            @if (playing()) {
+              <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
+            } @else {
+              <path d="M8 5l11 7-11 7z" />
+            }
+          </svg>
+        </button>
       </div>
+      <div class="spot" [style.--x]="plate.controls.record.x" [style.--z]="plate.controls.record.z">
+        <button
+          type="button"
+          trnControl="record"
+          class="key key--record"
+          [attr.aria-describedby]="hintId('record')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6" /></svg>
+        </button>
+      </div>
+      <div class="spot" [style.--x]="plate.controls.undo.x" [style.--z]="plate.controls.undo.z">
+        <button
+          type="button"
+          trnControl="undo"
+          class="key"
+          [attr.aria-describedby]="hintId('undo')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 7L4 11.5 9 16v-3h6a3 3 0 0 1 0 6h-2v2h2a5 5 0 0 0 0-10H9z" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="spot spot--disc">
+        <div #disc trnControl="disc" class="disc" [attr.aria-describedby]="hintId('disc')">
+          <span class="disc__mark" aria-hidden="true"></span>
+        </div>
+      </div>
+
+      <trn-instrument-tracks />
+    </div>
+
+    @for (label of labels; track label.id) {
+      <span
+        class="plate-label"
+        aria-hidden="true"
+        [attr.data-side]="label.side"
+        [style.--x]="label.x"
+        [style.--z]="label.z"
+        >{{ label.text }}</span
+      >
     }
   </div>
 
-  <div class="keys area-keys">
-    <button type="button" trnControl="play" class="key" [attr.aria-describedby]="hintId('play')">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        @if (playing()) {
-          <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
-        } @else {
-          <path d="M8 5l11 7-11 7z" />
-        }
-      </svg>
-      <span class="label">{{ text.labels.play }}</span>
-    </button>
-    <button
-      type="button"
-      trnControl="record"
-      class="key key--record"
-      [attr.aria-describedby]="hintId('record')"
-    >
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6" /></svg>
-      <span class="label">{{ text.labels.record }}</span>
-    </button>
-    <button type="button" trnControl="undo" class="key" [attr.aria-describedby]="hintId('undo')">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M9 7L4 11.5 9 16v-3h6a3 3 0 0 1 0 6h-2v2h2a5 5 0 0 0 0-10H9z" />
-      </svg>
-      <span class="label">{{ text.labels.undo }}</span>
-    </button>
-  </div>
-
-  <div class="control area-disc">
-    <div #disc trnControl="disc" class="disc" [attr.aria-describedby]="hintId('disc')">
-      <span class="disc__mark" aria-hidden="true"></span>
-    </div>
-    <span class="label" aria-hidden="true">{{ text.labels.disc }}</span>
-  </div>
-
-  <trn-instrument-side class="area-side" />
+  <p class="legend" aria-hidden="true">
+    @for (line of text.legend; track $index) {
+      <span>{{ line }}</span>
+    }
+  </p>
 
   @for (spec of controls; track spec.id) {
     <span [id]="hintId(spec.id)" hidden>{{ spec.hint }}</span>

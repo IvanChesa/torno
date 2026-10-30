@@ -53,6 +53,12 @@ const CLICK_AFTER_POINTER_MS = 600;
 })
 export class ControlDirective implements OnDestroy {
   readonly trnControl = input.required<ControlId>();
+  /**
+   * Hacia dónde sube el valor al arrastrar, en la pantalla (x a la derecha, y hacia abajo). Por
+   * defecto, hacia arriba o hacia la derecha; el brazo y la rueda del plato redondo lo cambian para
+   * seguir su recorrido.
+   */
+  readonly trnAxis = input<{ readonly x: number; readonly y: number }>({ x: 1, y: -1 });
 
   private readonly store = inject(SessionStore);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -237,8 +243,9 @@ export class ControlDirective implements OnDestroy {
         this.store.input({ type: 'hold', control: id });
         return;
       case 'turn': {
-        // Arrastrar hacia arriba o hacia la derecha sube el valor.
-        this.remainder += (output.dx - output.dy) / PX_PER_STEP;
+        // Arrastrar en el sentido de su eje (hacia arriba o hacia la derecha) sube el valor.
+        const axis = this.trnAxis();
+        this.remainder += (output.dx * axis.x + output.dy * axis.y) / PX_PER_STEP;
         const steps = Math.trunc(this.remainder);
         if (steps !== 0) {
           this.remainder -= steps;

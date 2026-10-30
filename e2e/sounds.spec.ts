@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { coreNotices, instrumentAudio, outputPeak } from './support/audio';
+import { TAP_RESET_MS } from '../src/app/instrument/instrument';
 import { InstrumentDriver, MENU } from './support/instrument';
 
 // La colección y el menú SONIDO en el navegador (PLAN fase 3): la cola entra exactamente en el
@@ -17,6 +18,11 @@ test.describe('sonidos', () => {
     await instrumentAudio(page);
     const driver = new InstrumentDriver(page);
     await driver.open();
+    // A 40 BPM, el más lento: un compás dura 6 s. La cola se ve en la pantalla hasta el compás
+    // siguiente, y entre la orden y la comprobación van varias teclas de Playwright, que con la
+    // máquina ocupada (otros e2e a la vez) tardan: a 90 BPM, a veces el compás llegaba antes.
+    await driver.key('main', 'Home');
+    await driver.expectScreen('40 BPM');
     // Parado: el sonido entra al momento.
     await driver.chooseSound(MENU.categories.drums);
     await driver.expectScreen('CAPA 1 · BATERÍA · ALFAR');
@@ -29,14 +35,14 @@ test.describe('sonidos', () => {
     await driver.expectScreen('EN COLA · CAPA 2');
     await expect
       .poll(() => coreNotices(page, 'sound-applied').then((n) => n.filter((x) => x.layer === 1)), {
-        timeout: 8000,
+        timeout: 10_000,
       })
       .toHaveLength(1);
     await driver.expectScreen('CAPA 2 · BAJO · RAÍZ');
     await expect(driver.screen).not.toContainText('EN COLA');
     // Entró en un límite de compás exacto, el siguiente al de la orden.
     const rate = await sampleRate(page);
-    const bar = (4 * 60 * rate) / 90;
+    const bar = (4 * 60 * rate) / 40;
     const [applied] = (await coreNotices(page, 'sound-applied')).filter((n) => n.layer === 1);
     const ordered = await page.evaluate(() => window.__torno!.setSoundFrames.at(-1)!);
     console.info(
@@ -56,8 +62,8 @@ test.describe('sonidos', () => {
     await driver.expectScreen('EN COLA · CAPA 2');
     await driver.control('undo').click();
     await expect(driver.screen).not.toContainText('EN COLA');
-    // Pasa más de un compás (2,7 s a 90 BPM) y no entra nada más en la capa 2.
-    await page.waitForTimeout(3200);
+    // Pasa más de un compás (6 s a 40 BPM) y no entra nada más en la capa 2.
+    await page.waitForTimeout(6500);
     expect((await coreNotices(page, 'sound-applied')).filter((n) => n.layer === 1)).toHaveLength(1);
     await driver.expectScreen('CAPA 2 · BAJO · RAÍZ');
   });
@@ -112,11 +118,13 @@ test.describe('sonidos', () => {
     const bpm = Number(/MARCAR TEMPO\s*(\d+) BPM/.exec(screen)?.[1]);
     console.info(`Tempo marcado: ${bpm} BPM (intervalo medio de ${interval.toFixed(0)} ms)`);
     // El tempo es el de la media de los intervalos. Cada pulsación de Playwright tarda algo más que
-    // la espera (más si la página está ocupada, como al prepararse ALFAR en el servidor de
-    // desarrollo): unos 120 BPM o algo menos.
+    // la espera, y más si la máquina está ocupada (ALFAR preparándose en el servidor de desarrollo,
+    // o el 3D por software de otro test a la vez): unos 120 BPM o algo menos. Lo que no puede pasar
+    // es que una pulsación llegue tras la pausa que empieza otra cuenta.
     expect(bpm).toBe(Math.round(60_000 / interval));
     expect(interval).toBeGreaterThanOrEqual(495);
-    expect(bpm).toBeGreaterThanOrEqual(80);
+    for (let i = 1; i < taps.length; i++)
+      expect(taps[i]! - taps[i - 1]!).toBeLessThan(TAP_RESET_MS);
     await driver.closeMenu();
     await driver.expectScreen(`${bpm} BPM`);
   });

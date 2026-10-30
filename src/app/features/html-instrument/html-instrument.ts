@@ -13,10 +13,14 @@ import {
   BEATS_PER_TURN,
   CONTROLS,
   control,
+  controlLayer,
   LAYER_CONTROLS,
+  PLATE,
   shortcutFor,
   type ControlId,
   type ControlSpec,
+  type PlateLabel,
+  type PlateLabelId,
 } from '../../instrument';
 import { isCaptureMode } from '../../core/capture-mode';
 import { SessionStore } from '../../state';
@@ -24,7 +28,15 @@ import { ControlDirective } from './control.directive';
 import { HTML_INSTRUMENT_CONTENT } from './html-instrument.content';
 import { InstrumentNotices } from './instrument-notices';
 import { InstrumentScreen } from './instrument-screen';
-import { InstrumentSide } from './instrument-side';
+import { InstrumentTracks } from './instrument-tracks';
+
+/** El rótulo de fuera del plato de cada control. */
+function labelText(id: PlateLabelId): string {
+  const labels = HTML_INSTRUMENT_CONTENT.labels;
+  const layer = controlLayer(id);
+  if (layer >= 0) return labels.layer(layer + 1);
+  return labels[id as Exclude<PlateLabelId, `layer-${number}`>];
+}
 
 /** Con movimiento reducido, los medidores se repintan como mucho cada 250 ms y el disco no gira. */
 const REDUCED_FRAME_MS = 250;
@@ -37,12 +49,16 @@ const IDLE_TIMEOUT_MS = 2000;
  * Instrumento HTML (PLAN §4.7): todos los controles como elementos HTML enfocables, la pantalla, el
  * menú y el teclado. Es la alternativa sin WebGL (`?sin3d=1`) y la base de los e2e del audio.
  *
+ * Desde la fase 5.b es un plato redondo con las mismas posiciones que el aparato en 3D
+ * (`instrument/plate.ts`) y la pantalla encima. Los rótulos van alrededor del plato y, en el móvil,
+ * en una leyenda debajo.
+ *
  * Los medidores y la marca del disco se pintan fuera de los signals, en `requestAnimationFrame`,
  * y solo mientras el transporte está en marcha (0 fotogramas en reposo).
  */
 @Component({
   selector: 'trn-html-instrument',
-  imports: [ControlDirective, InstrumentNotices, InstrumentScreen, InstrumentSide],
+  imports: [ControlDirective, InstrumentNotices, InstrumentScreen, InstrumentTracks],
   templateUrl: './html-instrument.html',
   styleUrl: './html-instrument.css',
   host: {
@@ -55,7 +71,15 @@ export class HtmlInstrument {
   protected readonly store = inject(SessionStore);
   protected readonly text = HTML_INSTRUMENT_CONTENT;
   protected readonly controls = CONTROLS;
-  protected readonly layers = LAYER_CONTROLS.map((id, layer) => ({ id, layer, number: layer + 1 }));
+  protected readonly layers = LAYER_CONTROLS.map((id, layer) => ({
+    id: id as `layer-${0 | 1 | 2 | 3}`,
+    layer,
+    number: layer + 1,
+  }));
+  protected readonly plate = PLATE;
+  protected readonly labels = (Object.entries(PLATE.labels) as [PlateLabelId, PlateLabel][]).map(
+    ([id, label]) => ({ id, ...label, text: labelText(id) }),
+  );
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly fileInput = viewChild.required<ElementRef<HTMLInputElement>>('file');

@@ -122,8 +122,13 @@ import { HOME_CONTENT } from './home.content';
       max-inline-size: var(--measure);
     }
 
-    /* El póster ocupa lo mismo que el escenario 3D (5:4): al llegar el lienzo, nada se mueve. */
+    /*
+     * El póster ocupa lo mismo que el escenario 3D (5:4, y nunca más alto que la pantalla): al
+     * llegar el lienzo, nada se mueve.
+     */
     .stage3d-placeholder {
+      inline-size: min(100%, 78svh * 1.25);
+      margin-inline: auto;
       aspect-ratio: 5 / 4;
     }
 
@@ -133,13 +138,22 @@ import { HOME_CONTENT } from './home.content';
       object-fit: contain;
     }
 
-    /* El esqueleto ocupa lo mismo que el instrumento: al cargarlo, nada se mueve. */
+    /*
+     * El esqueleto ocupa lo mismo que el instrumento (la pantalla y el plato redondo, medidos en
+     * 375 y 1440 px de ancho): al cargarlo, nada se mueve.
+     */
     .stage__placeholder {
       display: grid;
       place-items: center;
-      min-block-size: 30rem;
+      min-block-size: 43.75rem;
       border-radius: var(--radius-panel);
-      background: var(--instrument-plate);
+      background: var(--color-surface);
+    }
+
+    @media (min-width: 48rem) {
+      .stage__placeholder {
+        min-block-size: 51rem;
+      }
     }
 
     .stage__loading {
