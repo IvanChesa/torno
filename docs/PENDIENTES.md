@@ -26,7 +26,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 - [ ] **Licencia del código propio** cuando el repo pase a público (MIT u otra).
 - [ ] `@lhci/cli` en el CI (fase 8).
 - [x] **Autoguardado con el panel de recuperar sin contestar** (revisión de la fase 2, #21): **segundo hueco** (decisión de Iván, 26-10; PLAN §4.8). Se implementa al empezar el bloque B (`docs/revisiones/bloque-A.md`, #3).
-- [ ] **Micrófono entre tomas** (si las pruebas de la fase 4 lo piden): mantenerlo abierto durante una «sesión de grabación» o recalibrar cada toma con la cuenta previa (informe de la fase 2, §10, propuesta 1).
+- [ ] **Micrófono entre tomas** (si las pruebas del móvil lo piden; sus cifras, en la fase 8): mantenerlo abierto durante una «sesión de grabación» o recalibrar cada toma con la cuenta previa (informe de la fase 2, §10, propuesta 1).
 - [ ] **Indexación en el lanzamiento (fase 9).** Hasta entonces todas las páginas llevan `noindex` (`indexable: false` en `src/app/core/site.config.ts`); al lanzar se pone a `true` y solo la 404 sigue con `noindex`. Confirmar que quieres que se indexe.
 - [x] **Precargar ALFAR al acercarse al instrumento** (revisión del bloque B, fase 4, #1): hecha al empezar el bloque C (30-10). En el escritorio, la primera reproducción en frío baja de 200–272 ms a 68–93 ms; la prueba 1 del móvil da la cifra de antes y la de después.
 - [x] **Las dos PR de Dependabot:** la #1 (wrangler 4.152.0) fusionada con su CI en verde (30-10); la #2 (`@types/node` 26), cerrada.
@@ -34,9 +34,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 ## Revisiones y pruebas de Iván
 - [ ] Ver `docs/DISENO.md` y las capturas de la fase 0 (`docs/informes/img/fase-0/`): paleta «Barro», Fraunces con el eje SOFT y Geist Mono (revisión del bloque 0).
 - [x] **Escuchar los 12 sonidos y 3 combinaciones** (`npm run demo:sounds`): Iván los ha escuchado y «suenan bien», sin cambios (26-10).
-- [ ] **Pruebas en Android e iPhone** en la vista previa, ya publicada (27-10): **`https://staging.torno.pages.dev/?diagnostico=1`** (**lo único que falta para empezar la entrega 5.b**; decisión de Iván del 30-10), con la lista de **`docs/PRUEBAS-MOVIL.md`** y el panel de diagnóstico. En la prueba 1, espera a que aparezca el panel antes de tocar, y usa el altavoz o auriculares de cable.
-  - `TODO(ivan)`: en esas pruebas, calibrar la latencia y grabar varias tomas seguidas con auriculares, para ver si quedan alineadas entre sí. En Chromium, la latencia del camino del micrófono cambia en cada apertura de la pista (12–21 ms medidos en un retorno; informe de la fase 2, §10, propuesta 1).
-  - `TODO(ivan)`: y una de 5 min con las 4 capas largas (tomas de 30–60 s) y el autoguardado activo, girando diales: sin cortes en el audio (revisión de la fase 2, #6).
+- [x] **Pruebas en el móvil** en la vista previa (`https://staging.torno.pages.dev/?diagnostico=1`), con la lista de `docs/PRUEBAS-MOVIL.md`: **Iván, 30-10: probado en el móvil, funciona bien; sin cifras ni informe del panel.** Con eso empieza la entrega 5.b (decisión de Iván del 30-10). Las cifras pasan a la fase 8 (abajo).
 - [x] **Diseño del instrumento aprobado (parada de la fase 5.a).** Iván lo aprueba tal cual el 30-10, con la maqueta de `https://fase-5-modelo-3d.torno.pages.dev/?maqueta=1` (informe de la fase 5, §2 y §10):
   1. la **distribución redonda** (el aparato como un torno de alfarero visto desde arriba);
   2. la variante **Terracota**;
@@ -45,7 +43,10 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 
   Con las pruebas del móvil, empieza la 5.b.
 - [ ] Revisar los textos de la web (fase 7).
-- [ ] Visto bueno final en el móvil y en el iPhone (fase 8).
+- [ ] Visto bueno final en el móvil y en el iPhone (fase 8), con las cifras que no dieron las pruebas del 30-10 (la lista de `docs/PRUEBAS-MOVIL.md` sirve otra vez):
+  - `TODO(ivan)`: el **primer sonido en frío con la precarga** (prueba 1, con la cifra de antes y la de después). En la fase 8 también se mide en la primera visita real, por red y con la pestaña visible, además de en local. La sesión de plan vio 803 ms en el escritorio, pero con la pestaña en segundo plano: no es una cifra fiable;
+  - `TODO(ivan)`: **calibrar la latencia y grabar varias tomas seguidas** con auriculares (pruebas 5 y 7), para ver si quedan alineadas entre sí. En Chromium, la latencia del camino del micrófono cambia en cada apertura de la pista (12–21 ms medidos en un retorno; informe de la fase 2, §10, propuesta 1);
+  - `TODO(ivan)`: una de **5 min con las 4 capas largas** (tomas de 30–60 s) y el autoguardado activo, girando diales: sin cortes en el audio (prueba 10; revisión de la fase 2, #6).
 
 ## Fase 9 (manual)
 - [ ] **`torno.ivanchesa.es`:**
