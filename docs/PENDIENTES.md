@@ -28,10 +28,8 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 - [x] **Autoguardado con el panel de recuperar sin contestar** (revisión de la fase 2, #21): **segundo hueco** (decisión de Iván, 26-10; PLAN §4.8). Se implementa al empezar el bloque B (`docs/revisiones/bloque-A.md`, #3).
 - [ ] **Micrófono entre tomas** (si las pruebas de la fase 4 lo piden): mantenerlo abierto durante una «sesión de grabación» o recalibrar cada toma con la cuenta previa (informe de la fase 2, §10, propuesta 1).
 - [ ] **Indexación en el lanzamiento (fase 9).** Hasta entonces todas las páginas llevan `noindex` (`indexable: false` en `src/app/core/site.config.ts`); al lanzar se pone a `true` y solo la 404 sigue con `noindex`. Confirmar que quieres que se indexe.
-- [ ] **Precargar ALFAR al acercarse al instrumento** (informe de la fase 4, §10.1, y su revisión, #14). La primera reproducción en frío ya pasa de los 150 ms de PLAN §5 en el escritorio: 157–238 ms en el PC y 203–251 ms en el CI. La propuesta es hacerla al empezar el bloque C; tus cifras del móvil (prueba 1) medirán el efecto.
-- [ ] **Las dos PR de Dependabot** (abiertas el 27-10, sin tocar):
-  - #1: wrangler 4.149.0 → 4.152.0, que también cambia la versión del despliegue. Los avisos de `undici` de `npm audit` se arreglan en la 4.153.0;
-  - #2: `@types/node` 22 → 26, una versión mayor que no corresponde. Ya no se proponen (`dependabot.yml`), así que se puede cerrar.
+- [x] **Precargar ALFAR al acercarse al instrumento** (revisión del bloque B, fase 4, #1): hecha al empezar el bloque C (30-10). En el escritorio, la primera reproducción en frío baja de 200–272 ms a 68–93 ms; la prueba 1 del móvil da la cifra de antes y la de después.
+- [x] **Las dos PR de Dependabot:** la #1 (wrangler 4.152.0) fusionada con su CI en verde (30-10); la #2 (`@types/node` 26), cerrada.
 
 ## Revisiones y pruebas de Iván
 - [ ] Ver `docs/DISENO.md` y las capturas de la fase 0 (`docs/informes/img/fase-0/`): paleta «Barro», Fraunces con el eje SOFT y Geist Mono (revisión del bloque 0).
@@ -39,7 +37,13 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 - [ ] **Pruebas en Android e iPhone** en la vista previa, ya publicada (27-10): **`https://staging.torno.pages.dev/?diagnostico=1`** (necesarias antes de la entrega 5.b; decisión de Iván del 30-10), con la lista de **`docs/PRUEBAS-MOVIL.md`** y el panel de diagnóstico. En la prueba 1, espera a que aparezca el panel antes de tocar, y usa el altavoz o auriculares de cable.
   - `TODO(ivan)`: en esas pruebas, calibrar la latencia y grabar varias tomas seguidas con auriculares, para ver si quedan alineadas entre sí. En Chromium, la latencia del camino del micrófono cambia en cada apertura de la pista (12–21 ms medidos en un retorno; informe de la fase 2, §10, propuesta 1).
   - `TODO(ivan)`: y una de 5 min con las 4 capas largas (tomas de 30–60 s) y el autoguardado activo, girando diales: sin cortes en el audio (revisión de la fase 2, #6).
-- [ ] Aprobar el diseño del instrumento (parada de la fase 5.a).
+- [ ] **Aprobar el diseño del instrumento (parada de la fase 5.a, 30-10).** La maqueta, en el móvil o en el PC: **`https://fase-5-modelo-3d.torno.pages.dev/?maqueta=1`** (botones para la variante, el mapeo de tonos y la vista; se gira arrastrando). Capturas y propuesta en `docs/informes/fase-5.md` (§2 y §10). `TODO(ivan)`, cuatro decisiones:
+  1. la **distribución redonda** (el aparato como un torno de alfarero visto desde arriba);
+  2. la **variante**: Terracota (recomendada), Barro oscuro o Arcilla clara;
+  3. el **mapeo de tonos**: Neutral (recomendado) o AgX;
+  4. el **instrumento HTML** como plato redondo con la pantalla encima (`docs/informes/img/fase-5/propuesta-html-*.png`).
+
+  Con eso y las pruebas del móvil, empieza la 5.b.
 - [ ] Revisar los textos de la web (fase 7).
 - [ ] Visto bueno final en el móvil y en el iPhone (fase 8).
 
