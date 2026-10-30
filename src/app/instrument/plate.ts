@@ -7,7 +7,7 @@
  * Quien toca sin WebGL encuentra cada control donde está en el aparato, y la guía (fase 7) puede
  * señalar el mismo sitio en los dos.
  */
-import { LAYER_CONTROLS, type ControlId } from './catalog';
+import { LAYER_CONTROLS } from './catalog';
 import {
   armHead,
   BODY,
@@ -129,12 +129,3 @@ export const PLATE = {
     arm: label(72),
   } as Readonly<Record<PlateLabelId, PlateLabel>>,
 } as const;
-
-/** El tamaño de cada pieza en el plato, en mm (el CSS lo pasa a píxeles con el ancho del plato). */
-export function plateSize(id: ControlId): { readonly width: number; readonly height: number } {
-  if (id === 'disc') return { width: 2 * DISC_OUTER_RADIUS, height: 2 * DISC_OUTER_RADIUS };
-  if (id === 'arm' || id === 'volume') return { width: 0, height: 0 };
-  const placement = PLACEMENTS[id];
-  if (placement.shape === 'key') return { width: 32, height: 26 };
-  return { width: 2 * placement.footprint, height: 2 * placement.footprint };
-}
