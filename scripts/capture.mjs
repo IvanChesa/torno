@@ -8,8 +8,13 @@
 //        ofreciendo recuperar la sesión anterior; desde la fase 3, el menú SONIDO con la colección,
 //        MARCAR TEMPO, un cambio EN COLA y el panel de recuperar con los dos huecos y su
 //        confirmación; desde la fase 4, el panel de diagnóstico (`?diagnostico=1`).
+//
+//      npm run capturas -- --fase=5 --solo=maqueta
+//      → solo la maqueta 3D (`?maqueta=1`, fase 5.a): las 3 variantes desde 4 ángulos y la prueba
+//        de mapeo de tonos (Neutral frente a AgX), en JPEG, más una hoja de contactos de cada cosa
+//        y la sección de la maqueta entera. Escribe en la consola lo que cuesta pintarla.
 /* global document, AudioWorklet -- se usan dentro de page.evaluate() y addInitScript(), en la página */
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, devices } from '@playwright/test';
@@ -26,6 +31,28 @@ const VIEWPORTS = [
   { name: 'movil', options: { ...devices['Pixel 7'], deviceScaleFactor: 2 } },
 ];
 
+/** La maqueta (fase 5.a): variantes, vistas y mapeos de tonos, con sus nombres en la interfaz. */
+const MOCKUP = {
+  variants: [
+    ['terracota', 'Terracota'],
+    ['barro-oscuro', 'Barro oscuro'],
+    ['arcilla-clara', 'Arcilla clara'],
+  ],
+  views: [
+    ['frente', 'Frente'],
+    ['tres-cuartos', 'Tres cuartos'],
+    ['cenital', 'Cenital'],
+    ['perfil', 'Perfil'],
+  ],
+  tones: [
+    ['neutral', 'Neutral'],
+    ['agx', 'AgX'],
+  ],
+  /** La vista de la prueba de mapeo de tonos. */
+  toneView: 'tres-cuartos',
+};
+
+const onlyArg = process.argv.find((arg) => arg.startsWith('--solo='))?.slice('--solo='.length);
 const phaseArg = process.argv.find((arg) => arg.startsWith('--fase='));
 if (!phaseArg) {
   console.error('Indica la fase: npm run capturas -- --fase=N');
@@ -58,6 +85,121 @@ async function openHome(page, url) {
   return page.locator('[data-control="main"]');
 }
 
+/**
+ * Una imagen de la maqueta: la página con `?captura=1` y lo elegido en la URL; se espera a que el
+ * visor haya pintado (`data-listo`). Devuelve lo que costó pintarla (`data-estadisticas`).
+ */
+async function shootMockup(page, base, choice, file) {
+  const viewer = await openMockup(page, base, choice);
+  await viewer.screenshot({
+    path: file,
+    type: 'jpeg',
+    quality: 88,
+    animations: 'disabled',
+    caret: 'hide',
+  });
+  console.log(`✔ ${path.relative(ROOT, file)}`);
+  return viewer.getAttribute('data-estadisticas');
+}
+
+/** Abre la portada con la maqueta y lo elegido, y espera a que el visor haya pintado. */
+async function openMockup(page, base, { variant, view, tone }) {
+  const params = new URLSearchParams({
+    captura: '1',
+    maqueta: '1',
+    variante: variant,
+    vista: view,
+    tono: tone,
+  });
+  await page.goto(`${base}/?${params}`);
+  await page.evaluate(() => document.fonts.ready);
+  const viewer = page.locator('trn-mockup-stage .viewer[data-listo]');
+  await viewer.waitFor({ timeout: 60_000 });
+  await viewer.scrollIntoViewIfNeeded();
+  return viewer;
+}
+
+/**
+ * Hoja de contactos: las imágenes en una rejilla, con su nombre encima, pintada por el propio
+ * navegador (sin dependencias para componer imágenes).
+ */
+async function contactSheet(browser, cells, columns, file) {
+  const images = await Promise.all(
+    cells.map(async ({ file: image, label }) => ({
+      label,
+      src: `data:image/jpeg;base64,${(await readFile(image)).toString('base64')}`,
+    })),
+  );
+  const page = await browser.newPage({
+    viewport: { width: 1800, height: 600 },
+    deviceScaleFactor: 1,
+  });
+  await page.setContent(`<!doctype html>
+    <style>
+      body { margin: 0; padding: 24px; background: #252712; color: #f1ece0;
+        font: 500 20px ui-monospace, Consolas, monospace; }
+      main { display: grid; grid-template-columns: repeat(${columns}, 1fr); gap: 24px 16px; }
+      figure { margin: 0; display: grid; gap: 8px; }
+      img { inline-size: 100%; display: block; }
+    </style>
+    <main>${images.map(({ label, src }) => `<figure><figcaption>${label}</figcaption><img src="${src}"></figure>`).join('')}</main>`);
+  await page.locator('main').screenshot({ path: file, type: 'jpeg', quality: 86 });
+  await page.close();
+  console.log(`✔ ${path.relative(ROOT, file)}`);
+}
+
+/** La maqueta en un tamaño de pantalla: variantes × vistas, mapeo de tonos y la sección entera. */
+async function captureMockup(browser, context, base, viewport) {
+  const page = await context.newPage();
+  const variants = [];
+  let stats = null;
+  for (const [variant, variantName] of MOCKUP.variants) {
+    for (const [view, viewName] of MOCKUP.views) {
+      const file = path.join(outDir, `maqueta-${variant}-${view}-${viewport}.jpg`);
+      const shot = await shootMockup(page, base, { variant, view, tone: 'neutral' }, file);
+      stats ??= shot;
+      variants.push({ file, label: `${variantName} · ${viewName}` });
+    }
+  }
+  const tones = [];
+  for (const [tone, toneName] of MOCKUP.tones) {
+    for (const [variant, variantName] of MOCKUP.variants) {
+      const file = path.join(outDir, `maqueta-tono-${tone}-${variant}-${viewport}.jpg`);
+      if (tone === 'neutral') {
+        // La misma que la de la vista de tres cuartos: no hace falta otra.
+        tones.push({
+          file: path.join(outDir, `maqueta-${variant}-${MOCKUP.toneView}-${viewport}.jpg`),
+          label: `${toneName} · ${variantName}`,
+        });
+        continue;
+      }
+      await shootMockup(page, base, { variant, view: MOCKUP.toneView, tone }, file);
+      tones.push({ file, label: `${toneName} · ${variantName}` });
+    }
+  }
+  await contactSheet(
+    browser,
+    variants,
+    MOCKUP.views.length,
+    path.join(outDir, `maqueta-variantes-${viewport}.jpg`),
+  );
+  await contactSheet(
+    browser,
+    tones,
+    MOCKUP.variants.length,
+    path.join(outDir, `maqueta-tono-${viewport}.jpg`),
+  );
+  // La sección entera, con los botones y las medidas.
+  await openMockup(page, base, { variant: 'terracota', view: 'frente', tone: 'neutral' });
+  const section = path.join(outDir, `maqueta-seccion-${viewport}.png`);
+  await page
+    .locator('trn-mockup-stage')
+    .screenshot({ path: section, animations: 'disabled', caret: 'hide' });
+  console.log(`✔ ${path.relative(ROOT, section)}`);
+  console.log(`  Coste de pintar la maqueta (${viewport}): ${stats}`);
+  await page.close();
+}
+
 const server = await startPagesServer();
 /** @type {import('@playwright/test').Browser | undefined} */
 let browser;
@@ -72,6 +214,11 @@ try {
       reducedMotion: 'reduce',
       colorScheme: 'dark',
     });
+    if (onlyArg === 'maqueta') {
+      await captureMockup(browser, context, server.url, viewport.name);
+      await context.close();
+      continue;
+    }
     const page = await context.newPage();
     for (const target of PAGES) {
       const url = `${server.url}${target.path}?captura=1`;
