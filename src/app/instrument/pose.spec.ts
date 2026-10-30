@@ -123,6 +123,31 @@ describe('instrumentPose', () => {
     expect(samePose(pose(initialState(), status()), menu)).toBe(false);
   });
 
+  it('samePose, en el menú: las filas en objetos nuevos son iguales; cualquier cambio en una, no', () => {
+    const base = initialState();
+    const open = pose({ ...base, menu: { ...base.menu, open: true } }, status());
+    const again = pose({ ...base, menu: { ...base.menu, open: true } }, status());
+    expect(open.display.rows.length).toBeGreaterThan(2);
+    expect(open.display.rows).not.toBe(again.display.rows);
+    expect(samePose(open, again)).toBe(true);
+    // Mover el cursor del menú, ajustar un valor o cambiar un rótulo repinta la pantalla.
+    const rows = open.display.rows;
+    const change = (index: number, field: Partial<(typeof rows)[number]>) => ({
+      ...open,
+      display: {
+        ...open.display,
+        rows: rows.map((row, i) => (i === index ? { ...row, ...field } : row)),
+      },
+    });
+    expect(samePose(open, change(1, { selected: !rows[1]!.selected }))).toBe(false);
+    expect(samePose(open, change(1, { editing: !rows[1]!.editing }))).toBe(false);
+    expect(samePose(open, change(1, { value: `${rows[1]!.value}·` }))).toBe(false);
+    expect(samePose(open, change(1, { label: `${rows[1]!.label}·` }))).toBe(false);
+    // Y el cursor, de verdad: una fila más abajo.
+    const moved = pose({ ...base, menu: { ...base.menu, open: true, cursor: 1 } }, status());
+    expect(samePose(open, moved)).toBe(false);
+  });
+
   it('los valores fuera de rango se quedan en el recorrido de la pieza', () => {
     const base = initialState();
     const state: InstrumentState = {

@@ -3,7 +3,6 @@ export const INSTRUMENT_STAGE_CONTENT = {
   reviewed: false,
   /** El lienzo: una imagen que cambia con lo que se toca. */
   canvas: 'Torno en 3D, visto de frente: enseña lo que tocas con los controles de debajo.',
-  poster: 'Torno, el instrumento, visto de frente.',
   noWebgl: 'Este navegador no puede mostrar el 3D. El instrumento de debajo funciona igual.',
   contextLost: 'El 3D se ha detenido. Vuelve solo en cuanto el navegador lo permita.',
   dev: {
