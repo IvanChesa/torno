@@ -20,4 +20,4 @@ Requisitos: Node 22.22.3 o superior (o 24.15+). Para el e2e, `npx playwright ins
 
 ## Despliegue
 
-Cloudflare Pages, proyecto `torno`. Cada *push* a `main` con el CI en verde publica el build que ha probado el CI en la vista previa [`staging.torno.pages.dev`](https://staging.torno.pages.dev) (`.github/workflows/deploy.yml`) y la comprueba. La producción, `torno.ivanchesa.es`, llega con el lanzamiento.
+Cloudflare Pages, proyecto `torno`. Cada *push* a `main` con el CI en verde publica el build que ha probado el CI en la vista previa [`staging.torno.pages.dev`](https://staging.torno.pages.dev) (`.github/workflows/deploy.yml`) y la comprueba. Un *push* a una rama de fase (`fase-*`) va a su propia vista previa, `https://<rama>.torno.pages.dev`, para probarla en el móvil antes de fusionar. La producción, `torno.ivanchesa.es`, llega con el lanzamiento.

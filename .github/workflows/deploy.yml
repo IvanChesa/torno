@@ -5,6 +5,9 @@ name: Despliegue
 # preparados (scripts/pages.mjs). Va a la vista previa `staging` (https://staging.torno.pages.dev);
 # la producción (--branch=main) llega en la fase 9, con una etiqueta v*. Después comprueba la vista
 # previa como con curl (scripts/verify-pages.mjs) y lo deja en el resumen del job.
+# Un push a una rama de fase (`fase-*`) con el CI en verde va a su propia vista previa,
+# https://<rama>.torno.pages.dev (revisión del bloque B, fase 4, #2): Iván la prueba en el móvil
+# antes de fusionar. `staging` sigue siendo solo main.
 #
 # Secrets (los pone Iván con `gh secret set NOMBRE`): CLOUDFLARE_API_TOKEN (solo «Cloudflare Pages:
 # Edit») y CLOUDFLARE_ACCOUNT_ID. Sin ellos, termina con un aviso y no despliega.
@@ -14,15 +17,16 @@ on:
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [main]
+    branches: [main, 'fase-*']
 
 permissions:
   contents: read
   # Para descargar el artefacto del CI (otro workflow).
   actions: read
 
+# Uno a la vez por rama: dos despliegues de main no se adelantan, y una rama de fase no espera a main.
 concurrency:
-  group: deploy-staging
+  group: deploy-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 
 jobs:
@@ -48,6 +52,27 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "::notice title=Cloudflare sin configurar::Faltan CLOUDFLARE_API_TOKEN o CLOUDFLARE_ACCOUNT_ID: no se despliega."
           fi
+
+      # La rama de Pages: `staging` para main y la propia rama para una de fase. El nombre de la rama
+      # viene del push: se valida antes de usarlo y nunca se escribe en un comando sin validar. Pages
+      # convierte el nombre en subdominio (minúsculas, guiones y 28 caracteres como mucho): con esta
+      # forma, el alias es el nombre tal cual.
+      - name: Rama de Pages
+        id: branch
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          if [ "$HEAD_BRANCH" = main ]; then
+            pages=staging
+          elif [[ "$HEAD_BRANCH" =~ ^fase-[0-9]+[a-z0-9-]*$ ]] && [ "${#HEAD_BRANCH}" -le 28 ]; then
+            pages=$HEAD_BRANCH
+          else
+            echo "::error::La rama «$HEAD_BRANCH» no tiene la forma fase-N-nombre (minúsculas, cifras y guiones, 28 caracteres como mucho)"
+            exit 1
+          fi
+          echo "name=$pages" >> "$GITHUB_OUTPUT"
+          echo "url=https://$pages.torno.pages.dev" >> "$GITHUB_OUTPUT"
 
       # Acciones fijadas por SHA de commit (la versión va en el comentario).
       # El commit que probó el CI: de él salen la versión de wrangler (package.json, la misma que la
@@ -141,7 +166,7 @@ jobs:
           command: pages project create torno --production-branch=main
 
       # El build del CI tal cual, sin builds de Cloudflare.
-      - name: Despliega en la vista previa staging
+      - name: Despliega en la vista previa ${{ steps.branch.outputs.name }}
         id: deploy
         if: steps.secrets.outputs.ready == 'true'
         uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
@@ -150,7 +175,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: ${{ steps.wrangler.outputs.version }}
           workingDirectory: repo
-          command: pages deploy ../site --project-name=torno --branch=staging --commit-hash=${{ github.event.workflow_run.head_sha }}
+          command: pages deploy ../site --project-name=torno --branch=${{ steps.branch.outputs.name }} --commit-hash=${{ github.event.workflow_run.head_sha }}
 
       - name: Comprueba la vista previa
         if: steps.secrets.outputs.ready == 'true'
@@ -158,10 +183,10 @@ jobs:
           ALIAS: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
           URL: ${{ steps.deploy.outputs.deployment-url }}
           ENVIRONMENT: ${{ steps.deploy.outputs.pages-environment }}
+          EXPECTED: ${{ steps.branch.outputs.url }}
         run: |
-          # La dirección que dan los documentos (docs/PRUEBAS-MOVIL.md, el README y el plan). Si el
-          # subdominio torno ya estaba cogido en pages.dev, la API da otro: se avisa.
-          EXPECTED=https://staging.torno.pages.dev
+          # La dirección que dan los documentos (docs/PRUEBAS-MOVIL.md, el README, el plan y los
+          # informes). Si el subdominio torno ya estaba cogido en pages.dev, la API da otro: se avisa.
           if [ "${ALIAS%/}" != "$EXPECTED" ]; then
             echo "::warning title=Dirección distinta::La vista previa no está en $EXPECTED sino en ${ALIAS:-$URL}: hay que corregirla en los documentos que la citan."
           fi
