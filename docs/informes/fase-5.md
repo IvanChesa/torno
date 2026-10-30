@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-5-modelo-3d`
 - **Fecha:** 2026-10-30 (5.a y 5.b)
-- **Estado:** entregas 5.a y 5.b terminadas (el diseño, aprobado por Iván tal cual el 30-10; las pruebas del móvil, en `docs/PRUEBAS-MOVIL.md`). Pendiente de la revisión de la fase y de la fusión.
+- **Estado:** terminada. Fusionada en `main` (`673ad51`) el 31-10, con la revisión corregida (§12). El diseño lo aprobó Iván tal cual el 30-10, y las pruebas del móvil están en `docs/PRUEBAS-MOVIL.md`.
 
 ## 0. Plan de la fase
 
