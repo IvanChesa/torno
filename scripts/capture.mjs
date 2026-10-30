@@ -16,7 +16,14 @@
 //      npm run capturas -- --poster
 //      → el póster provisional del escenario (public/img/escenario.webp, 1200×960): una captura del
 //        propio motor, para que el fundido al primer fotograma no mueva nada.
-/* global document, AudioWorklet, Image -- se usan dentro de page.evaluate() y addInitScript(), en la página */
+//
+//      npm run capturas -- --medir
+//      → las cifras de PLAN §5 del escenario 3D con la GPU de verdad (Chromium, modo nuevo sin
+//        interfaz): tres primeras visitas en frío (un navegador nuevo cada vez, sin caché de
+//        shaders) con el primer fotograma, la tarea más larga, la generación del modelo y la VRAM;
+//        el peso de la primera visita con el 3D y sin él (?sin3d=1); y los FPS pintando seguido, con
+//        el panel de la escena (?diagnostico=1). Las de la fase 5 son de un PC con una RTX 3060.
+/* global document, AudioWorklet, Image, PerformanceObserver, window -- se usan dentro de page.evaluate() y addInitScript(), en la página */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,8 +53,9 @@ const POSTER = { file: 'public/img/escenario.webp', width: 1200, height: 960, qu
 
 const onlyArg = process.argv.find((arg) => arg.startsWith('--solo='))?.slice('--solo='.length);
 const posterArg = process.argv.includes('--poster');
+const measureArg = process.argv.includes('--medir');
 const phaseArg = process.argv.find((arg) => arg.startsWith('--fase='));
-if (!phaseArg && !posterArg) {
+if (!phaseArg && !posterArg && !measureArg) {
   console.error('Indica la fase: npm run capturas -- --fase=N (o --poster)');
   process.exit(1);
 }
@@ -146,7 +154,45 @@ async function captureStage(browser, context, base, viewport) {
     const { stats } = await openStage(page, base, { calidad: quality });
     console.log(`  Coste de pintarlo (${viewport}, ${quality}): ${stats}`);
   }
+  await captureStagePose(page, base, viewport);
   await page.close();
+}
+
+/**
+ * El aparato con pose (revisión de la fase 5, #9), tocado con el plato de debajo: a 40 BPM (un
+ * compás de 6 s, para que la cola se vea), ALFAR suena en la capa 1 (piloto encendido y la tecla de
+ * reproducir hundida) y un bajo espera EN COLA en la capa 2 (su piloto en aviso y su anillo).
+ */
+async function captureStagePose(page, base, viewport) {
+  const { stage } = await openStage(page, base, {});
+  const main = page.locator('[data-control="main"]');
+  const screen = page.locator('trn-instrument-screen');
+  await main.focus();
+  await main.press('Home');
+  await screen.getByText('40 BPM').waitFor();
+  // SONIDO → BATERÍA → ALFAR, y fuera del menú.
+  for (let i = 0; i < 4; i++) await main.press('Enter');
+  for (let i = 0; i < 5; i++) await main.press('Escape');
+  await screen.getByText('BATERÍA · ALFAR').waitFor();
+  await page.locator('[data-control="play"]').click();
+  await screen.getByText('EN MARCHA').waitFor();
+  // La capa 2 y su bajo: espera al compás siguiente.
+  await main.focus();
+  await main.press('2');
+  await main.press('Enter');
+  await main.press('Enter');
+  await main.press('ArrowDown');
+  await main.press('Enter');
+  await main.press('Enter');
+  for (let i = 0; i < 5; i++) await main.press('Escape');
+  await screen.getByText('EN COLA').waitFor();
+  await page.evaluate(() => /** @type {HTMLElement} */ (document.activeElement)?.blur());
+  // El 3D se repinta con la pose nueva en el fotograma siguiente.
+  await page.waitForTimeout(400);
+  await stage.scrollIntoViewIfNeeded();
+  const file = path.join(outDir, `escenario-sonando-${viewport}.jpg`);
+  await stage.screenshot({ path: file, type: 'jpeg', quality: 88, animations: 'disabled' });
+  console.log(`✔ ${path.relative(ROOT, file)}`);
 }
 
 /**
@@ -193,12 +239,106 @@ async function capturePoster(browser, base) {
   await encoder.close();
 }
 
+/** Chromium con la GPU de verdad (el de las capturas pinta por software). */
+function launchWithGpu() {
+  return chromium.launch({
+    channel: 'chromium',
+    args: [
+      '--enable-gpu',
+      '--ignore-gpu-blocklist',
+      ...(process.platform === 'win32' ? ['--use-angle=d3d11'] : []),
+    ],
+  });
+}
+
+/** El peso de lo descargado (Resource Timing, sin comprimir) y la tarea más larga, en la página. */
+async function pageCosts(page) {
+  return page.evaluate(() => {
+    const entries = [
+      ...performance.getEntriesByType('navigation'),
+      ...performance.getEntriesByType('resource'),
+    ];
+    const kB = entries.reduce((sum, entry) => sum + (entry.decodedBodySize || 0), 0) / 1000;
+    return { kB: Math.round(kB * 10) / 10, longest: Math.max(0, ...window.__long) };
+  });
+}
+
+/** Anota las tareas largas desde el principio de la página. */
+const LONG_TASKS = () => {
+  window.__long = [];
+  new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) window.__long.push(Math.round(entry.duration));
+  }).observe({ type: 'longtask', buffered: true });
+};
+
+/** Las cifras de PLAN §5 del escenario 3D (`--medir`). */
+async function measureStage(base) {
+  const viewport = { width: 1440, height: 900 };
+  for (let run = 1; run <= 3; run++) {
+    const browser = await launchWithGpu();
+    const page = await browser.newPage({ viewport });
+    await page.addInitScript(LONG_TASKS);
+    await page.goto(`${base}/?captura=1`);
+    const stage = page.locator('.stage3d[data-listo]');
+    await stage.waitFor({ timeout: 60_000 });
+    const ready = await page.evaluate(() => Math.round(performance.now()));
+    await page.waitForTimeout(1000);
+    const stats = JSON.parse((await stage.getAttribute('data-estadisticas')) ?? '{}');
+    const { kB, longest } = await pageCosts(page);
+    if (run === 1) {
+      const gpu = await page.evaluate(() => {
+        const gl = document.createElement('canvas').getContext('webgl2');
+        const info = gl?.getExtension('WEBGL_debug_renderer_info');
+        return info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : 'desconocida';
+      });
+      console.log(`GPU: ${gpu}`);
+    }
+    console.log(
+      `En frío ${run}: primer fotograma a los ${ready} ms; tarea más larga, ${longest} ms; ` +
+        `generación ${stats.buildMs} ms; VRAM ${stats.vramMb} MB; con el 3D, ${kB} kB`,
+    );
+    await browser.close();
+  }
+  const browser = await launchWithGpu();
+  try {
+    const page = await browser.newPage({ viewport });
+    await page.addInitScript(LONG_TASKS);
+    await page.goto(`${base}/?sin3d=1`);
+    await page.locator('[data-control="main"]').waitFor();
+    await page.waitForLoadState('networkidle');
+    console.log(`Sin el 3D (?sin3d=1): ${(await pageCosts(page)).kB} kB`);
+    await page.goto(`${base}/?diagnostico=1`);
+    await page.locator('#instrumento').scrollIntoViewIfNeeded();
+    await page.locator('.stage3d[data-listo]').waitFor({ timeout: 60_000 });
+    const panel = page.locator('trn-stage-dev .dev');
+    for (const level of ['Alta', 'Media', 'Baja']) {
+      await panel
+        .getByRole('group', { name: 'Calidad' })
+        .getByRole('button', { name: level })
+        .click();
+      await page.waitForTimeout(2000);
+      await panel.getByRole('button', { name: 'Medir 5 s' }).click();
+      await page.waitForTimeout(5800);
+      const result = (await panel.locator('[data-medida]').textContent())?.trim();
+      const canvas = await page
+        .locator('.stage3d canvas')
+        .evaluate((c) => `${c.width}×${c.height}`);
+      console.log(`FPS en ${level.toLowerCase()} (lienzo de ${canvas} px): ${result}`);
+    }
+  } finally {
+    await browser.close();
+  }
+}
+
 const server = await startPagesServer();
 /** @type {import('@playwright/test').Browser | undefined} */
 let browser;
 try {
   // Dentro del `try`: si el navegador no arranca, el servidor también se cierra.
   browser = await chromium.launch();
+  if (measureArg) {
+    await measureStage(server.url);
+  }
   if (posterArg) {
     await capturePoster(browser, server.url);
   }
