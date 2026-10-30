@@ -140,18 +140,20 @@ export function labelTexture(icon: LabelIcon): CanvasTexture {
 }
 
 /**
- * La sombra de contacto: un degradado radial bajo el cuerpo, pintado una vez. `bodyFraction` es
- * el radio del cuerpo dividido entre la mitad del lado del plano.
+ * La sombra de contacto: un degradado radial bajo el cuerpo, pintado una vez. Densa bajo la base y
+ * desvanecida del todo en el borde del plano (alfa 0), para que el lienzo no la corte en recto.
+ * `baseFraction` y `bodyFraction` son los radios de la base y del cuerpo divididos entre la mitad
+ * del lado del plano.
  */
-export function contactShadowTexture(bodyFraction: number): CanvasTexture {
+export function contactShadowTexture(baseFraction: number, bodyFraction: number): CanvasTexture {
   const size = 512;
   const { element, context } = canvas(size, size);
   const c = size / 2;
   const gradient = context.createRadialGradient(c, c, 0, c, c, c);
   gradient.addColorStop(0, 'rgba(0, 0, 0, 0.62)');
-  gradient.addColorStop(bodyFraction * 0.86, 'rgba(0, 0, 0, 0.55)');
-  gradient.addColorStop(bodyFraction, 'rgba(0, 0, 0, 0.32)');
-  gradient.addColorStop(Math.min(1, bodyFraction * 1.18), 'rgba(0, 0, 0, 0.08)');
+  gradient.addColorStop(baseFraction * 0.95, 'rgba(0, 0, 0, 0.55)');
+  gradient.addColorStop(baseFraction, 'rgba(0, 0, 0, 0.42)');
+  gradient.addColorStop(bodyFraction, 'rgba(0, 0, 0, 0.18)');
   gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
   context.fillStyle = gradient;
   context.fillRect(0, 0, size, size);

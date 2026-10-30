@@ -102,8 +102,13 @@ export interface FrameStats {
   readonly p95Ms: number;
 }
 
-/** Lado del plano de la sombra de contacto, en mm. */
-const SHADOW_SIZE = 440;
+/**
+ * Radio de la sombra de contacto, en mm: se desvanece del todo 8 mm más allá del canto del cuerpo, y
+ * el encuadre la incluye entera (antes, el lienzo la cortaba en recto: revisión de la fase 5, #2).
+ */
+const SHADOW_RADIUS = BODY.radius + 8;
+/** Puntos del borde de la sombra que entran en la silueta del encuadre. */
+const SHADOW_RING_POINTS = 48;
 /** Cada cuántos vértices se toma uno para la silueta del encuadre. */
 const SILHOUETTE_STEP = 5;
 /** Lo más que se filtran las texturas vistas de lado. */
@@ -404,7 +409,7 @@ export class SceneEngine {
     }
     this.#level = level;
     model.root.updateMatrixWorld(true);
-    this.#silhouette = silhouette(model);
+    this.#silhouette = [...silhouette(model), ...shadowRing()];
     this.#applySize();
   }
 
@@ -652,10 +657,10 @@ export class SceneEngine {
 /** La sombra de contacto: un plano en la mesa con un degradado, pintado una vez. */
 function contactShadow(): Mesh {
   const shadow = new Mesh(
-    new PlaneGeometry(SHADOW_SIZE * MM, SHADOW_SIZE * MM),
+    new PlaneGeometry(2 * SHADOW_RADIUS * MM, 2 * SHADOW_RADIUS * MM),
     new MeshBasicMaterial({
       name: 'sombra de contacto',
-      map: contactShadowTexture(BODY.radius / (SHADOW_SIZE / 2)),
+      map: contactShadowTexture(BODY.baseRadius / SHADOW_RADIUS, BODY.radius / SHADOW_RADIUS),
       transparent: true,
       depthWrite: false,
       toneMapped: false,
@@ -665,6 +670,18 @@ function contactShadow(): Mesh {
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = 0.2 * MM;
   return shadow;
+}
+
+/** El borde de la sombra de contacto, en la mesa: el encuadre la deja entera dentro del lienzo. */
+function shadowRing(): Vector3[] {
+  return Array.from({ length: SHADOW_RING_POINTS }, (_, i) => {
+    const angle = (2 * Math.PI * i) / SHADOW_RING_POINTS;
+    return new Vector3(
+      SHADOW_RADIUS * MM * Math.sin(angle),
+      0,
+      SHADOW_RADIUS * MM * Math.cos(angle),
+    );
+  });
 }
 
 /** Unos cuantos vértices de todo el aparato, en coordenadas de la escena: su silueta. */
