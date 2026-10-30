@@ -13,7 +13,6 @@ import {
   BODY,
   controlCenter,
   DISC_OUTER_RADIUS,
-  PILOTS,
   PLACEMENTS,
   polar,
   WHEEL,
@@ -58,6 +57,12 @@ export type PlateLabelId =
   | 'undo'
   | 'arm';
 
+/**
+ * Los pilotos del plato van más cerca del disco que en el aparato (99 mm): en el móvil, los diales de
+ * 44 px llegan más adentro que sus 30 mm, y el anillo de la capa elegida los pisaría. A 89 mm quedan
+ * entre el disco (81) y ese anillo, con aire a los dos lados (lo mide un e2e).
+ */
+export const PLATE_PILOT_RADIUS = 89;
 /** A cuánto del canto van los rótulos de fuera, en mm. */
 const LABEL_GAP = 14;
 /**
@@ -107,7 +112,7 @@ export const PLATE = {
     (Object.keys(PLACEMENTS) as PlacedControl[]).map((id) => [id, spot(controlCenter(id))]),
   ) as Readonly<Record<PlacedControl, PlateSpot>>,
   pilots: LAYER_CONTROLS.map((id) =>
-    spot(polar(PILOTS.radius, PLACEMENTS[id as PlacedControl].angle)),
+    spot(polar(PLATE_PILOT_RADIUS, PLACEMENTS[id as PlacedControl].angle)),
   ),
   /** El brazo: del reposo (sin filtro, por fuera) hacia el disco. */
   arm: track(armStart, full),

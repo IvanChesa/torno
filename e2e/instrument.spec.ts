@@ -349,6 +349,52 @@ test.describe('instrumento HTML', () => {
     expect([...values]).toEqual(['Capa 1, 8 pulsos']);
   });
 
+  test('en el plato, ni los medidores ni el anillo de la capa elegida pisan los pilotos', async ({
+    page,
+  }) => {
+    const driver = new InstrumentDriver(page);
+    /** El anillo de la capa elegida: 5 px alrededor del dial (`box-shadow` de 3 + 2 px). */
+    const RING = 5;
+    for (const viewport of [
+      { width: 375, height: 812 },
+      { width: 1440, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await driver.open();
+      const disc = (await page.locator('.spot--disc').boundingBox())!;
+      const discRadius = disc.width / 2;
+      const discCenter = { x: disc.x + discRadius, y: disc.y + disc.height / 2 };
+      for (let layer = 0; layer < 4; layer++) {
+        const where = `capa ${layer + 1} a ${viewport.width} px`;
+        // La caja del dial es la de su sitio (el dial gira y su propia caja crece).
+        const knob = (await page.locator('.spot.layer').nth(layer).boundingBox())!;
+        const pilot = (await page.locator('.pilot').nth(layer).boundingBox())!;
+        const meter = (await page.locator('.spot.layer .meter').nth(layer).boundingBox())!;
+        const center = (box: { x: number; y: number; width: number; height: number }) => ({
+          x: box.x + box.width / 2,
+          y: box.y + box.height / 2,
+        });
+        const distance = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+          Math.hypot(a.x - b.x, a.y - b.y);
+        const pilotRadius = pilot.width / 2;
+        // Círculos: el piloto, fuera del dial con su anillo y fuera del disco.
+        expect(distance(center(pilot), center(knob)), where).toBeGreaterThan(
+          knob.width / 2 + RING + pilotRadius,
+        );
+        expect(distance(center(pilot), discCenter), where).toBeGreaterThan(
+          discRadius + pilotRadius,
+        );
+        // Cajas: el medidor no toca el piloto.
+        const apart =
+          meter.x + meter.width <= pilot.x ||
+          pilot.x + pilot.width <= meter.x ||
+          meter.y + meter.height <= pilot.y ||
+          pilot.y + pilot.height <= meter.y;
+        expect(apart, where).toBe(true);
+      }
+    }
+  });
+
   test('cada control se toca en una zona de al menos 44 × 44 px, en el móvil y en el escritorio', async ({
     page,
   }) => {

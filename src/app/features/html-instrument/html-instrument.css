@@ -160,10 +160,13 @@
   background: var(--instrument-led-rec);
 }
 
-/* El medidor de cada capa, junto a su dial. */
+/*
+ * El medidor de cada capa, por fuera de su dial (las capas van a la izquierda): por dentro, entre el
+ * dial y el disco, va el piloto.
+ */
 .meter {
   position: absolute;
-  inset-inline-start: calc(100% + 4px);
+  inset-inline-end: calc(100% + 4px);
   inset-block-start: 15%;
   inline-size: 4px;
   block-size: 70%;
