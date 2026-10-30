@@ -3,13 +3,28 @@
 //
 // Uso: npm run capturas -- --fase=2   (después de `npm run build`)
 //      → docs/informes/img/fase-2/<página>-<escritorio|movil>.png
-//        y, desde la fase 2, el instrumento HTML de cerca, con sus avisos: en reposo, con el menú
-//        abierto, con la chuleta de atajos, cargando el audio, con el error de «Reintentar» y
-//        ofreciendo recuperar la sesión anterior; desde la fase 3, el menú SONIDO con la colección,
-//        MARCAR TEMPO, un cambio EN COLA y el panel de recuperar con los dos huecos y su
-//        confirmación; desde la fase 4, el panel de diagnóstico (`?diagnostico=1`).
-/* global document, AudioWorklet -- se usan dentro de page.evaluate() y addInitScript(), en la página */
-import { mkdir } from 'node:fs/promises';
+//        y, desde la fase 2, el instrumento HTML de cerca (con `?sin3d=1`), con sus avisos: en
+//        reposo, con el menú abierto, con la chuleta de atajos, cargando el audio, con el error de
+//        «Reintentar» y ofreciendo recuperar la sesión anterior; desde la fase 3, el menú SONIDO con
+//        la colección, MARCAR TEMPO, un cambio EN COLA y el panel de recuperar con los dos huecos y
+//        su confirmación; desde la fase 4, el panel de diagnóstico (`?diagnostico=1`).
+//
+//      npm run capturas -- --fase=5 --solo=escenario
+//      → solo el escenario 3D (fase 5.b): el aparato desde 4 ángulos, en JPEG, con una hoja de
+//        contactos. Escribe en la consola lo que cuesta pintarlo, por nivel de calidad.
+//
+//      npm run capturas -- --poster
+//      → el póster provisional del escenario (public/img/escenario.webp, 1200×960): una captura del
+//        propio motor, para que el fundido al primer fotograma no mueva nada.
+//
+//      npm run capturas -- --medir
+//      → las cifras de PLAN §5 del escenario 3D con la GPU de verdad (Chromium, modo nuevo sin
+//        interfaz): tres primeras visitas en frío (un navegador nuevo cada vez, sin caché de
+//        shaders) con el primer fotograma, la tarea más larga, la generación del modelo y la VRAM;
+//        el peso de la primera visita con el 3D y sin él (?sin3d=1); y los FPS pintando seguido, con
+//        el panel de la escena (?diagnostico=1). Las de la fase 5 son de un PC con una RTX 3060.
+/* global document, AudioWorklet, Image, PerformanceObserver, window -- se usan dentro de page.evaluate() y addInitScript(), en la página */
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, devices } from '@playwright/test';
@@ -26,18 +41,40 @@ const VIEWPORTS = [
   { name: 'movil', options: { ...devices['Pixel 7'], deviceScaleFactor: 2 } },
 ];
 
+/** Las vistas del escenario 3D (fase 5.b), con sus nombres para la hoja de contactos. */
+const STAGE_VIEWS = [
+  ['frente', 'Frente'],
+  ['tres-cuartos', 'Tres cuartos'],
+  ['cenital', 'Cenital'],
+  ['perfil', 'Perfil'],
+];
+/** El póster: 1200×960 (5:4, como el lienzo). */
+const POSTER = { file: 'public/img/escenario.webp', width: 1200, height: 960, quality: 0.8 };
+
+const onlyArg = process.argv.find((arg) => arg.startsWith('--solo='))?.slice('--solo='.length);
+const posterArg = process.argv.includes('--poster');
+const measureArg = process.argv.includes('--medir');
 const phaseArg = process.argv.find((arg) => arg.startsWith('--fase='));
-if (!phaseArg) {
-  console.error('Indica la fase: npm run capturas -- --fase=N');
+if (!phaseArg && !posterArg && !measureArg) {
+  console.error('Indica la fase: npm run capturas -- --fase=N (o --poster)');
   process.exit(1);
 }
-const outDir = path.join(ROOT, 'docs/informes/img', `fase-${phaseArg.slice('--fase='.length)}`);
-await mkdir(outDir, { recursive: true });
+const outDir = path.join(ROOT, 'docs/informes/img', `fase-${phaseArg?.slice('--fase='.length)}`);
+if (phaseArg) await mkdir(outDir, { recursive: true });
 
-/** Espera a que la página esté quieta: fuentes cargadas y, en la portada, el instrumento. */
+/**
+ * Espera a que la página esté quieta: fuentes cargadas y, en la portada, el instrumento y (sin
+ * `?sin3d=1`) el primer fotograma del escenario 3D.
+ */
 async function settle(page, url) {
   await page.waitForLoadState('networkidle');
-  if (new URL(url).pathname === '/') await page.locator('[data-control="main"]').waitFor();
+  const { pathname, searchParams } = new URL(url);
+  if (pathname === '/') {
+    await page.locator('[data-control="main"]').waitFor();
+    if (searchParams.get('sin3d') !== '1') {
+      await page.locator('.stage3d[data-listo]').waitFor({ timeout: 60_000 });
+    }
+  }
   await page.evaluate(() => document.fonts.ready);
 }
 
@@ -58,13 +95,254 @@ async function openHome(page, url) {
   return page.locator('[data-control="main"]');
 }
 
+/**
+ * El escenario 3D con `?captura=1` y lo elegido en la URL (vista y calidad): se espera a su primer
+ * fotograma (`data-listo`). Devuelve el escenario y lo que costó pintarlo (`data-estadisticas`).
+ */
+async function openStage(page, base, params) {
+  await page.goto(`${base}/?${new URLSearchParams({ captura: '1', ...params })}`);
+  await page.evaluate(() => document.fonts.ready);
+  const stage = page.locator('.stage3d[data-listo]');
+  await stage.waitFor({ timeout: 60_000 });
+  await stage.scrollIntoViewIfNeeded();
+  return { stage, stats: await stage.getAttribute('data-estadisticas') };
+}
+
+/**
+ * Hoja de contactos: las imágenes en una rejilla, con su nombre encima, pintada por el propio
+ * navegador (sin dependencias para componer imágenes).
+ */
+async function contactSheet(browser, cells, columns, file) {
+  const images = await Promise.all(
+    cells.map(async ({ file: image, label }) => ({
+      label,
+      src: `data:image/jpeg;base64,${(await readFile(image)).toString('base64')}`,
+    })),
+  );
+  const page = await browser.newPage({
+    viewport: { width: 1800, height: 600 },
+    deviceScaleFactor: 1,
+  });
+  await page.setContent(`<!doctype html>
+    <style>
+      body { margin: 0; padding: 24px; background: #252712; color: #f1ece0;
+        font: 500 20px ui-monospace, Consolas, monospace; }
+      main { display: grid; grid-template-columns: repeat(${columns}, 1fr); gap: 24px 16px; }
+      figure { margin: 0; display: grid; gap: 8px; }
+      img { inline-size: 100%; display: block; }
+    </style>
+    <main>${images.map(({ label, src }) => `<figure><figcaption>${label}</figcaption><img src="${src}"></figure>`).join('')}</main>`);
+  await page.locator('main').screenshot({ path: file, type: 'jpeg', quality: 86 });
+  await page.close();
+  console.log(`✔ ${path.relative(ROOT, file)}`);
+}
+
+/** El escenario 3D en un tamaño de pantalla: el aparato desde 4 ángulos y su hoja de contactos. */
+async function captureStage(browser, context, base, viewport) {
+  const page = await context.newPage();
+  const cells = [];
+  for (const [view, viewName] of STAGE_VIEWS) {
+    const { stage, stats } = await openStage(page, base, { vista: view });
+    const file = path.join(outDir, `escenario-${view}-${viewport}.jpg`);
+    await stage.screenshot({ path: file, type: 'jpeg', quality: 88, animations: 'disabled' });
+    console.log(`✔ ${path.relative(ROOT, file)}`);
+    if (view === 'frente') console.log(`  Coste de pintarlo (${viewport}, alta): ${stats}`);
+    cells.push({ file, label: viewName });
+  }
+  await contactSheet(browser, cells, 2, path.join(outDir, `escenario-vistas-${viewport}.jpg`));
+  for (const quality of ['medium', 'low']) {
+    const { stats } = await openStage(page, base, { calidad: quality });
+    console.log(`  Coste de pintarlo (${viewport}, ${quality}): ${stats}`);
+  }
+  await captureStagePose(page, base, viewport);
+  await page.close();
+}
+
+/**
+ * El aparato con pose (revisión de la fase 5, #9), tocado con el plato de debajo: a 40 BPM (un
+ * compás de 6 s, para que la cola se vea), ALFAR suena en la capa 1 (piloto encendido y la tecla de
+ * reproducir hundida) y un bajo espera EN COLA en la capa 2 (su piloto en aviso y su anillo).
+ */
+async function captureStagePose(page, base, viewport) {
+  const { stage } = await openStage(page, base, {});
+  const main = page.locator('[data-control="main"]');
+  const screen = page.locator('trn-instrument-screen');
+  await main.focus();
+  await main.press('Home');
+  await screen.getByText('40 BPM').waitFor();
+  // SONIDO → BATERÍA → ALFAR, y fuera del menú.
+  for (let i = 0; i < 4; i++) await main.press('Enter');
+  for (let i = 0; i < 5; i++) await main.press('Escape');
+  await screen.getByText('BATERÍA · ALFAR').waitFor();
+  await page.locator('[data-control="play"]').click();
+  await screen.getByText('EN MARCHA').waitFor();
+  // La capa 2 y su bajo: espera al compás siguiente.
+  await main.focus();
+  await main.press('2');
+  await main.press('Enter');
+  await main.press('Enter');
+  await main.press('ArrowDown');
+  await main.press('Enter');
+  await main.press('Enter');
+  for (let i = 0; i < 5; i++) await main.press('Escape');
+  await screen.getByText('EN COLA').waitFor();
+  await page.evaluate(() => /** @type {HTMLElement} */ (document.activeElement)?.blur());
+  // El 3D se repinta con la pose nueva en el fotograma siguiente.
+  await page.waitForTimeout(400);
+  await stage.scrollIntoViewIfNeeded();
+  const file = path.join(outDir, `escenario-sonando-${viewport}.jpg`);
+  await stage.screenshot({ path: file, type: 'jpeg', quality: 88, animations: 'disabled' });
+  console.log(`✔ ${path.relative(ROOT, file)}`);
+}
+
+/**
+ * El póster del escenario: el lienzo en `?captura=1` (con el fondo de la página), llevado a
+ * 1200×960 y codificado en WebP por el propio navegador (sin dependencias para imágenes).
+ */
+async function capturePoster(browser, base) {
+  const page = await browser.newPage({
+    viewport: { width: 1440, height: 1100 },
+    deviceScaleFactor: 2,
+    reducedMotion: 'reduce',
+    colorScheme: 'dark',
+  });
+  const { stage } = await openStage(page, base, {});
+  const png = await stage.locator('canvas').screenshot({ type: 'png', animations: 'disabled' });
+  await page.close();
+  // En una página en blanco: la de Torno no deja cargar imágenes `data:` (CSP, `img-src 'self'`).
+  const encoder = await browser.newPage();
+  await encoder.setContent('<!doctype html><title>póster</title>');
+  const webp = await encoder.evaluate(
+    async ({ src, width, height, quality }) => {
+      const image = new Image();
+      image.src = src;
+      await image.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(image, 0, 0, width, height);
+      return canvas.toDataURL('image/webp', quality).split(',')[1];
+    },
+    {
+      src: `data:image/png;base64,${png.toString('base64')}`,
+      width: POSTER.width,
+      height: POSTER.height,
+      quality: POSTER.quality,
+    },
+  );
+  const file = path.join(ROOT, POSTER.file);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, Buffer.from(webp, 'base64'));
+  console.log(`✔ ${POSTER.file} (${Math.round(Buffer.from(webp, 'base64').length / 1024)} kB)`);
+  await encoder.close();
+}
+
+/** Chromium con la GPU de verdad (el de las capturas pinta por software). */
+function launchWithGpu() {
+  return chromium.launch({
+    channel: 'chromium',
+    args: [
+      '--enable-gpu',
+      '--ignore-gpu-blocklist',
+      ...(process.platform === 'win32' ? ['--use-angle=d3d11'] : []),
+    ],
+  });
+}
+
+/** El peso de lo descargado (Resource Timing, sin comprimir) y la tarea más larga, en la página. */
+async function pageCosts(page) {
+  return page.evaluate(() => {
+    const entries = [
+      ...performance.getEntriesByType('navigation'),
+      ...performance.getEntriesByType('resource'),
+    ];
+    const kB = entries.reduce((sum, entry) => sum + (entry.decodedBodySize || 0), 0) / 1000;
+    return { kB: Math.round(kB * 10) / 10, longest: Math.max(0, ...window.__long) };
+  });
+}
+
+/** Anota las tareas largas desde el principio de la página. */
+const LONG_TASKS = () => {
+  window.__long = [];
+  new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) window.__long.push(Math.round(entry.duration));
+  }).observe({ type: 'longtask', buffered: true });
+};
+
+/** Las cifras de PLAN §5 del escenario 3D (`--medir`). */
+async function measureStage(base) {
+  const viewport = { width: 1440, height: 900 };
+  for (let run = 1; run <= 3; run++) {
+    const browser = await launchWithGpu();
+    const page = await browser.newPage({ viewport });
+    await page.addInitScript(LONG_TASKS);
+    await page.goto(`${base}/?captura=1`);
+    const stage = page.locator('.stage3d[data-listo]');
+    await stage.waitFor({ timeout: 60_000 });
+    const ready = await page.evaluate(() => Math.round(performance.now()));
+    await page.waitForTimeout(1000);
+    const stats = JSON.parse((await stage.getAttribute('data-estadisticas')) ?? '{}');
+    const { kB, longest } = await pageCosts(page);
+    if (run === 1) {
+      const gpu = await page.evaluate(() => {
+        const gl = document.createElement('canvas').getContext('webgl2');
+        const info = gl?.getExtension('WEBGL_debug_renderer_info');
+        return info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : 'desconocida';
+      });
+      console.log(`GPU: ${gpu}`);
+    }
+    console.log(
+      `En frío ${run}: primer fotograma a los ${ready} ms; tarea más larga, ${longest} ms; ` +
+        `generación ${stats.buildMs} ms; VRAM ${stats.vramMb} MB; con el 3D, ${kB} kB`,
+    );
+    await browser.close();
+  }
+  const browser = await launchWithGpu();
+  try {
+    const page = await browser.newPage({ viewport });
+    await page.addInitScript(LONG_TASKS);
+    await page.goto(`${base}/?sin3d=1`);
+    await page.locator('[data-control="main"]').waitFor();
+    await page.waitForLoadState('networkidle');
+    console.log(`Sin el 3D (?sin3d=1): ${(await pageCosts(page)).kB} kB`);
+    await page.goto(`${base}/?diagnostico=1`);
+    await page.locator('#instrumento').scrollIntoViewIfNeeded();
+    await page.locator('.stage3d[data-listo]').waitFor({ timeout: 60_000 });
+    const panel = page.locator('trn-stage-dev .dev');
+    for (const level of ['Alta', 'Media', 'Baja']) {
+      await panel
+        .getByRole('group', { name: 'Calidad' })
+        .getByRole('button', { name: level })
+        .click();
+      await page.waitForTimeout(2000);
+      await panel.getByRole('button', { name: 'Medir 5 s' }).click();
+      await page.waitForTimeout(5800);
+      const result = (await panel.locator('[data-medida]').textContent())?.trim();
+      const canvas = await page
+        .locator('.stage3d canvas')
+        .evaluate((c) => `${c.width}×${c.height}`);
+      console.log(`FPS en ${level.toLowerCase()} (lienzo de ${canvas} px): ${result}`);
+    }
+  } finally {
+    await browser.close();
+  }
+}
+
 const server = await startPagesServer();
 /** @type {import('@playwright/test').Browser | undefined} */
 let browser;
 try {
   // Dentro del `try`: si el navegador no arranca, el servidor también se cierra.
   browser = await chromium.launch();
-  for (const viewport of VIEWPORTS) {
+  if (measureArg) {
+    await measureStage(server.url);
+  }
+  if (posterArg) {
+    await capturePoster(browser, server.url);
+  }
+  for (const viewport of phaseArg ? VIEWPORTS : []) {
     const context = await browser.newContext({
       ...viewport.options,
       locale: 'es-ES',
@@ -72,6 +350,11 @@ try {
       reducedMotion: 'reduce',
       colorScheme: 'dark',
     });
+    if (onlyArg === 'escenario') {
+      await captureStage(browser, context, server.url, viewport.name);
+      await context.close();
+      continue;
+    }
     const page = await context.newPage();
     for (const target of PAGES) {
       const url = `${server.url}${target.path}?captura=1`;
@@ -81,8 +364,9 @@ try {
       await page.screenshot({ path: file, fullPage: true, animations: 'disabled', caret: 'hide' });
       console.log(`✔ ${path.relative(ROOT, file)}`);
     }
-    // El instrumento de cerca: en reposo, con el menú abierto (BUCLE) y con la chuleta de atajos.
-    const home = `${server.url}/?captura=1`;
+    // El instrumento HTML de cerca (sin el 3D): en reposo, con el menú abierto (BUCLE) y con la
+    // chuleta de atajos.
+    const home = `${server.url}/?captura=1&sin3d=1`;
     let main = await openHome(page, home);
     await shootInstrument(page, 'reposo', viewport.name);
     await main.focus();

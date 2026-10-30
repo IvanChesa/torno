@@ -267,3 +267,50 @@ Lo escribe Claude Code (CLAUDE.md, «Ciclo de cada fase» y «Paradas»):
 - Opcional: Cloudflare Access para la vista previa.
 
 **Siguiente.** Revisión del bloque B por la sesión de plan. El bloque C empieza cuando estén las pruebas en el móvil.
+
+### Bloque C, entrega 5.a · 2026-10-30 · parada prevista (aprobación del diseño)
+
+**Hecho.**
+- **En `main`, al empezar el bloque** (revisión del bloque B, fase 4; respuesta al final de `docs/revisiones/bloque-B.md`):
+  - los documentos de la revisión y la decisión de Iván: el bloque C empieza sin las pruebas del móvil, que hacen falta antes de la 5.b (`0298e30`);
+  - el PR #1 de Dependabot (wrangler 4.152.0), fusionado con su CI en verde (`3bc5bbb`);
+  - **vistas previas de las ramas de fase:** un *push* a `fase-*` con el CI en verde se publica en `https://<rama>.torno.pages.dev`; `staging` sigue siendo solo `main` (`7bd30da`);
+  - **precarga de ALFAR** al acercarse el puntero, el foco o la vista al instrumento: carga el motor, descarga el módulo del worklet y renderiza ALFAR en el worker, sin contexto ni sonido (`765ba8a`). Destapó una carrera que ya estaba: pausar justo después de arrancar no pausaba. Corregida, con su test.
+- **Entrega 5.a** (rama `fase-5-modelo-3d`, sin fusionar; [informe](fase-5.md)):
+  - **Torno es redondo**, como un torno de alfarero visto desde arriba: Ø 300 mm y el disco en el centro. Las capas van a la izquierda, las teclas delante y el brazo (una costilla de alfarero) a la derecha. Detrás, la bandeja con la pantalla curva, el dial principal, el volumen y el reposo. Las medidas están en `instrument/layout.ts`, con tests de que todo cabe, nada se solapa y las zonas táctiles de 44 px no se pisan en el móvil;
+  - **maqueta 3D en bloques** (`scene/`): piezas torneadas, materiales provisionales en 3 variantes, entorno con PMREM y sombra de contacto. El render es bajo demanda y `dispose()` libera todo;
+  - **visor** en la portada con `?maqueta=1`: variante, mapeo de tonos y vista con botones nativos, y lo elegido en la URL;
+  - **capturas:** 3 variantes × 4 vistas y Neutral frente a AgX, en escritorio y móvil, con hojas de contactos. También la **propuesta del instrumento HTML** (un plato redondo con las mismas posiciones y la pantalla encima);
+  - **publicada** en `https://fase-5-modelo-3d.torno.pages.dev/?maqueta=1`.
+
+**Métricas.**
+- **Primera reproducción en frío** (panel de diagnóstico, build estático, escritorio): 200–272 ms sin la precarga y 68–93 ms con ella.
+- **Pruebas:** `npm run check` sin errores, con 473 tests en Node (+20) y 74 en Angular (+5); e2e 101/101 en local.
+- **Peso:** JS inicial de `/` 302,4 kB (302,1 antes); chunk 3D 631,8 kB (aviso a 800), fuera del bundle inicial.
+- **La maqueta:** 44 llamadas de dibujo, 41 234 triángulos y 24–41 ms para generar el modelo y sus texturas.
+- **Separación de las zonas táctiles** en el móvil (1,1 px/mm): 49,9 px desde arriba y 45,6 px a 45°.
+
+**Desviaciones** (informe de la fase 5, §4):
+- las medidas, en `instrument/` (la fuente única también para el instrumento HTML y la guía);
+- la maqueta, en la portada con `?maqueta=1`, sin ruta propia;
+- las capturas del 3D, en JPEG, con hojas de contactos;
+- en esta entrega, solo las capturas de la maqueta (`--solo=maqueta`).
+
+Además, el e2e del tempo por pulsaciones comprueba ahora el tempo con el momento real de cada pulsación: con la precarga, Playwright espaciaba las pulsaciones algo más de 500 ms en el servidor de desarrollo.
+
+**Para Iván** (`docs/PENDIENTES.md`):
+- **Aprobar el diseño** en `https://fase-5-modelo-3d.torno.pages.dev/?maqueta=1`:
+  - la distribución redonda;
+  - la variante (recomendada: Terracota);
+  - el mapeo de tonos (recomendado: Neutral);
+  - el instrumento HTML como plato redondo.
+- **Las pruebas del móvil** (`docs/PRUEBAS-MOVIL.md`), que hacen falta antes de la 5.b. La prueba 1 ya da la cifra de antes y la de después de la precarga.
+
+**Siguiente.** Con la aprobación y las pruebas del móvil, la 5.b en la misma rama: el modelo definitivo con la variante elegida, `SceneEngine`, la calidad, la pérdida de contexto e `instrument-stage`. Después vienen la revisión de la fase 5, la fusión y la fase 6.
+
+**Después de la parada (30-10).** Iván aprueba el diseño tal cual:
+- la distribución redonda;
+- la variante Terracota y el mapeo de tonos Neutral;
+- el instrumento HTML como plato redondo con la pantalla encima.
+
+La 5.b sigue parada: falta lo otro que pide, las pruebas del móvil en `docs/PRUEBAS-MOVIL.md`, que siguen sin rellenar.

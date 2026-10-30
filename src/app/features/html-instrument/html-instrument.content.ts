@@ -14,6 +14,14 @@ export const HTML_INSTRUMENT_CONTENT = {
     volume: 'Volumen',
     standby: 'Reposo',
   },
+  /**
+   * En el móvil, los rótulos no caben alrededor del plato: van aquí, debajo (cada control conserva
+   * su nombre accesible).
+   */
+  legend: [
+    '1–4 capas · ▶ reproducir · ● grabar · ↶ deshacer',
+    'Detrás: tempo y menú, volumen y reposo · A la derecha: brazo · En el centro: disco',
+  ],
   help: {
     title: 'Atajos de teclado',
     intro: 'Con el foco dentro del instrumento:',

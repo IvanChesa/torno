@@ -6,6 +6,11 @@
  *
  * Cambiar de tempo o reposicionar abre un tramo nuevo en la muestra actual. El contador solo avanza
  * cuando el núcleo lo dice (reproduciendo o mientras se apaga al pausar).
+ *
+ * El pulso se calcula en ese orden, con una sola división al final: (f − f₀) × bpm / (60 · sampleRate).
+ * Así es exacto cuando el de verdad lo es. Con los pulsos por muestra precalculados (bpm / 60 /
+ * sampleRate, que no es exacto), a 40 BPM la muestra 288 000 daba el pulso 3,9999999999999996 y el
+ * compás llegaba una muestra tarde (fase 5.b).
  */
 import { BEATS_PER_BAR, DEFAULT_BPM, MAX_BPM, MIN_BPM } from './constants';
 
@@ -25,6 +30,8 @@ export class Transport {
   #segmentBeat = 0;
   #tempo = DEFAULT_BPM;
   #perFrame: number;
+  /** Muestras por minuto (60 · sampleRate): el divisor exacto del pulso. */
+  readonly #framesPerMinute: number;
 
   constructor(
     readonly sampleRate: number,
@@ -33,6 +40,7 @@ export class Transport {
     if (!(sampleRate > 0)) throw new RangeError(`Frecuencia de muestreo no válida: ${sampleRate}`);
     this.#tempo = clampBpm(bpm);
     this.#perFrame = this.#tempo / 60 / sampleRate;
+    this.#framesPerMinute = 60 * sampleRate;
   }
 
   get bpm(): number {
@@ -56,13 +64,14 @@ export class Transport {
 
   /** Escribe en `clock` el pulso de la muestra actual y los pulsos por muestra. */
   writeClock(clock: Clock): void {
-    clock.beat = this.#segmentBeat + (this.frame - this.#segmentFrame) * this.#perFrame;
+    clock.beat =
+      this.#segmentBeat + ((this.frame - this.#segmentFrame) * this.#tempo) / this.#framesPerMinute;
     clock.beatsPerFrame = this.#perFrame;
   }
 
   /** Pulso en una muestra del tramo actual. */
   beatAt(frame: number): number {
-    return this.#segmentBeat + (frame - this.#segmentFrame) * this.#perFrame;
+    return this.#segmentBeat + ((frame - this.#segmentFrame) * this.#tempo) / this.#framesPerMinute;
   }
 
   /**
