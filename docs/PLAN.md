@@ -447,6 +447,7 @@ Tareas:
    - El proyecto `torno` (de tipo *Direct Upload*, rama de producción `main`) lo crea el propio flujo si no existe (`wrangler pages project create torno --production-branch=main`): Iván solo pone los secrets.
    - `permissions: contents: read, actions: read`. La URL de la vista previa, en el resumen del job.
    - Sin Cloudflare Web Analytics. Las vistas previas son públicas, con `noindex`: el repo ya es público y no hay nada que esconder. Proteger la vista previa con Cloudflare Access es opcional (decisión de Iván).
+   - **Vistas previas de las ramas de fase** (aprobado en la revisión del bloque B, fase 4): un push a `fase-*` con el CI en verde se publica en `<rama>.torno.pages.dev`. `staging` sigue siendo solo `main`. Así Iván prueba en el móvil antes de fusionar, empezando por la maqueta 3D de la 5.a. Va al empezar el bloque C.
 4. **Verificación con `curl`** en `staging.torno.pages.dev`: los códigos de las 3 rutas, la barra final, el 404 de una URL desconocida, las cabeceras (CSP, `Permissions-Policy`, caché y `noindex`), el tipo MIME de los módulos y que no haya cookies.
 5. **Dependabot.**
 6. **Prueba de Iván en Android e iPhone** con el instrumento HTML, siguiendo una lista en el informe: reproducir, grabar con auriculares, sobregrabar, cambiar de app y volver, calibrar la latencia, guardar y exportar. También:
@@ -459,11 +460,15 @@ Tareas:
 Criterios de aceptación:
 - [ ] CI verde y la vista previa `staging.torno.pages.dev` actualizada solo al hacer push a `main`, con el mismo build que probó el CI.
 - [ ] Comprobaciones con `curl` en el informe: `/sobre-el-proyecto` sin barra final da 200, la URL con barra redirige a la que no la lleva, y una URL desconocida da 404 con la página 404.
-- [ ] Lista de prueba en el informe y resultados de Iván en Android e iPhone (versión, navegador, auriculares, latencia medida y problemas). Los resultados no bloquean la fusión de la fase 4, pero **sí el inicio del bloque C**: si el audio falla en iOS, se arregla antes de construir el 3D.
+- [ ] Lista de prueba en el informe y resultados de Iván en Android e iPhone (versión, navegador, auriculares, latencia medida y problemas). Los resultados no bloquean la fusión de la fase 4, pero **sí la entrega 5.b** (decisión de Iván del 30-10: el bloque C empieza antes y la 5.a se hace mientras tanto). Si el audio falla en iOS, se arregla en el motor antes de seguir con el 3D.
 
 ### Fase 5: Diseño del instrumento y modelo 3D
 
-**5.a: Maqueta (termina con PARADA para Iván).**
+**Al empezar el bloque C** (revisión del bloque B, fase 4):
+- **precarga de ALFAR** al acercarse al instrumento (PLAN §5, «Síntesis»), porque la primera reproducción en frío ya pasa de 150 ms en el escritorio;
+- **vistas previas de las ramas `fase-*`** (fase 4, tarea 3).
+
+**5.a: Maqueta (termina con PARADA para Iván).** La maqueta se publica en la vista previa de su rama para que Iván la vea también en el móvil.
 1. Medidas y distribución propias del aparato (en mm), coherentes con `DISENO.md` y **distintas del original** (que es un cuerpo casi cuadrado marfil, disco grande a la izquierda, brazo plateado arriba a la derecha, columna de teclas azules y dial a la derecha y 4 diales delante).
 2. Modelo de bloques con materiales provisionales y **3 variantes de color** dentro de la dirección elegida; capturas de 4 ángulos en escritorio y móvil.
 3. Prueba de *tone mapping* (Neutral frente a AgX) con capturas.

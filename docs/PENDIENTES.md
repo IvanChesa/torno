@@ -36,7 +36,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 ## Revisiones y pruebas de Iván
 - [ ] Ver `docs/DISENO.md` y las capturas de la fase 0 (`docs/informes/img/fase-0/`): paleta «Barro», Fraunces con el eje SOFT y Geist Mono (revisión del bloque 0).
 - [x] **Escuchar los 12 sonidos y 3 combinaciones** (`npm run demo:sounds`): Iván los ha escuchado y «suenan bien», sin cambios (26-10).
-- [ ] **Pruebas en Android e iPhone** en la vista previa, ya publicada (27-10): **`https://staging.torno.pages.dev/?diagnostico=1`** (fase 4; necesarias antes del bloque C), con la lista de **`docs/PRUEBAS-MOVIL.md`** y el panel de diagnóstico. En la prueba 1, espera a que aparezca el panel antes de tocar, y usa el altavoz o auriculares de cable.
+- [ ] **Pruebas en Android e iPhone** en la vista previa, ya publicada (27-10): **`https://staging.torno.pages.dev/?diagnostico=1`** (necesarias antes de la entrega 5.b; decisión de Iván del 30-10), con la lista de **`docs/PRUEBAS-MOVIL.md`** y el panel de diagnóstico. En la prueba 1, espera a que aparezca el panel antes de tocar, y usa el altavoz o auriculares de cable.
   - `TODO(ivan)`: en esas pruebas, calibrar la latencia y grabar varias tomas seguidas con auriculares, para ver si quedan alineadas entre sí. En Chromium, la latencia del camino del micrófono cambia en cada apertura de la pista (12–21 ms medidos en un retorno; informe de la fase 2, §10, propuesta 1).
   - `TODO(ivan)`: y una de 5 min con las 4 capas largas (tomas de 30–60 s) y el autoguardado activo, girando diales: sin cortes en el audio (revisión de la fase 2, #6).
 - [ ] Aprobar el diseño del instrumento (parada de la fase 5.a).

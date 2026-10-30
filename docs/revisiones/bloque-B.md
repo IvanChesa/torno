@@ -42,3 +42,42 @@ Haz commit con `docs: plan tras la revisión del bloque B`, junto con esta revis
 - **Revisión del subagente de la fase 3:** rigurosa. Rehízo las cuentas del filtro, probó 27 saltos de tempo a tres frecuencias de muestreo y en reverso, y sus 7 hallazgos están respondidos con tests. El #9 lo retomo aquí (hallazgo 2).
 - **Escucha de Iván:** «suenan bien». He comprobado los WAV de `demo-sounds/` (estéreo, 48 kHz, 24 bits, 21,3 s): la combinación 1 tiene el pico a −2,2 dBFS y RAÍZ a −16,5 dBFS, coherente con la tabla de niveles por papel.
 - **Presupuestos** (del informe y del CI): el JS de `/` está en 301,5 kB (aviso 330), y el worklet (40,6 kB) y el worker de exportación (41,6 kB) caben en los 60 kB nuevos.
+
+---
+
+# Revisión: Bloque B, fase 4 (27-10)
+Veredicto: APROBADA. La fase 4 está fusionada y desplegada en Cloudflare Pages. Solo queda la prueba de Iván en el móvil, que bloquea el inicio del bloque C.
+
+El cambio a Cloudflare Pages (D19) está muy bien hecho:
+- **Build para Pages:** `ruta.html` y `404.html` en la raíz, y un `_headers` con la CSP por hashes que comprueba el propio build. Lo que Pages no admite rompe el build.
+- **e2e contra `wrangler pages dev`** (57 del build, con un control negativo de la CSP).
+- **Despliegue seguro:**
+  - `workflow_run` solo con un push a `main` y el CI en verde, con permisos mínimos y acciones fijadas por SHA;
+  - wrangler sale del `package-lock.json` sin el token en el entorno;
+  - la lista de proyectos de la cuenta ya no sale en el registro público (hallazgo 1 del subagente).
+- **El CI colgado instalando los navegadores** (hallazgo 4 de la primera parte) está resuelto: caché, cortes por tiempo y cambio de espejo. El camino del reintento aún no se ha visto en real.
+
+| # | Severidad | Archivo:línea | Hallazgo | Qué hacer |
+|---|---|---|---|---|
+| 1 | Importante (decisión aprobada) | PLAN §5, «Síntesis»; `src/app/state/session.store.ts` (`preload`) | La primera reproducción en frío tarda 157–238 ms en el escritorio y 203–233 ms en el CI: pasa de los 150 ms del plan, y en el móvil será peor. | **Aprobada la precarga de ALFAR** al acercarse al instrumento (propuesta 1 de la fase 4), **al empezar el bloque C** (PLAN, fase 5, ya actualizado). La prueba 1 del móvil dará la cifra de antes y la de después. |
+| 2 | Sugerencia (aprobada) | `.github/workflows/deploy.yml`; PLAN, fase 4, tarea 3 | Sin vistas previas de las ramas de fase, Iván no puede ver en el móvil la maqueta 3D de la 5.a hasta fusionar. | **Aprobada la propuesta 2:** un push a `fase-*` con el CI en verde se publica en `<rama>.torno.pages.dev`, y `staging` sigue siendo solo `main`. Al empezar el bloque C (PLAN, ya actualizado). |
+| 3 | Menor | PR #1 de Dependabot (wrangler 4.149.0 → 4.152.0) | No corrige los avisos de `npm audit`; eso llega en la 4.153.0. | Si su CI está en verde, fusionarlo al empezar el bloque C (o esperar a que Dependabot proponga la 4.153.0 y cerrar este). La versión de wrangler del despliegue sale del lockfile: se actualiza sola con el PR. |
+
+## Qué he comprobado
+- **Estado:** `main` = `origin/main` (`ecee61d`), sin cambios pendientes. Fusión de la fase 4 en `45c5df7`. Los últimos CI y el despliegue de `main`, en verde: el despliegue tarda 43 s.
+- **La vista previa con `curl`** (`https://staging.torno.pages.dev`):
+
+  | Ruta | Respuesta |
+  |---|---|
+  | `/` | 200 |
+  | `/sobre-el-proyecto` | 200, sin barra |
+  | `/sobre-el-proyecto/` | 308 → `/sobre-el-proyecto` |
+  | `/sobre-el-proyecto.html` | 308 → `/sobre-el-proyecto` |
+  | `/no-existe` | **404**, no la portada (`404.html` funciona) |
+
+  - Cabeceras de `/`: CSP con hashes, `Permissions-Policy: microphone=(self)`, HSTS, `nosniff`, `Referrer-Policy`, `X-Robots-Tag: noindex`, y el HTML con `max-age=0, must-revalidate`.
+  - El JS con hash se sirve como `application/javascript`, con un año inmutable.
+  - No hay `Set-Cookie`.
+  - `torno.pages.dev` (producción) da 404, porque aún no hay despliegue de producción: es lo esperado hasta la etiqueta `v1.0.0`.
+- **La revisión del subagente** encontró de verdad el riesgo de la lista de proyectos en el registro público y el árbol de wrangler instalado fuera del lockfile con el token. Están corregidos (`303a452`), igual que la medida «en frío» y el inicio de la medida en el toque (`event.timeStamp`).
+- **`docs/PRUEBAS-MOVIL.md`:** 14 pruebas claras, con el panel `?diagnostico=1` y «Copiar el informe» sin red. Es lo que desbloquea el bloque C.

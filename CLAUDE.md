@@ -34,7 +34,7 @@ Buenas prácticas oficiales de Angular: @docs/angular-buenas-practicas.md
 - Sonidos propios en Re menor a 90 BPM, con nombres en español; Iván los escucha al final del bloque B.
 - Textos propios con `reviewed: false`; Iván los revisa en la fase 7.
 - Subdominio: el provisional de `site.config.ts`.
-- Si faltan los secrets de Cloudflare para la fase 4, se aplaza, se apunta en `DIARIO.md` y se sigue. Sus pruebas en móviles no bloquean la fusión de la fase 4, pero sí el inicio del bloque C.
+- Si faltan los secrets de Cloudflare para la fase 4, se aplaza, se apunta en `DIARIO.md` y se sigue. Sus pruebas en móviles no bloquean la fusión de la fase 4. **Decisión de Iván (30-10): el bloque C empieza sin ellas**, pero la entrega 5.b no empieza hasta que estén en `docs/PRUEBAS-MOVIL.md`. La parada de la 5.a se hace igual.
 
 ### Otras reglas del proceso
 - **Aplicar una revisión de bloque:** corrige en `main` (o en `fix/bloque-X` si los cambios son grandes) los Bloqueantes, los Importantes y los Menores rápidos; si no estás de acuerdo con un hallazgo, explica por qué. `npm run check`, la respuesta al final de la revisión y commit.
