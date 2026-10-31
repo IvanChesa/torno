@@ -217,6 +217,11 @@ export class SessionStore {
   #statusTimer: ReturnType<typeof setTimeout> | undefined;
   /** Las versiones del sonido de las capas de las últimas formas de onda pedidas. */
   #waveformKey = '';
+  /**
+   * Hay una edición sin autoguardar que espera a que se conteste el panel de recuperar (o su
+   * confirmación): se guarda al contestar.
+   */
+  #autosaveDeferred = false;
   #waveformTimer: ReturnType<typeof setTimeout> | undefined;
   #messageTimer: ReturnType<typeof setTimeout> | undefined;
   #announceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -416,7 +421,11 @@ export class SessionStore {
   async recover(slot: AutosaveSlot = 'main'): Promise<void> {
     if (this.#busy() === 'recovering') return;
     if (this.#hasContent() && this.#confirmRecover() !== slot) {
+      // Mientras se confirma, nada se autoguarda (tampoco lo que ya esperaba): pisaría la sesión
+      // que se va a recuperar. Si se cancela, se guarda entonces.
       this.#confirmRecover.set(slot);
+      this.#engine?.cancelAutosave();
+      this.#autosaveDeferred = true;
       return;
     }
     this.#confirmRecover.set(null);
@@ -427,6 +436,8 @@ export class SessionStore {
       const engine = await this.start();
       if (!engine || !(await whenReady(engine, RECOVER_WAIT_MS))) {
         this.#show(text.messages.recoverLater, 'error');
+        // El panel sigue: lo que esperaba se guarda (o sigue esperando) como siempre.
+        if (this.#autosaveDeferred) this.#autosave();
         return;
       }
       engine.cancelAutosave();
@@ -445,9 +456,10 @@ export class SessionStore {
     }
   }
 
-  /** Vuelve del paso de confirmar «Recuperar» al panel. */
+  /** Vuelve del paso de confirmar «Recuperar» al panel (y lo que esperaba se autoguarda). */
   cancelRecover(): void {
     this.#confirmRecover.set(null);
+    if (this.#autosaveDeferred) this.#autosave();
   }
 
   /**
@@ -470,6 +482,7 @@ export class SessionStore {
   async clearAutosave(): Promise<void> {
     this.#recovery.set(null);
     this.#confirmRecover.set(null);
+    this.#autosaveDeferred = false;
     this.#engine?.cancelAutosave();
     if (await this.#api.deleteAutosave()) this.#show(text.messages.autosaveCleared);
   }
@@ -673,10 +686,20 @@ export class SessionStore {
   /**
    * Autoguardado tras una edición. Mientras el panel de recuperar sigue sin contestar, va al hueco
    * nuevo y no pisa la sesión anterior.
+   *
+   * Lo nuevo espera, sin guardarse, en dos casos (la carrera vista en la fase 5): con la confirmación
+   * de «Recuperar» abierta, y con los dos huecos ofrecidos (el nuevo ya guarda «lo que tocaste
+   * después»: 1,5 s después de tocar algo, lo pisaba). Se guarda al contestar.
    */
   #autosave(): void {
-    const slot = this.#recovery() === null ? 'main' : 'pending';
-    this.#engine?.scheduleAutosave(this.#tornoSettings(), slot);
+    const recovery = this.#recovery();
+    if (this.#confirmRecover() !== null || (recovery !== null && recovery.pending !== null)) {
+      this.#autosaveDeferred = true;
+      this.#engine?.cancelAutosave();
+      return;
+    }
+    this.#autosaveDeferred = false;
+    this.#engine?.scheduleAutosave(this.#tornoSettings(), recovery === null ? 'main' : 'pending');
   }
 
   // --- Eventos del motor ------------------------------------------------------------------------
