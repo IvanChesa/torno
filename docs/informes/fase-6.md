@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-6-interaccion`
 - **Fecha:** 2026-10-31
-- **Estado:** en curso. Entrega 6.a hecha (`f70779a`); sigue la 6.b. La revisión parcial del bloque C (`docs/revisiones/bloque-C.md`) añade a la fase la pantalla legible (hallazgo 1) y la carrera del autoguardado.
+- **Estado:** en curso. Entregas 6.a y 6.b hechas; sigue la 6.c (sincronía). La revisión parcial del bloque C (`docs/revisiones/bloque-C.md`) añade a la fase la pantalla legible (hallazgo 1) y la carrera del autoguardado.
 
 ## 0. Plan de la fase
 
@@ -110,6 +110,30 @@
   - el anillo de luz del foco, el movimiento ligado al audio (`setMotionSource`: en el mismo fotograma, 0 fps sin fuente) y la pantalla nueva.
   - Las piezas comparten `engine.ts`, así que van en un solo commit; desde aquí, un commit por pieza.
   - Tests en Node (57 de la escena): las zonas de 44 px no se pisan en 360×360, 390×390 ni en el escritorio de 900×720; los encuadres caen dentro del lienzo; la bandeja tapa el reposo visto desde el fondo.
+- **6.b · El 3D es el instrumento de la portada**:
+  - `f122a2a` **«Pausar movimiento»** (`core/motion.ts`). Junta la preferencia de quien toca (`localStorage`, `torno.movimiento`, con `try/catch`) y `prefers-reduced-motion`. Con cualquiera, el documento lleva `data-movimiento="pausado"` y `base.css` anula las transiciones.
+  - `93c5858` **Lo común de los dos instrumentos**, en `features/instrument-common/`: la directiva, la pantalla, los avisos y `InstrumentShell`.
+    - `InstrumentShell` lleva el grupo, las pistas, los atajos, la región viva, el selector de archivos, el autoguardado y la precarga al acercarse.
+    - El plato HTML sigue «Pausar movimiento»: no pinta (antes, con movimiento reducido, repintaba los medidores cada 250 ms).
+  - `124a5d4` **Gestos**:
+    - aceleración de hasta ×4 al arrastrar deprisa;
+    - diales en círculo: tras 45° alrededor del centro a la misma distancia (±30 %), el arrastre sigue al ángulo, y 270° son todo el recorrido;
+    - `trnAxisSource`: el eje del brazo y el de la rueda los da la cámara.
+  - `3553c46` **El instrumento 3D** (`InstrumentStage`):
+    - el espejo de la pantalla encima, de alto fijo (cuatro líneas): al abrir el menú, el aparato no se mueve bajo el dedo;
+    - la caja: 5:4 en el escritorio, de hasta `(100svh − 13rem) · 1,25`, y 1:1 de borde a borde en el móvil;
+    - la capa de controles (`StageControls`) y la barra (`StageToolbar`);
+    - la órbita de «Inspeccionar»: arrastrar, o las flechas en su superficie (`role="slider"`), con Inicio para volver de frente;
+    - la pantalla completa (oculta si el navegador no la tiene) y el anillo de luz del foco y del puntero.
+  - **La portada**:
+    - un solo `@defer` para los dos instrumentos, con el mismo marcador (el póster con el sitio del espejo y de la barra);
+    - con `?sin3d=1` o sin WebGL, el plato HTML;
+    - con un `@defer` para cada uno, `?sin3d=1` cambiaba lo que hay dentro de `.stage` al hidratar. El toque anterior al JS, que Angular repite después, perdía su sitio y no pedía otro toque: lo encontró `hydration.spec`.
+  - **Medido:**
+    - En 360×740 (móvil, ×2), todas las zonas miden 44×44 como poco y ninguna se pisa: capas de 44×44, teclas de 53×47, disco de 182×162, brazo de 65×60.
+    - En 1440×900 (escritorio), las teclas miden 107×68 y el disco 333×196.
+    - La pantalla del 3D: 10,1 px de cuerpo en el escritorio de 1440×900 y 4,2 px en el móvil de 360. En el móvil se lee el espejo HTML, a 13 px.
+  - e2e: 107 en verde y 2 saltados (los del panel, solo en desarrollo), con el build de producción y el servidor de desarrollo.
 - **Pantalla (revisión del bloque C, hallazgo 1).** Ocupa todo el ancho: arriba, la capa elegida en grande y, debajo, el tempo y el estado; abajo, un carril por capa con su forma de onda y su medidor.
   - Medido (`screenFontPx`, el alto de la pantalla proyectado por el cuerpo de la fila): 10,2 px de cuerpo en la portada de 1440×900, frente a unos 5 px antes.
   - El móvil se mide con el encuadre 1:1 de la 6.b.
