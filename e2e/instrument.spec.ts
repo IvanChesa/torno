@@ -272,13 +272,17 @@ test.describe('instrumento HTML', () => {
     const driver = new InstrumentDriver(page);
     await driver.open();
     await driver.chooseSound(MENU.categories.bass);
-    // Arrastrar hacia abajo un dial baja su nivel (4 px por paso).
+    // Arrastrar hacia abajo un dial baja su nivel (4 px por paso). Despacio (5 px cada 20 ms): por
+    // encima de 0,35 px/ms, la aceleración de la fase 6 movería más (su test va en Node).
     const layer = driver.control('layer-0');
     const box = (await layer.boundingBox())!;
     const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
     await page.mouse.move(center.x, center.y);
     await page.mouse.down();
-    await page.mouse.move(center.x, center.y + 40, { steps: 8 });
+    for (let i = 1; i <= 8; i++) {
+      await page.waitForTimeout(20);
+      await page.mouse.move(center.x, center.y + 5 * i);
+    }
     await page.mouse.up();
     await expect(layer).toHaveAttribute('aria-valuenow', '90');
     // Una tecla se pulsa aunque el puntero se mueva unos píxeles (con el dedo, pasa).

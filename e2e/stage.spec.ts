@@ -97,9 +97,7 @@ test.describe('escenario 3D', () => {
     await expect(driver.control('layer-1')).toHaveAttribute('aria-valuenow', '99');
   });
 
-  test('el 3D sigue lo que se toca en el instrumento HTML (pose) sin pintar en reposo', async ({
-    page,
-  }, testInfo) => {
+  test('el 3D sigue lo que se toca (pose) sin pintar en reposo', async ({ page }, testInfo) => {
     test.skip(
       testInfo.project.name !== 'escena-dev',
       'El panel de la escena solo está en desarrollo',
@@ -113,12 +111,20 @@ test.describe('escenario 3D', () => {
     const before = await frames();
     await page.waitForTimeout(2000);
     expect(await frames()).toBe(before);
-    // Un cambio que se ve (el nivel de una capa) pinta; uno que no (otra vez el mismo), no.
+    // Un cambio que se ve (el nivel de una capa, y el anillo del foco) pinta; luego, nada más.
     const driver = new InstrumentDriver(page);
     await driver.control('layer-2').focus();
     await page.keyboard.press('ArrowDown');
     await expect.poll(frames).toBeGreaterThan(before);
-    const after = await frames();
+    // Con el WebGL por software (el del CI), el anillo y la pose pueden ir en dos fotogramas
+    // separados: se espera a que el contador se quede quieto.
+    let after = await frames();
+    for (let i = 0; i < 15; i++) {
+      await page.waitForTimeout(700);
+      const now = await frames();
+      if (now === after) break;
+      after = now;
+    }
     await page.waitForTimeout(1500);
     expect(await frames()).toBe(after);
   });
@@ -209,8 +215,33 @@ async function openInstrument(page: Page, url = '/'): Promise<void> {
   await expect(page.locator('trn-stage-controls')).toHaveClass(/is-placed/);
 }
 
+/**
+ * Abre el 3D con el panel de la escena (`?diagnostico=1`) y en calidad baja: el WebGL por software
+ * del CI pinta mucho menos, y las pruebas que tocan mucho no se pasan de tiempo.
+ */
+async function openLight(page: Page): Promise<void> {
+  await openInstrument(page, '/?diagnostico=1');
+  await panel(page)
+    .getByRole('group', { name: 'Calidad' })
+    .getByRole('button', { name: 'Baja' })
+    .click();
+  await expect(stage(page)).toHaveAttribute('data-calidad', 'low', { timeout: 30_000 });
+  await expect(page.locator('trn-stage-controls')).toHaveClass(/is-placed/);
+  // Cambiar de calidad rehace el aparato y su entorno: hasta que el 3D se queda quieto, el hilo
+  // principal está ocupado y un arrastre llegaría tarde (y se tomaría por «mantener»).
+  const frames = () => numberOf(panel(page), 'data-fotogramas');
+  let last = await frames();
+  for (let i = 0; i < 20; i++) {
+    await page.waitForTimeout(600);
+    const now = await frames();
+    if (now === last) break;
+    last = now;
+  }
+}
+
 /** Arrastra con el ratón desde el centro de un control. */
 async function drag(page: Page, target: Locator, dx: number, dy: number): Promise<void> {
+  await target.scrollIntoViewIfNeeded();
   const box = (await target.boundingBox())!;
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
@@ -222,6 +253,7 @@ async function drag(page: Page, target: Locator, dx: number, dy: number): Promis
 
 /** Mantiene pulsado un control con el ratón (más que los 500 ms de «mantener»). */
 async function hold(page: Page, target: Locator): Promise<void> {
+  await target.scrollIntoViewIfNeeded();
   const box = (await target.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
@@ -285,13 +317,14 @@ function overlap(a: ZoneBox, b: ZoneBox): boolean {
 }
 
 test.describe('el instrumento 3D: ratón y teclado', () => {
-  // Una ventana más pequeña que la de siempre: el WebGL por software pinta la mitad de píxeles por
-  // fotograma y deja libre el hilo principal (los dos proyectos del escenario van a la vez).
-  test.use({ viewport: { width: 900, height: 700 } });
+  // Una ventana más pequeña que la de siempre, aún de escritorio (desde 768 px): el WebGL por
+  // software (el del CI, más lento) pinta la mitad de píxeles por fotograma y deja libre el hilo
+  // principal; cada tecla espera a uno.
+  test.use({ viewport: { width: 800, height: 600 } });
 
   test('cada control, con el ratón sobre su pieza', async ({ page }) => {
-    test.setTimeout(150_000);
-    await openInstrument(page);
+    test.setTimeout(180_000);
+    await openLight(page);
     // Antes de reproducir: con el WebGL por software, pintar seguido ocupa el hilo principal y los
     // movimientos del ratón llegarían después de los 500 ms de «mantener».
     // Los diales: hacia abajo, menos nivel; hacia arriba, más tempo.
@@ -310,6 +343,7 @@ test.describe('el instrumento 3D: ratón y teclado', () => {
     // El disco, con la capa 1 elegida (la de ALFAR): mantener y girar la congela; soltar, la suelta.
     await zone(page, 'layer-0').click();
     const disc = zone(page, 'disc');
+    await disc.scrollIntoViewIfNeeded();
     const box = (await disc.boundingBox())!;
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
@@ -346,8 +380,7 @@ test.describe('el instrumento 3D: ratón y teclado', () => {
     // Muchas teclas, y cada una repinta el 3D por software (en el servidor de desarrollo, más lento).
     test.setTimeout(240_000);
     const driver = new InstrumentDriver(page);
-    await driver.open('/', { stage: true });
-    await expect(page.locator('trn-stage-controls')).toHaveClass(/is-placed/);
+    await openLight(page);
     // El orden del tabulador: el del plato HTML.
     await zone(page, 'main').focus();
     const order: (string | null)[] = [];
@@ -388,10 +421,11 @@ test.describe('el instrumento 3D: ratón y teclado', () => {
     // Mantener una capa la silencia; el tempo con las flechas; el filtro con el brazo.
     await driver.key('layer-0', 'Shift+Enter');
     await expect(zone(page, 'layer-0')).toHaveAttribute('aria-valuetext', /en silencio/);
-    await driver.key('main', 'ArrowUp', 5);
-    await driver.expectScreen('95 BPM');
+    // De diez en diez (Re Pág): menos teclas, cada una con su fotograma.
+    await driver.key('main', 'PageUp');
+    await driver.expectScreen('100 BPM');
     await driver.key('main', '1');
-    await driver.key('arm', 'ArrowUp', 10);
+    await driver.key('arm', 'PageUp');
     await expect(zone(page, 'arm')).toHaveAttribute('aria-valuetext', 'Filtro al 10 %');
     // Espacio en el disco lo mantiene; al soltarlo, se suelta.
     await zone(page, 'disc').focus();
@@ -405,8 +439,8 @@ test.describe('el instrumento 3D: ratón y teclado', () => {
   });
 
   test('grabar una toma con el micrófono desde la tecla del 3D', async ({ page }) => {
-    test.setTimeout(120_000);
-    await openInstrument(page);
+    test.setTimeout(150_000);
+    await openLight(page);
     // Con la pausa de movimiento, el 3D no pinta seguido en la cuenta ni en la toma: los clics no se
     // confunden con «mantener» (que cancelaría la toma) con el WebGL por software.
     await page.getByRole('button', { name: 'Pausar movimiento' }).click();
@@ -447,7 +481,11 @@ test.describe('el instrumento 3D: ratón y teclado', () => {
   }) => {
     test.setTimeout(120_000);
     await openInstrument(page);
-    const layer = async () => (await zone(page, 'layer-0').boundingBox())!.width;
+    // El tamaño de la pieza proyectada (`--w`), no el de su zona, que nunca baja de 44 px.
+    const layer = () =>
+      zone(page, 'layer-0').evaluate((element) =>
+        parseFloat((element as HTMLElement).style.getPropertyValue('--w')),
+      );
     const before = await layer();
     // Ningún encuadre ensancha la página: lo que se sale del lienzo se recorta.
     for (const [name, camera] of [
@@ -468,9 +506,12 @@ test.describe('el instrumento 3D: ratón y teclado', () => {
     await expect(stage(page)).toHaveAttribute('data-camara', 'inspeccionar');
     const orbit = page.getByRole('slider', { name: 'Girar el aparato' });
     await orbit.focus();
-    for (let i = 0; i < 18; i++) await orbit.press('ArrowRight');
-    for (let i = 0; i < 4; i++) await orbit.press('ArrowDown');
+    // Desde el frente (Inicio: 0° y 40°), a 150° y 10° de altura.
+    await orbit.press('Home');
+    for (let i = 0; i < 15; i++) await orbit.press('ArrowRight');
+    for (let i = 0; i < 6; i++) await orbit.press('ArrowDown');
     await expect(orbit).toHaveAttribute('aria-valuenow', '150');
+    await expect(orbit).toHaveAttribute('aria-valuetext', /10° de altura/);
     await expect(orbit).toHaveAttribute('aria-valuetext', /a la derecha/);
     // Desde detrás, la bandeja tapa el reposo: su control se oculta (y deja de recibir el foco).
     await expect(zone(page, 'standby')).toBeHidden();
@@ -502,23 +543,24 @@ test.describe('el instrumento 3D: ratón y teclado', () => {
         capture: true,
       });
     });
-    await openInstrument(page, '/?diagnostico=1');
+    await openLight(page);
     await play(page);
     // La velocidad del disco frente a la del transporte, en el mismo rato (con el tempo no vale: en
     // una máquina cargada, el reloj del audio puede ir más despacio que el de la página). El panel
     // da el giro del disco con la hora de su fotograma y el pulso con la hora a la que suena; cada
-    // velocidad es la pendiente de la recta que mejor pasa por una docena de lecturas. En calidad
-    // baja, el WebGL por software deja más libre el hilo principal.
-    await panel(page)
-      .getByRole('group', { name: 'Calidad' })
-      .getByRole('button', { name: 'Baja' })
-      .click();
-    const read = async () => ({
-      disc: await numberOf(panel(page), 'data-disco'),
-      discAt: await numberOf(panel(page), 'data-disco-ms'),
-      beat: await numberOf(panel(page), 'data-pulso'),
-      beatAt: await numberOf(panel(page), 'data-pulso-ms'),
-    });
+    // velocidad es la pendiente de la recta que mejor pasa por una docena de lecturas, cada una
+    // de una vez (con el hilo principal ocupado, cada vuelta al navegador cuesta).
+    const read = () =>
+      page.evaluate(() => {
+        const dev = document.querySelector('trn-stage-dev .dev')!;
+        const value = (name: string) => Number(dev.getAttribute(name));
+        return {
+          disc: value('data-disco'),
+          discAt: value('data-disco-ms'),
+          beat: value('data-pulso'),
+          beatAt: value('data-pulso-ms'),
+        };
+      });
     await expect.poll(async () => (await read()).disc, { timeout: 20_000 }).toBeGreaterThan(0);
     const discs = new Map<number, number>();
     const beats = new Map<number, number>();

@@ -7,9 +7,11 @@ import path from 'node:path';
 //   con `wrangler pages dev` (scripts/serve-pages.mjs): su _headers (CSP incluida), las URLs sin
 //   barra final y la 404 de Pages (fase 4);
 // - «webkit»: ese mismo build en WebKit de escritorio (reproducir, pausar y menú);
-// - «escena-dev» y «escena-estatico»: el escenario 3D (fase 5.b), en los dos sitios, **después** de
-//   los demás. El WebGL de Chromium sin interfaz es por software y ocupa la máquina: a la vez que
-//   los e2e del audio, que miden tiempos, los frenaría (una cola que entraba antes de verse).
+// - «escena-dev» y «escena-estatico»: el escenario 3D (fases 5.b y 6), en los dos sitios, **después**
+//   de los demás, uno detrás de otro y cada uno en un solo worker. El WebGL de Chromium sin interfaz
+//   es por software y ocupa la máquina: a la vez que los e2e del audio, que miden tiempos, los
+//   frenaría (una cola que entraba antes de verse), y dos escenarios a la vez, en el CI, se pasaban
+//   de tiempo (cada tecla espera a un fotograma).
 // Chromium sin interfaz va con --mute-audio (lo pone Playwright): el audio se procesa y se mide,
 // pero no suena por los altavoces. Su micrófono es un archivo propio (scripts/make-fake-mic.mjs).
 // Puertos poco comunes y sin reutilizar un servidor que ya escuche en ellos: en local puede haber
@@ -62,13 +64,15 @@ export default defineConfig({
       name: 'escena-dev',
       use: { ...chromium, baseURL: `http://localhost:${DEV_PORT}` },
       testMatch: /stage\.spec\.ts$/,
+      fullyParallel: false,
       dependencies: ['dev', 'estatico'],
     },
     {
       name: 'escena-estatico',
       use: { ...chromium, baseURL: `http://localhost:${STATIC_PORT}` },
       testMatch: /stage\.spec\.ts$/,
-      dependencies: ['dev', 'estatico'],
+      fullyParallel: false,
+      dependencies: ['escena-dev'],
     },
   ],
   webServer: [
