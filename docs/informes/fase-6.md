@@ -167,6 +167,7 @@ El aparato 3D es el instrumento de la portada.
     - `PROTOCOL_VERSION` pasa a 4.
   - `e3ada52` Los pósteres del escritorio (5:4) y del móvil (1:1) en un `<picture>`; `?encuadre=` en las capturas y las capturas de cada encuadre.
   - `5808e67` y `d59ebb8` (el worklet en su test) Los e2e del instrumento 3D (§2).
+  - `d96563a` «Controles» con el brazo entero (antes cortaba su eje), «Inspeccionar» más cerca (la esfera justa, no la de la caja) y las capturas del móvil enteras.
   - `3914156` Cada instrumento, en su trozo: un `@defer` de fuera con los disparadores y uno de dentro para cada instrumento. Con uno solo para los dos se descargaban los dos trozos, y la primera visita sin el 3D llegaba a 608,8 kB (§6).
 
 ## 2. Criterios de aceptación
