@@ -136,6 +136,8 @@ export interface SceneStats {
   readonly vramMb: number;
   /** Lo que ha girado el disco (vueltas) con lo último que llegó del audio. */
   readonly disc: number;
+  /** La hora del fotograma de ese giro (reloj de `performance.now()`): su velocidad, en los e2e. */
+  readonly discTime: number;
   /**
    * El cuerpo de la letra de la primera fila de la pantalla, en píxeles CSS (su alto en el centro
    * de la pantalla, con esta cámara): si se lee (revisión del bloque C, hallazgo 1).
@@ -230,6 +232,7 @@ export class SceneEngine {
   readonly #raycaster = new Raycaster();
   #highlight: Highlight | null = null;
   #motion: SceneMotion | null = null;
+  #motionTime = 0;
   /** De dónde sale el movimiento de cada fotograma mientras suena (o `null`: quieto). */
   #motionSource: ((time: number) => SceneMotion) | null = null;
   readonly #scratch = new PerspectiveCamera(FOV, 1, 0.01, 10);
@@ -397,6 +400,7 @@ export class SceneEngine {
    */
   setMotion(motion: SceneMotion): void {
     this.#motion = motion;
+    this.#motionTime = performance.now();
     const build = this.#build;
     if (!build) return;
     if (this.#applyMotion(build, motion)) this.#invalidate();
@@ -457,6 +461,7 @@ export class SceneEngine {
       buildMs: Math.round(this.#buildMs * 10) / 10,
       vramMb: Math.round((this.#vramBytes() / 2 ** 20) * 10) / 10,
       disc: this.#motion?.disc ?? 0,
+      discTime: Math.round(this.#motionTime * 10) / 10,
       screenFontPx: Math.round(this.#screenFontPx() * 10) / 10,
     };
   }
@@ -881,6 +886,7 @@ export class SceneEngine {
     }
     if (this.#motionSource) {
       this.#motion = this.#motionSource(time);
+      this.#motionTime = time;
       this.#applyMotion(build, this.#motion);
     }
     const benchmark = this.#benchmark;

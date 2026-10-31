@@ -9,12 +9,13 @@ import {
   isDevMode,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { isCaptureMode } from '../../core/capture-mode';
 import { isDiagnosticsMode } from '../../core/diagnostics-mode';
 import { MotionPreference } from '../../core/motion';
-import { instrumentPose, samePose } from '../../instrument';
+import { InstrumentMotion, instrumentPose, samePose } from '../../instrument';
 import {
   createSceneEngine,
   ORBIT_LIMITS,
@@ -25,8 +26,10 @@ import {
   type QualityLevel,
   type SceneEngine,
   type SceneEvent,
+  type SceneMotion,
   type Shot,
   type View,
+  type Waveform,
 } from '../../scene';
 import { SessionStore } from '../../state';
 import { InstrumentScreen } from '../instrument-common/instrument-screen';
@@ -65,6 +68,11 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
  * Lo común con el plato HTML (atajos, avisos, archivos y autoguardado) está en `InstrumentShell`.
  * Mientras llega el primer fotograma se ve el póster, en la misma caja. `three` se carga aquí, con
  * `import()`.
+ *
+ * Sincronía con el audio (PLAN §4.6): mientras suena, el motor pide a `InstrumentMotion` en cada
+ * fotograma el giro del disco (una vuelta por compás), el latido de los pilotos, los medidores y los
+ * cabezales, leyendo el último estado del audio sin pasar por los signals. Quieto, 0 fps. Con
+ * «Pausar movimiento», nada se mueve solo: el disco solo va con la mano.
  *
  * Con `?captura=1`, todo fijo y las cifras en `data-estadisticas` (y `?vista=` y `?calidad=` eligen
  * ángulo y nivel). En desarrollo y con `?diagnostico=1`, el panel de la escena.
@@ -309,6 +317,38 @@ export class InstrumentStage {
     { equal: samePose },
   );
 
+  private readonly capture = isCaptureMode(globalThis.location?.search ?? '');
+  /** Lo que se mueve con el audio, fotograma a fotograma (un solo reloj: el del worklet). */
+  private readonly motionClock = new InstrumentMotion();
+  /**
+   * Se pinta seguido mientras suena, en la cuenta previa o con el disco agarrado; con la pausa de
+   * movimiento, nunca.
+   */
+  private readonly moving = computed(() => {
+    const audio = this.store.audio();
+    const running = audio.transport === 'playing' || audio.recording === 'count-in';
+    return !this.motion.still() && (running || this.store.state().discHeld);
+  });
+  /** Las formas de onda que se ven: las de las capas al revés, del revés (como suenan). */
+  private readonly reversedLayers = computed(() =>
+    this.store
+      .state()
+      .controls.layers.map((layer) => (layer.reversed ? '1' : '0'))
+      .join(''),
+  );
+  private readonly shownWaveforms = computed((): readonly Waveform[] => {
+    const reversed = this.reversedLayers();
+    return this.store
+      .waveforms()
+      .map((wave, i) => (wave && reversed[i] === '1' ? wave.slice().reverse() : wave));
+  });
+  /** El movimiento de un fotograma (lo pide el motor, con la hora del fotograma). */
+  private readonly motionSource = (time: number): SceneMotion => {
+    this.readStatus();
+    const state = this.store.state();
+    return this.motionClock.frame(time, state.discHeld ? state.discTurns : null);
+  };
+
   private orbit: Orbit = FRONT;
   private drag: { x: number; y: number; touch: boolean } | null = null;
   private settleTimer: ReturnType<typeof setTimeout> | undefined;
@@ -390,6 +430,34 @@ export class InstrumentStage {
     effect(() => {
       const pose = this.pose();
       this.engine()?.setPose(pose);
+    });
+    // Lo que se mueve con el audio: el bucle del motor, solo mientras hay algo que mover.
+    effect(() => {
+      const engine = this.engine();
+      if (!engine || this.capture) return;
+      if (this.moving()) {
+        untracked(() => {
+          // El disco va con lo que suena: lo que tarda en salir por el altavoz, de retraso.
+          const audio = this.store.diagnostics();
+          this.motionClock.setLatency((audio?.baseLatencyMs ?? 0) + (audio?.outputLatencyMs ?? 0));
+        });
+        engine.setMotionSource(this.motionSource);
+      } else {
+        engine.setMotionSource(null);
+        untracked(() => this.rest(engine, null));
+      }
+    });
+    // Con la pausa de movimiento, el disco agarrado sigue a la mano (no es movimiento automático).
+    effect(() => {
+      const engine = this.engine();
+      const state = this.store.state();
+      if (!engine || this.capture || !this.motion.still() || !state.discHeld) return;
+      untracked(() => this.rest(engine, state.discTurns));
+    });
+    // Las formas de onda: solo cuando cambia el sonido de una capa (o su reverso).
+    effect(() => {
+      const waveforms = this.shownWaveforms();
+      this.engine()?.setWaveforms(waveforms);
     });
     destroyRef.onDestroy(() => {
       destroyed = true;
@@ -515,5 +583,18 @@ export class InstrumentStage {
 
   protected onHighlight(id: Parameters<SceneEngine['setHighlight']>[0]): void {
     this.engine()?.setHighlight(id);
+  }
+
+  // --- Sincronía --------------------------------------------------------------------------------
+
+  private readStatus(): void {
+    const status = this.store.latestStatus;
+    if (status) this.motionClock.update(status, this.store.latestStatusAt);
+  }
+
+  /** Quieto: un último fotograma con los medidores a cero (y el disco donde está o en la mano). */
+  private rest(engine: SceneEngine, held: number | null): void {
+    this.readStatus();
+    engine.setMotion(this.motionClock.rest(performance.now(), held));
   }
 }

@@ -56,6 +56,10 @@ const LOCAL_GRACE_MS = 400;
 const ANNOUNCE_MS = 700;
 /** Lo que se espera a que el audio esté listo para recuperar la sesión anterior. */
 const RECOVER_WAIT_MS = 10_000;
+/** Tramos de la forma de onda de cada capa en la pantalla del aparato. */
+export const WAVEFORM_BINS = 96;
+/** Tras un cambio de sonido, lo que se espera antes de pedir las formas de onda (antirrebote). */
+const WAVEFORM_DELAY_MS = 300;
 
 /** Espera a que el motor esté listo (o falla: error, o `ms` sin conseguirlo). */
 function whenReady(engine: AudioEngine, ms: number): Promise<boolean> {
@@ -166,6 +170,7 @@ export class SessionStore {
   readonly #autoLatencyMs = signal(0);
   readonly #announcement = signal('');
   readonly #firstSounds = signal<readonly FirstSound[]>([]);
+  readonly #waveforms = signal<readonly (Float32Array | null)[]>([]);
 
   /** El modelo del instrumento (controles, ajustes, menú). */
   readonly state = this.#state.asReadonly();
@@ -188,6 +193,11 @@ export class SessionStore {
   readonly announcement = this.#announcement.asReadonly();
   /** Con el diagnóstico abierto: cuánto tardó en sonar cada «reproducir». */
   readonly firstSounds = this.#firstSounds.asReadonly();
+  /**
+   * La forma de onda de cada capa (picos por tramo, de 0 a 1) o `null` si está vacía. Cambia solo
+   * cuando cambia el sonido de una capa: la pinta la pantalla del aparato 3D.
+   */
+  readonly waveforms = this.#waveforms.asReadonly();
   readonly display = computed<DisplayModel>(() => {
     const details = this.#details();
     return displayModel(this.#state(), this.#audio(), {
@@ -202,7 +212,12 @@ export class SessionStore {
   #engine: AudioEngine | null = null;
   #starting: Promise<AudioEngine | null> | null = null;
   #latest: CoreStatus | null = null;
+  /** Cuándo llegó `#latest` (reloj de `performance.now()`): el disco extrapola desde ahí. */
+  #latestAt = 0;
   #statusTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Las versiones del sonido de las capas de las últimas formas de onda pedidas. */
+  #waveformKey = '';
+  #waveformTimer: ReturnType<typeof setTimeout> | undefined;
   #messageTimer: ReturnType<typeof setTimeout> | undefined;
   #announceTimer: ReturnType<typeof setTimeout> | undefined;
   /** Cuándo se movió un control por última vez (`-Infinity`: nunca, o ya no cuenta). */
@@ -231,6 +246,11 @@ export class SessionStore {
   /** El último estado del audio, sin signals (los medidores lo leen en cada fotograma). */
   get latestStatus(): CoreStatus | null {
     return this.#latest;
+  }
+
+  /** Cuándo llegó el último estado del audio (reloj de `performance.now()`). */
+  get latestStatusAt(): number {
+    return this.#latestAt;
   }
 
   // --- Entradas ---------------------------------------------------------------------------------
@@ -668,6 +688,7 @@ export class SessionStore {
         return;
       case 'status':
         this.#latest = event.status;
+        this.#latestAt = performance.now();
         for (let i = 0; i < event.status.noticeCount; i++) this.#onNotice(event.status.notices[i]!);
         this.#scheduleStatus();
         return;
@@ -777,6 +798,39 @@ export class SessionStore {
       });
     }
     this.#syncControls(status);
+    this.#watchWaveforms(status);
+  }
+
+  /**
+   * Las formas de onda se vuelven a pedir cuando cambia el sonido de alguna capa (su versión), con
+   * antirrebote. Durante una toma, no: la copia de la sesión coincidiría con la de la toma (el pico
+   * de memoria de PLAN §5); al terminarla, sí.
+   */
+  #watchWaveforms(status: CoreStatus): void {
+    if (status.recording !== 'idle') return;
+    const key = status.layers
+      .map((layer) => (layer.hasContent ? layer.contentVersion : -1))
+      .join(',');
+    if (key === this.#waveformKey) return;
+    this.#waveformKey = key;
+    clearTimeout(this.#waveformTimer);
+    if (status.layers.every((layer) => !layer.hasContent)) {
+      this.#waveforms.set(status.layers.map(() => null));
+      return;
+    }
+    this.#waveformTimer = setTimeout(() => void this.#refreshWaveforms(key), WAVEFORM_DELAY_MS);
+  }
+
+  async #refreshWaveforms(key: string): Promise<void> {
+    const engine = this.#engine;
+    try {
+      if (!engine || engine.state !== 'ready') throw new Error('sin audio');
+      const waveforms = await engine.waveforms(WAVEFORM_BINS);
+      if (key === this.#waveformKey) this.#waveforms.set(waveforms);
+    } catch {
+      // Se vuelve a intentar con el siguiente estado del audio.
+      if (key === this.#waveformKey) this.#waveformKey = '';
+    }
   }
 
   /** Los valores en directo vuelven a los del audio si nadie los está moviendo. */

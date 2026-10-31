@@ -34,6 +34,7 @@ import {
   type WorkletRequest,
 } from '../core/protocol';
 import type { SessionState } from '../core/session';
+import { waveformPeaks } from '../core/waveform';
 import {
   isTornoError,
   MAX_TORNO_BYTES,
@@ -667,6 +668,15 @@ export class AudioEngine {
       worker.postMessage(request);
     });
     return withTimeout(response, REQUEST_TIMEOUT_MS);
+  }
+
+  /**
+   * Las formas de onda de las capas, de una copia de la sesión: un pico por tramo, normalizado (la
+   * pantalla del aparato, PLAN §0.2). Se pide solo cuando cambia el sonido de una capa.
+   */
+  async waveforms(bins: number): Promise<(Float32Array | null)[]> {
+    const session = await this.copySession();
+    return session.layers.map((layer) => (layer.pcm ? waveformPeaks(layer.pcm, bins) : null));
   }
 
   /** Copia de la sesión que suena (para guardar, autoguardar o exportar). */

@@ -36,6 +36,8 @@ const BENCHMARK_MS = 5000;
       [attr.data-fotogramas]="stats()?.frames"
       [attr.data-geometrias]="stats()?.geometries"
       [attr.data-texturas]="stats()?.textures"
+      [attr.data-disco]="stats()?.disc"
+      [attr.data-disco-ms]="stats()?.discTime"
     >
       <p class="dev__line">{{ line() }}</p>
       <div class="dev__buttons">
