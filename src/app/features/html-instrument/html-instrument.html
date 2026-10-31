@@ -1,4 +1,4 @@
-<div class="instrument" data-audio-unlock role="group" [attr.aria-label]="text.label">
+<trn-instrument-shell class="is-panel">
   <trn-instrument-screen class="instrument__screen" [display]="store.display()" />
 
   <!--
@@ -109,22 +109,4 @@
       <span>{{ line }}</span>
     }
   </p>
-
-  @for (spec of controls; track spec.id) {
-    <span [id]="hintId(spec.id)" hidden>{{ spec.hint }}</span>
-  }
-</div>
-
-<trn-instrument-notices />
-
-<p class="visually-hidden" aria-live="polite">{{ store.announcement() }}</p>
-<input
-  #file
-  type="file"
-  accept=".torno,application/x-torno"
-  class="visually-hidden"
-  tabindex="-1"
-  aria-hidden="true"
-  [attr.aria-label]="text.fileInputLabel"
-  (change)="onFile($event)"
-/>
+</trn-instrument-shell>

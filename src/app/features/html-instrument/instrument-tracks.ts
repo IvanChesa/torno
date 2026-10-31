@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { PLATE } from '../../instrument';
-import { ControlDirective } from './control.directive';
+import { ControlDirective } from '../instrument-common/control.directive';
 
 /**
  * El brazo de expresión, la rueda de volumen y el botón de reposo, en su sitio del plato redondo
