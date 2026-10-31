@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-6-interaccion`
 - **Fecha:** 2026-10-31
-- **Estado:** en curso. Entregas 6.a y 6.b hechas; sigue la 6.c (sincronía). La revisión parcial del bloque C (`docs/revisiones/bloque-C.md`) añade a la fase la pantalla legible (hallazgo 1) y la carrera del autoguardado.
+- **Estado:** en curso. Entregas 6.a, 6.b y 6.c hechas; siguen la carrera del autoguardado y la 6.d (e2e, capturas y cifras). La revisión parcial del bloque C (`docs/revisiones/bloque-C.md`) añade a la fase la pantalla legible (hallazgo 1) y la carrera del autoguardado.
 
 ## 0. Plan de la fase
 
@@ -134,6 +134,18 @@
     - En 1440×900 (escritorio), las teclas miden 107×68 y el disco 333×196.
     - La pantalla del 3D: 10,1 px de cuerpo en el escritorio de 1440×900 y 4,2 px en el móvil de 360. En el móvil se lee el espejo HTML, a 13 px.
   - e2e: 107 en verde y 2 saltados (los del panel, solo en desarrollo), con el build de producción y el servidor de desarrollo.
+- **6.c · Sincronía con el audio**:
+  - `cdd9b4d` La versión del sonido de cada capa (`LayerHistory.version` → `LayerStatus.contentVersion`). Sube con cada cambio del estado actual; los contadores de deshacer se quedan en 3 con la cuarta sobregrabación.
+  - `25fdd6d` `InstrumentMotion` (TS puro, `instrument/motion.ts`):
+    - el pulso del transporte en cada fotograma, extrapolado desde el último estado del audio y su hora de llegada, con la latencia de salida y sin retroceder por un estado que llega tarde;
+    - el disco da una vuelta por compás (agarrado, va con la mano);
+    - los pilotos laten con el nivel y los medidores suben al momento y bajan a 1,6 por segundo;
+    - un cabezal por carril y el destello de la cuenta previa.
+  - Las formas de onda las calcula el motor de audio de una copia de la sesión, con 96 tramos por capa. Solo cuando cambia la versión del sonido y nunca durante una toma (el pico de memoria de §5).
+  - El escenario pide el movimiento solo mientras suena, en la cuenta previa o con el disco agarrado; con «Pausar movimiento», nunca.
+  - **Medido:**
+    - test en Node: velocidad del disco ±1 % a 40, 90 y 240 BPM, con estados que llegan con 0–8 ms de retraso;
+    - en el navegador (RTX 3060, servidor de desarrollo, reproduciendo con el ratón sobre la tecla del 3D): 0,3750 y 0,3759 vueltas/s a 90 BPM, frente a 0,3750 esperadas (+0,0 % y +0,24 %).
 - **Pantalla (revisión del bloque C, hallazgo 1).** Ocupa todo el ancho: arriba, la capa elegida en grande y, debajo, el tempo y el estado; abajo, un carril por capa con su forma de onda y su medidor.
   - Medido (`screenFontPx`, el alto de la pantalla proyectado por el cuerpo de la fila): 10,2 px de cuerpo en la portada de 1440×900, frente a unos 5 px antes.
   - El móvil se mide con el encuadre 1:1 de la 6.b.
