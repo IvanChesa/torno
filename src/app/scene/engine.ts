@@ -9,7 +9,6 @@
  * una pausa entre ellos para que el navegador atienda lo demás: ninguna tarea larga.
  */
 import {
-  Box3,
   BufferGeometry,
   DirectionalLight,
   Float32BufferAttribute,
@@ -567,7 +566,8 @@ export class SceneEngine {
     model.root.updateMatrixWorld(true);
     const shapes = controlShapes(model);
     const outline = [...silhouette(model), ...shadowRing()];
-    const sphere = new Box3().setFromPoints(outline).getBoundingSphere(new Sphere());
+    // La esfera más justa (la de la caja tomaría su diagonal, 227 mm, y el aparato se vería pequeño).
+    const sphere = new Sphere().setFromPoints(outline);
     const build: Build = {
       level,
       model,

@@ -50,8 +50,8 @@ export function silhouette(model: InstrumentModel): Vector3[] {
 
 /**
  * Lo que encuadra cada encuadre de «Tocar»: el aparato entero (`outline`); los diales de las capas
- * con sus pilotos; o las teclas, el disco y todo el recorrido del brazo. Con un margen alrededor de
- * cada pieza, para que los rótulos de la cubierta entren.
+ * con sus pilotos; o las teclas, el disco y el brazo entero (su eje y todo el recorrido de la
+ * costilla). Con un margen alrededor de cada pieza, para que los rótulos de la cubierta entren.
  */
 export function shotPoints(
   model: InstrumentModel,
@@ -69,6 +69,6 @@ export function shotPoints(
     // El aparato sin su sombra: el encuadre completo del móvil, que lo apura hasta los bordes.
     aparato: silhouette(model),
     capas: [...around(LAYER_CONTROLS), ...model.pilots.map((pilot) => pilot.position.clone())],
-    controles: [...around(['play', 'record', 'undo', 'disc']), ...arm],
+    controles: [...around(['play', 'record', 'undo', 'disc', 'arm']), ...arm],
   };
 }

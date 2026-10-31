@@ -26,7 +26,7 @@
 //        shaders) con el primer fotograma, la tarea más larga, la generación del modelo y la VRAM;
 //        el peso de la primera visita con el 3D y sin él (?sin3d=1); y los FPS pintando seguido, con
 //        el panel de la escena (?diagnostico=1). Las de la fase 5 son de un PC con una RTX 3060.
-/* global document, AudioWorklet, Image, PerformanceObserver, window -- se usan dentro de page.evaluate() y addInitScript(), en la página */
+/* global document, AudioWorklet, Image, PerformanceObserver, window, innerWidth, scrollX, scrollY -- se usan dentro de page.evaluate() y addInitScript(), en la página */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -183,9 +183,28 @@ async function captureStage(browser, context, base, viewport) {
   for (const [shot, shotName] of STAGE_SHOTS) {
     const { stats } = await openStage(page, base, { encuadre: shot });
     const file = path.join(outDir, `instrumento3d-${shot}-${viewport}.jpg`);
-    await page
-      .locator('trn-instrument-stage')
-      .screenshot({ path: file, type: 'jpeg', quality: 88, animations: 'disabled' });
+    // El instrumento entero: el espejo, la caja (en el móvil, más ancha que él: de borde a borde) y
+    // la barra. Con la página ya quieta.
+    await page.locator('trn-instrument-stage').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    const clip = await page.evaluate(() => {
+      const boxes = ['trn-instrument-stage', '.stage3d'].map((selector) =>
+        document.querySelector(selector).getBoundingClientRect(),
+      );
+      const left = Math.max(0, Math.min(...boxes.map((box) => box.left)));
+      const top = Math.max(0, Math.min(...boxes.map((box) => box.top)));
+      const right = Math.min(innerWidth, Math.max(...boxes.map((box) => box.right)));
+      const bottom = Math.max(...boxes.map((box) => box.bottom));
+      return { x: left + scrollX, y: top + scrollY, width: right - left, height: bottom - top };
+    });
+    await page.screenshot({
+      path: file,
+      type: 'jpeg',
+      quality: 88,
+      animations: 'disabled',
+      fullPage: true,
+      clip,
+    });
     console.log(`✔ ${path.relative(ROOT, file)}`);
     const { screenFontPx } = JSON.parse(stats ?? '{}');
     console.log(`  La pantalla del 3D (${viewport}, ${shot}): ${screenFontPx} px de cuerpo`);
