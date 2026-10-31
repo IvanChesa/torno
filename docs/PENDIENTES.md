@@ -30,7 +30,14 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 - [ ] **Indexación en el lanzamiento (fase 9).** Hasta entonces todas las páginas llevan `noindex` (`indexable: false` en `src/app/core/site.config.ts`); al lanzar se pone a `true` y solo la 404 sigue con `noindex`. Confirmar que quieres que se indexe.
 - [x] **Precargar ALFAR al acercarse al instrumento** (revisión del bloque B, fase 4, #1): hecha al empezar el bloque C (30-10). En el escritorio, la primera reproducción en frío baja de 200–272 ms a 68–93 ms; la prueba 1 del móvil da la cifra de antes y la de después.
 - [x] **Las dos PR de Dependabot:** la #1 (wrangler 4.152.0) fusionada con su CI en verde (30-10); la #2 (`@types/node` 26), cerrada.
-- [ ] `TODO(ivan)`: **el autoguardado con los dos huecos ofrecidos** (informe de la fase 6, §10, propuesta 1). Lo que se toca entonces espera a que se conteste el panel, para no pisar «lo que tocaste después» (era la carrera de la fase 5). Si te parece bien, se añade a PLAN §4.8.
+- [ ] `TODO(ivan)`: **el autoguardado con los dos huecos ofrecidos** (informe de la fase 6, §10, propuesta 1). Lo que se toca entonces espera a que se conteste el panel, para no pisar «lo que tocaste después» (era la carrera de la fase 5).
+  - El coste: si se cierra la página sin contestar, se pierde lo tocado en esa visita (antes se perdía la anterior). El panel lo avisa.
+  - La alternativa: un tercer hueco temporal.
+  - Si te parece bien, se añade a PLAN §4.8.
+- [ ] `TODO(ivan)`: **las zonas táctiles a 320 px de ancho** (revisión de la fase 6, #13). A 320 px, el ancho mínimo de WCAG 1.4.10, las zonas de 44 px de la capa 1 y del volumen se pisan unos 4 px; las demás, no. Desde 360 px no se pisa ninguna, con test.
+  - Opción 1: por debajo de 360 px, encoger esa pareja (WCAG 2.2 pide 24 px).
+  - Opción 2: dejarlo así, con el criterio en el encuadre del móvil desde 360 px.
+  - Se decide en la fase 8, con tu móvil.
 - [ ] `TODO(ivan)`: **el espejo HTML de la pantalla encima del 3D** (informe de la fase 6, §10, propuesta 2): en el móvil es la única pantalla que se lee. En la fase 7, con la maqueta de la web, decidir si en el escritorio se queda o se pliega.
 
 ## Revisiones y pruebas de Iván

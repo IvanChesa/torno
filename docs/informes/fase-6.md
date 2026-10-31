@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-6-interaccion`
 - **Fecha:** 2026-10-31
-- **Estado:** listo para revisión. Las cuatro entregas están hechas (6.a–6.d), con lo que añadió la revisión parcial del bloque C (`docs/revisiones/bloque-C.md`): la pantalla legible (hallazgo 1) y la carrera del autoguardado.
+- **Estado:** terminada, con la revisión corregida (§12). Las cuatro entregas están hechas (6.a–6.d), con lo que añadió la revisión parcial del bloque C (`docs/revisiones/bloque-C.md`): la pantalla legible (hallazgo 1) y la carrera del autoguardado.
 
 ## 0. Plan de la fase
 
@@ -61,7 +61,7 @@
   - la caja es 1:1 y ocupa el ancho entero.
   - Las parejas más justas son capa 1–volumen (≈ 45 mm), volumen–reposo (≈ 47 mm) y las teclas (≈ 51 mm). Para que las zonas de 44 px no se pisen hace falta ≥ 1 px/mm (360 px de ancho, cenital alto), con un test.
 - **«Pausar movimiento»** (`core/`, un servicio):
-  - se activa con la preferencia guardada en `localStorage` (`torno:movimiento`, con `try/catch`) o con `prefers-reduced-motion`;
+  - se activa con la preferencia guardada en `localStorage` (`torno.movimiento`, con `try/catch`) o con `prefers-reduced-motion`;
   - en pausa no hay ningún bucle de `requestAnimationFrame`: el disco quieto, los pilotos fijos, los medidores parados, las cámaras cortan y no hay fundidos;
   - también en el plato HTML: hoy, con movimiento reducido, sus medidores se repintan cada 250 ms; pasan a quedarse parados.
 
@@ -116,7 +116,7 @@ El aparato 3D es el instrumento de la portada.
   - Las piezas comparten `engine.ts`, así que van en un solo commit; desde aquí, un commit por pieza.
   - Tests en Node (57 de la escena): las zonas de 44 px no se pisan en 360×360, 390×390 ni en el escritorio de 900×720; los encuadres caen dentro del lienzo; la bandeja tapa el reposo visto desde el fondo.
 - **6.b · El 3D es el instrumento de la portada**:
-  - `f122a2a` **«Pausar movimiento»** (`core/motion.ts`). Junta la preferencia de quien toca (`localStorage`, `torno.movimiento`, con `try/catch`) y `prefers-reduced-motion`. Con cualquiera, el documento lleva `data-movimiento="pausado"` y `base.css` anula las transiciones.
+  - `f122a2a` **«Pausar movimiento»** (`core/motion.ts`). Junta la preferencia de quien toca (`localStorage`, `torno.movimiento`, con `try/catch`) y `prefers-reduced-motion`. Con la de quien toca, el documento lleva `data-movimiento="pausado"` y `base.css` anula las transiciones; con la del sistema, lo hace el `@media` de `base.css`. Las animaciones de los instrumentos miran las dos.
   - `93c5858` **Lo común de los dos instrumentos**, en `features/instrument-common/`: la directiva, la pantalla, los avisos y `InstrumentShell`.
     - `InstrumentShell` lleva el grupo, las pistas, los atajos, la región viva, el selector de archivos, el autoguardado y la precarga al acercarse.
     - El plato HTML sigue «Pausar movimiento»: no pinta (antes, con movimiento reducido, repintaba los medidores cada 250 ms).
@@ -173,7 +173,7 @@ El aparato 3D es el instrumento de la portada.
 ## 2. Criterios de aceptación
 | Criterio | ✅/❌ | Evidencia |
 |---|---|---|
-| Todas las funciones de §0.1 se pueden hacer en 3D, con teclado y en móvil (e2e) | ✅ | `stage.spec.ts`, en los proyectos del escenario (§6). **Ratón:** cada control sobre su pieza (diales, brazo, rueda, disco agarrado y girado, teclas y reposo). **Teclado:** el orden del tabulador y, de §0.1, sonido desde el menú, reproducir, otra capa, sonido nuevo, deshacer, silenciar con mantener, tempo, filtro con el brazo, disco con Espacio y reposo. **Dedo** (360×740, CDP): un dial, una tecla y el desplazamiento de la página. El resto de §0.1 (grabación, menú completo, archivos…) va por la misma directiva y el mismo store, probados con el plato en sus e2e (§6). |
+| Todas las funciones de §0.1 se pueden hacer en 3D, con teclado y en móvil (e2e) | ✅ | `stage.spec.ts`, en los proyectos del escenario (§6). **Ratón:** cada control sobre su pieza: los diales, el brazo, la rueda, el disco agarrado y girado, reproducir y pausar, deshacer, mantener deshacer (rehacer), mantener reproducir (parar) y el reposo; y una toma desde la tecla de grabar, con el micrófono sintético. **Teclado:** el orden del tabulador y, de §0.1, sonido desde el menú, reproducir, otra capa, sonido nuevo, deshacer, silenciar con mantener, tempo, filtro con el brazo, disco con Espacio y reposo. **Dedo** (360×740, CDP): un dial, mantener una capa (silencio, sin abrir la selección de texto), una tecla y el desplazamiento de la página. El resto de §0.1 (menú completo, archivos, sobregrabación…) va por la misma directiva y el mismo store, probados con el plato en sus e2e (§6). |
 | Zonas táctiles ≥ 44 px en el encuadre de móvil (test) | ✅ | `projection.spec.ts` (Node): ninguna zona de 44 px se pisa en 360×360 y 390×390, ni en el escritorio. `stage.spec.ts` (360×740, ×2): las 12 zonas, visibles, de 44×44 como poco y sin pisarse (la del disco, elipse). Medidas: capas 44×44, teclas 53×47, disco 182×162 y brazo 65×60. |
 | Velocidad del disco = transporte ±1 %; respuesta ≤ 20 ms (§5) | ✅ | **Velocidad:** `motion.spec.ts`, ±1 % a 40, 90 y 240 BPM con estados que llegan con 0–8 ms de retraso. Con la GPU (RTX 3060, build, reproduciendo), pendiente de 20 lecturas: disco 0,3750 vueltas/s y transporte 0,3750 compases/s, **0,00 %**. El e2e lo mira con un 3 % de margen (WebGL por software, §5). **Respuesta** (GPU, build, reproduciendo): de la tecla al mensaje del audio, mediana 0,4 ms y máximo 1,1 ms (20 teclas); del ratón sobre un dial, mediana 3,9 ms y máximo 4,3 ms (14 mensajes). El e2e lo comprueba (≤ 20 ms) con el transporte en pausa. |
 | Con movimiento reducido o «Pausar movimiento», 0 animaciones automáticas | ✅ | `stage.spec.ts`, los dos modos: reproduciendo, en 2,5 s, el disco no se mueve, 2 fotogramas como mucho (cambios de pose, si los hay) y `document.getAnimations()` vacío. Las cámaras cortan, el plato HTML no pinta y `base.css` anula las transiciones con `data-movimiento="pausado"`. |
@@ -196,7 +196,8 @@ El aparato 3D es el instrumento de la portada.
 - **Las formas de onda son de las cuatro capas, no solo de la elegida** (§0). Lo pide §0.2 del plan («formas de onda y medidores de nivel de cada capa») y encaja con la pantalla en todo el ancho de la revisión del bloque C: un carril por capa, con la elegida enmarcada.
 - **La pantalla del 3D no se lee en el móvil** (4,2 px de cuerpo en 360 px; 10,1 en el escritorio de 1440×900). La pantalla mide 123 × 19 mm en un aparato de 300 mm y el encuadre del móvil la ve desde 64°, así que no se puede leer sin cambiar el diseño aprobado. Lo que se lee es el espejo en HTML de encima del aparato, a 13 px, en todos los tamaños.
 - **El motor de la 6.a va en un solo commit** (`f70779a`): la cámara, la proyección, el anillo, el movimiento y la pantalla comparten `engine.ts`. Desde la 6.b, un commit por pieza (revisión de la fase 5, #11).
-- **«Pausar movimiento» cambia el plato HTML.** Con movimiento reducido repintaba los medidores cada 250 ms; ahora, con la pausa o con movimiento reducido, no pinta nada. CLAUDE.md pide «Pausar movimiento» en todas las animaciones.
+- **«Pausar movimiento» cambia el plato HTML.** Con movimiento reducido repintaba los medidores cada 250 ms; ahora, con la pausa o con movimiento reducido, no pinta nada (salvo el disco agarrado, que va con la mano). Además lleva su botón: CLAUDE.md pide «Pausar movimiento» en todas las animaciones.
+- **«Inspeccionar» no tiene zum** (el §0 lo prometía «acotado»). La órbita va a una distancia fija, la de la esfera justa del aparato con su sombra: entero y del mismo tamaño desde cualquier lado. El zum con la rueda o con dos dedos chocaría con el desplazamiento de la página por encima del aparato. Si hace falta, en la fase 8.
 
 ## 5. Decisiones técnicas nuevas
 - **Lo común de los dos instrumentos, en `features/instrument-common/`** (`InstrumentShell`, la directiva, la pantalla y los avisos). Los dos instrumentos no están nunca a la vez: un solo selector de archivos, una región viva y unos atajos. *Alternativa:* duplicarlo en el escenario, descartada.
@@ -227,7 +228,7 @@ El aparato 3D es el instrumento de la portada.
 ```
 npm run check  (salida completa en la consola de la sesión)
   lint: typecheck (pure, worklet, worker, node) + ng lint + prettier — sin errores ni avisos
-  test:node: 42 archivos, 549 tests en verde; cobertura del TS puro 98,35 % de sentencias, 99,4 % de líneas
+  test:node: 42 archivos, 551 tests en verde; cobertura del TS puro 98,33 % de sentencias
   test:ng: 12 archivos, 72 tests en verde
   build + check-bundles:
     ✔ JS inicial de /                 306,6 kB  (aviso > 330 · error > 400)
@@ -237,14 +238,14 @@ npm run check  (salida completa en la consola de la sesión)
     ✔ Fuentes                         144,1 kB  (error > 150)
     ✔ Bundle inicial sin motor de audio, síntesis, worklet ni 3D.
 ```
-**e2e** (`npx playwright test --workers=3`, 7,0 min): **124 en verde y 3 saltados** (los del panel de desarrollo en el proyecto del build), sin fallos:
-- `dev`: 41;
-- `estatico` (el build, como en Pages): 57;
+**e2e** (`npx playwright test --workers=3`, 7,6 min, tras corregir la revisión): **130 en verde y 3 saltados** (los del panel de desarrollo en el proyecto del build), sin fallos:
+- `dev`: 42;
+- `estatico` (el build, como en Pages): 58;
 - `webkit`: 1;
-- `escena-dev`: 14;
-- `escena-estatico`: 11 y 3 saltados.
+- `escena-dev`: 16;
+- `escena-estatico`: 13 y 3 saltados.
 
-Los 14 del escenario son 5 de la fase 5 y 9 nuevos (§2). En las pruebas sueltas, con otro proyecto corriendo sus e2e en la misma máquina, los del escenario se pasaban a veces de tiempo al crear el contexto del navegador. Por eso los de escritorio usan una ventana de 900×700.
+Los 16 del escenario son 5 de la fase 5 y 11 nuevos (§2 y §12). En las pruebas sueltas, con otro proyecto corriendo sus e2e en la misma máquina, los del escenario se pasaban a veces de tiempo al crear el contexto del navegador. Por eso los de escritorio usan una ventana de 900×700.
 
 Métricas de la fase:
 - **3D** (`npm run capturas -- --medir`, RTX 3060, Chromium con D3D11, build):
@@ -288,6 +289,8 @@ Ninguna.
 
 ## 10. Propuestas de cambio al plan (para la aprobación de Iván)
 1. **§4.8, autoguardado con los dos huecos ofrecidos.** Proponemos añadir: «si ya se ofrecen los dos huecos, lo nuevo espera a que se conteste el panel (no pisa ninguno)». Es lo que hace ya el arreglo de la carrera (`0e2fbc1`, §5). Con los dos huecos llenos, guardarlo en uno de ellos perdería lo que se ofrece recuperar.
+   - **El coste:** si se cierra la página sin contestar, se pierde lo tocado en esa visita. Antes se perdía el «lo que tocaste después» de la visita anterior. Mientras tanto, el panel lo avisa: «Lo que toques ahora no se guardará hasta que elijas una de las dos».
+   - **La alternativa:** un tercer hueco temporal, con más IndexedDB y otro botón en el panel.
 2. **El espejo de la pantalla en HTML, encima del 3D, siempre.** En el móvil, la pantalla del aparato no se lee (4,2 px de cuerpo). En la fase 7, con la maqueta de la web, se puede decidir si en el escritorio se queda o se pliega.
 
 ## 11. Cómo probarlo
@@ -300,3 +303,24 @@ Ninguna.
   - **«Pausar movimiento»:** nada se mueve solo, pero el disco sigue a la mano si se agarra.
   - **`?diagnostico=1`:** el panel de la escena (fotogramas, giro del disco y control enfocado).
   - **`?sin3d=1`:** el plato HTML de siempre.
+
+## 12. Respuesta a la revisión
+Revisión del subagente: `docs/revisiones/fase-6.md`. Veredicto: CAMBIOS NECESARIOS, sin Bloqueantes (2 Importantes, 12 Menores y 1 Sugerencia). Tras las correcciones, `npm run check` en verde (551 tests en Node y 72 en Angular, sin avisos de presupuesto) y e2e 130/130, con 3 saltados (§6).
+
+| Hallazgo | Acción | Commit |
+|---|---|---|
+| 1 (Importante) | **Corregido.** La capa de controles se recorta al lienzo (`overflow: clip`). Se ocultan, y dejan de recibir el foco, los controles a los que no les quedan 44 px de zona dentro (en «Controles» del móvil, las capas 2 y 3). e2e: `scrollWidth` igual a `clientWidth` en cada encuadre, a 900×700 y a 360×740. | `ef89655`, `343af57` |
+| 2 (Importante) | **Corregido.** «Pausar movimiento» y «Atajos», en `InstrumentTools`: en la barra del 3D y debajo del plato HTML. e2e con `?sin3d=1`: el disco no gira, los medidores siguen a 0 y la preferencia se recuerda. | `b14cd57`, `343af57` |
+| 3 (Menor) | **Corregido.** Con el transporte parado, la fase del destello sale de los pulsos que faltan (`countInBeats`), con su test. | `b14cd57` |
+| 4 (Menor) | **Corregido.** `#refreshWaveforms` vuelve a mirar si hay una toma antes de copiar la sesión. Las formas de onda solo se calculan si el 3D las pinta (`showWaveforms`). | `ef89655` |
+| 5 (Menor) | **Corregido.** Una sola ventana de filas (`menuWindow`, en `instrument/display.ts`) para la pantalla del 3D, su espejo y el plato. | `b14cd57` |
+| 6 (Menor) | **Corregido.** En el plato, con la pausa, el disco agarrado se repinta con cada estado del audio (≤ 10/s, sin bucle). | `b14cd57` |
+| 7 (Menor) | **Corregido.** La barra del móvil va siempre en tres filas y el marcador las reserva. La nota del movimiento reducido del sistema pasa a ser la descripción del botón (y su `title`): ya no ocupa sitio. El CLS con la página desplazada hasta el instrumento, en la fase 8. | `b14cd57` |
+| 8 (Menor) | **Corregido.** El recorte de las capturas, en coordenadas de la página. Capturas repetidas (§7). | `ef89655` |
+| 9 (Menor) | **Corregido.** El comentario de `inspect()` dice lo que hace. Si el control enfocado deja de verse, el foco va a la superficie de girar o, fuera de la órbita, al botón del encuadre de la barra. | `ef89655` |
+| 10 (Menor) | **Corregido.** Fuera `setView()`. La órbita y su test usan la misma esfera (`orbitSphere`, en `camera/views.ts`). | `ef89655` |
+| 11 (Menor) | **Corregido.** En `stage.spec.ts`:<br>· con el ratón, deshacer, mantener deshacer (rehacer) y mantener reproducir (parar);<br>· una toma con el micrófono sintético desde la tecla de grabar;<br>· con el dedo, mantener una capa (silencio) sin que se seleccione texto.<br>Las zonas llevan `-webkit-touch-callout: none` y `user-select: none`. | `ef89655`, `343af57` |
+| 12 (Menor) | **Corregido.** Al §10.1 y al `TODO(ivan)` se les añaden el coste y la alternativa del tercer hueco. Con los dos huecos ofrecidos, el panel avisa: «Lo que toques ahora no se guardará hasta que elijas una de las dos». | `b14cd57` y este informe |
+| 13 (Menor) | **Anotado** para Iván (`PENDIENTES.md`, con las dos opciones) y fijado en un test de 320 px: solo se pisan la capa 1 y el volumen. | `ef89655` |
+| 14 (Menor) | **Corregido.** En el informe:<br>· la clave es `torno.movimiento`;<br>· `data-movimiento` solo con la pausa de quien toca;<br>· «Inspeccionar» va sin zum, ahora en §4;<br>· el criterio 1 cuenta lo que prueban el ratón y el dedo. | este informe |
+| 15 (Sugerencia) | **Hecho.** En «Inspeccionar», el disco no se agarra con el puntero: arrastrar encima gira el aparato (con el teclado, Espacio sí lo agarra). | `ef89655` |
