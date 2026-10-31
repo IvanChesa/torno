@@ -3,7 +3,7 @@
  * se acerca hasta que lo que se encuadra cabe con un margen, en cualquier proporción del lienzo, y
  * se centra en lo que se ve. Entre dos encuadres, la cámara viaja (`blend`).
  */
-import { PerspectiveCamera, Vector3 } from 'three';
+import { PerspectiveCamera, Sphere, Vector3 } from 'three';
 import { rad } from '../model/geometry';
 import type { Orbit, Shot, View } from '../options';
 
@@ -143,6 +143,14 @@ export function shotPlacement(
     framed,
     square ? SHOT_MARGIN.square : SHOT_MARGIN.wide,
   );
+}
+
+/**
+ * La esfera de la órbita: la más justa alrededor de los puntos (la de su caja tomaría la diagonal,
+ * 227 mm para el aparato con su sombra, y se vería pequeño).
+ */
+export function orbitSphere(points: readonly Vector3[]): Sphere {
+  return new Sphere().setFromPoints([...points]);
 }
 
 /**

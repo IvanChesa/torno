@@ -5,13 +5,12 @@ import { PerspectiveCamera, Raycaster } from 'three';
 import { describe, expect, it } from 'vitest';
 import { CONTROLS, type ControlId } from '../instrument';
 import { shadowRing, shotPoints, silhouette } from './camera/shots';
-import { FOV, orbitPlacement, place, shotPlacement } from './camera/views';
+import { FOV, orbitPlacement, orbitSphere, place, shotPlacement } from './camera/views';
 import { createMaterials } from './materials/materials';
 import { buildInstrument } from './model/instrument';
 import type { ControlBox, Shot } from './options';
 import { controlShapes, projectControls } from './projection';
 import { QUALITY } from './quality';
-import { Box3, Sphere } from 'three';
 
 const model = buildInstrument(createMaterials({ grainSize: 16 }), QUALITY.low);
 const shapes = controlShapes(model);
@@ -103,13 +102,19 @@ describe('los controles en la pantalla', () => {
     });
   }
 
+  it('a 320 px (el ancho mínimo de WCAG 1.4.10) solo se pisan la capa 1 y el volumen (pendiente de Iván)', () => {
+    // A 1 px/mm o más no se pisa ninguna (el test de arriba); a 320 px, esa pareja, separada 40,6 mm
+    // en horizontal, se queda en unos 40 px. Lo que hacer con ella lo decide Iván (PENDIENTES.md).
+    expect(overlaps(boxes('completo', 320, 320))).toEqual(['layer-0–volume']);
+  });
+
   it('en el escritorio, ninguna zona se pisa tampoco', () => {
     expect(overlaps(boxes('completo', 900, 720))).toEqual([]);
   });
 
   it('al girar alrededor («Inspeccionar»), lo que tapa la bandeja no se ve', () => {
     const camera = new PerspectiveCamera(FOV, 1.25, 0.01, 10);
-    const sphere = new Box3().setFromPoints(outline).getBoundingSphere(new Sphere());
+    const sphere = orbitSphere(outline);
     const occlusion = { raycaster: new Raycaster(), root: model.root };
     // Desde el fondo y bajo, la bandeja tapa el reposo (detrás del disco); de frente, se ve.
     const look = (azimuth: number, elevation: number) => {

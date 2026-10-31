@@ -220,6 +220,8 @@ export class SessionStore {
   #statusTimer: ReturnType<typeof setTimeout> | undefined;
   /** Las versiones del sonido de las capas de las últimas formas de onda pedidas. */
   #waveformKey = '';
+  /** Las pinta alguien (el escenario 3D): si no, no se copia la sesión para nada. */
+  #waveformsShown = false;
   /**
    * Hay una edición sin autoguardar que espera a que se conteste el panel de recuperar (o su
    * confirmación): se guarda al contestar.
@@ -259,6 +261,14 @@ export class SessionStore {
   /** Cuándo suena el último estado del audio (reloj de `performance.now()`). */
   get latestStatusAt(): number {
     return this.#latestAt;
+  }
+
+  /** El escenario 3D pinta las formas de onda (y deja de pintarlas al irse). */
+  showWaveforms(shown: boolean): void {
+    this.#waveformsShown = shown;
+    this.#waveformKey = '';
+    clearTimeout(this.#waveformTimer);
+    if (shown && this.#latest) this.#watchWaveforms(this.#latest);
   }
 
   // --- Entradas ---------------------------------------------------------------------------------
@@ -833,7 +843,7 @@ export class SessionStore {
    * de memoria de PLAN §5); al terminarla, sí.
    */
   #watchWaveforms(status: CoreStatus): void {
-    if (status.recording !== 'idle') return;
+    if (!this.#waveformsShown || status.recording !== 'idle') return;
     const key = status.layers
       .map((layer) => (layer.hasContent ? layer.contentVersion : -1))
       .join(',');
@@ -851,6 +861,8 @@ export class SessionStore {
     const engine = this.#engine;
     try {
       if (!engine || engine.state !== 'ready') throw new Error('sin audio');
+      // Una toma (o su cuenta previa) que ha empezado en la espera: ahora no; al terminarla.
+      if (this.#latest && this.#latest.recording !== 'idle') throw new Error('grabando');
       const waveforms = await engine.waveforms(WAVEFORM_BINS);
       if (key === this.#waveformKey) this.#waveforms.set(waveforms);
     } catch {

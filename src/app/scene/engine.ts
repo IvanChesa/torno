@@ -49,6 +49,7 @@ import {
   fit,
   FOV,
   orbitPlacement,
+  orbitSphere,
   place,
   shotPlacement,
   VIEW_ANGLES,
@@ -80,7 +81,6 @@ import {
   type Orbit,
   type SceneMotion,
   type Shot,
-  type View,
   type Waveform,
 } from './options';
 import { controlShapes, projectControls, type ControlShape } from './projection';
@@ -323,11 +323,6 @@ export class SceneEngine {
     this.#invalidate();
   }
 
-  /** Una vista de las capturas (el escenario usa `setCamera`). */
-  setView(view: View): void {
-    this.setCamera({ kind: 'view', view });
-  }
-
   /**
    * Lo que encuadra la cámara: un encuadre de «Tocar», la órbita de «Inspeccionar» o una vista. Con
    * `travel`, la cámara viaja hasta él (quien llama lo pide solo sin la pausa de movimiento).
@@ -566,8 +561,7 @@ export class SceneEngine {
     model.root.updateMatrixWorld(true);
     const shapes = controlShapes(model);
     const outline = [...silhouette(model), ...shadowRing()];
-    // La esfera más justa (la de la caja tomaría su diagonal, 227 mm, y el aparato se vería pequeño).
-    const sphere = new Sphere().setFromPoints(outline);
+    const sphere = orbitSphere(outline);
     const build: Build = {
       level,
       model,

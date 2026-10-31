@@ -1,4 +1,4 @@
-import { Component, ElementRef, inject, output, viewChildren } from '@angular/core';
+import { Component, ElementRef, inject, input, output, viewChildren } from '@angular/core';
 import { control, type ControlId, type ControlKind } from '../../instrument';
 import type { ControlBox } from '../../scene';
 import { ControlDirective, type ScreenAxis } from '../instrument-common/control.directive';
@@ -41,13 +41,17 @@ interface ZoneItem {
  * Las posiciones las escribe `place()` directamente en el DOM, fuera de los signals, solo cuando
  * cambian la cámara o el tamaño. Cada zona es la cara de su pieza proyectada y nunca menos de
  * 44×44 px; la del disco es una elipse (redonda también para el puntero). Hasta la primera
- * proyección no se ven. Lo que tapa otra pieza en «Inspeccionar» se oculta y deja de recibir el foco.
+ * proyección no se ven. La capa recorta lo que se sale del lienzo (si no, la página se ensanchaba en
+ * «Capas»), y se ocultan, y dejan de recibir el foco, los controles a los que no les quedan 44 px
+ * dentro y los que tapa otra pieza en «Inspeccionar». En la órbita, el disco no se agarra con el
+ * puntero: arrastrar encima gira el aparato (con el teclado, sí).
  *
  * Los controles no dejan desplazar la página (`touch-action: none`); el lienzo de debajo, sí.
  */
 @Component({
   selector: 'trn-stage-controls',
   imports: [ControlDirective],
+  host: { '[class.is-orbit]': 'orbit()' },
   template: `
     @for (item of items; track item.id) {
       @if (item.button) {
@@ -83,6 +87,11 @@ interface ZoneItem {
     :host {
       position: absolute;
       inset: 0;
+      overflow: clip;
+      pointer-events: none;
+    }
+
+    :host(.is-orbit) .zone--disc {
       pointer-events: none;
     }
 
@@ -106,6 +115,9 @@ interface ZoneItem {
       touch-action: none;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
+      /* Mantener con el dedo no abre la selección de texto ni el menú del sistema (iOS). */
+      -webkit-touch-callout: none;
+      user-select: none;
     }
 
     .zone--dial,
@@ -137,6 +149,8 @@ interface ZoneItem {
   `,
 })
 export class StageControls {
+  /** En «Inspeccionar»: el disco no se agarra con el puntero (arrastrar gira el aparato). */
+  readonly orbit = input(false);
   /** El control enfocado con el teclado o bajo el puntero (el anillo de luz del 3D), o ninguno. */
   readonly highlight = output<ControlId | null>();
   /** El control enfocado ha quedado tapado (en «Inspeccionar»): el foco tiene que ir a otro sitio. */

@@ -140,7 +140,11 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
             ></div>
             <span id="trn-orbita-pista" hidden>{{ text.orbit.hint }}</span>
           }
-          <trn-stage-controls (highlight)="onHighlight($event)" (focusLost)="focusOrbit()" />
+          <trn-stage-controls
+            [orbit]="inspecting()"
+            (highlight)="onHighlight($event)"
+            (focusLost)="onFocusLost()"
+          />
           @if (lost()) {
             <p class="stage3d__status" role="status">{{ text.contextLost }}</p>
           }
@@ -292,6 +296,7 @@ export class InstrumentStage {
   private readonly frameRef = viewChild<ElementRef<HTMLElement>>('frame');
   private readonly canvas = viewChild<ElementRef<HTMLCanvasElement>>('canvas');
   private readonly controls = viewChild(StageControls);
+  private readonly toolbar = viewChild(StageToolbar);
   private readonly orbitSurface = viewChild<ElementRef<HTMLElement>>('orbitSurface');
 
   protected readonly engine = signal<SceneEngine | null>(null);
@@ -427,6 +432,8 @@ export class InstrumentStage {
           engine.setSize(width, height);
           this.placeControls(engine);
           this.engine.set(engine);
+          // Las formas de onda solo se calculan si alguien las pinta: desde ahora, el 3D.
+          this.store.showWaveforms(true);
           // Si el primer fotograma llegó antes que el motor (en la misma vuelta), las cifras ahora.
           if (capture && this.painted()) this.stats.set(JSON.stringify(engine.stats()));
         },
@@ -469,6 +476,7 @@ export class InstrumentStage {
     });
     destroyRef.onDestroy(() => {
       destroyed = true;
+      this.store.showWaveforms(false);
       clearTimeout(this.settleTimer);
       observer?.disconnect();
       this.engine()?.dispose();
@@ -481,7 +489,10 @@ export class InstrumentStage {
     this.setCamera({ kind: 'shot', shot }, true);
   }
 
-  /** «Inspeccionar»: la órbita empieza donde está la cámara y el foco va a la superficie de girar. */
+  /**
+   * «Inspeccionar»: la órbita empieza donde está la cámara. El foco se queda en el botón; la
+   * superficie de girar va en el orden del tabulador justo antes de los controles.
+   */
   protected inspect(): void {
     if (this.inspecting()) return;
     const start = this.engine()?.angles ?? FRONT;
@@ -574,9 +585,15 @@ export class InstrumentStage {
     this.moveOrbit(azimuth, elevation, true);
   }
 
-  /** El control enfocado ha quedado tapado al girar: el foco, a la superficie de girar. */
-  protected focusOrbit(): void {
-    this.orbitSurface()?.nativeElement.focus();
+  /**
+   * El control enfocado ha dejado de verse (tapado al girar, o fuera del encuadre al cambiar de
+   * tamaño): el foco no se pierde en la página. En la órbita, a la superficie de girar; si no, al
+   * botón del encuadre de la barra.
+   */
+  protected onFocusLost(): void {
+    const orbit = this.orbitSurface()?.nativeElement;
+    if (orbit) orbit.focus();
+    else this.toolbar()?.focusCurrent();
   }
 
   protected toggleFullscreen(): void {

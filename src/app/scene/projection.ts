@@ -39,6 +39,11 @@ export interface ControlShape {
   readonly piece: Object3D;
 }
 
+/**
+ * El lado mínimo de la zona de un control (PLAN §4.7: 44 × 44 px), lo que tiene que quedar dentro
+ * del lienzo para que se vea: la capa de controles recorta lo de fuera.
+ */
+export const MIN_ZONE_PX = 44;
 /** Valores del brazo en los que se toma la costilla para su zona. */
 const ARM_SAMPLES = 5;
 /** Puntos del contorno de una pieza redonda (en su base y en su cima). */
@@ -180,8 +185,9 @@ export interface Occlusion {
 }
 
 /**
- * Las cajas de los controles con esta cámara. Con `occlusion`, un control que tapa otra pieza (el
- * primer choque del rayo no es suyo) o que queda fuera del lienzo no se ve.
+ * Las cajas de los controles con esta cámara. No se ve un control al que no le quedan 44 px de zona
+ * dentro del lienzo (en «Capas» y «Controles», lo que queda fuera del encuadre), ni, con
+ * `occlusion`, uno que tapa otra pieza (el primer choque del rayo no es suyo).
  */
 export function projectControls(
   shapes: readonly ControlShape[],
@@ -212,7 +218,18 @@ export function projectControls(
     }
     const x = (minX + maxX) / 2;
     const y = (minY + maxY) / 2;
-    const inside = x >= 0 && x <= width && y >= 0 && y <= height;
+    // Lo que queda de su zona (la pieza y nunca menos de 44 px) dentro del lienzo.
+    const halfWidth = Math.max(MIN_ZONE_PX, maxX - minX) / 2;
+    const halfHeight = Math.max(MIN_ZONE_PX, maxY - minY) / 2;
+    const keptWidth = Math.min(width, x + halfWidth) - Math.max(0, x - halfWidth);
+    const keptHeight = Math.min(height, y + halfHeight) - Math.max(0, y - halfHeight);
+    const inside =
+      x >= 0 &&
+      x <= width &&
+      y >= 0 &&
+      y <= height &&
+      keptWidth >= MIN_ZONE_PX - 0.5 &&
+      keptHeight >= MIN_ZONE_PX - 0.5;
     return {
       id: shape.id,
       x,

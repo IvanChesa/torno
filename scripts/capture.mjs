@@ -191,8 +191,10 @@ async function captureStage(browser, context, base, viewport) {
       const boxes = ['trn-instrument-stage', '.stage3d'].map((selector) =>
         document.querySelector(selector).getBoundingClientRect(),
       );
+      // En coordenadas de la página (la captura es de la página entera): arriba, sin limitar a la
+      // ventana, para no cortar el espejo; a lo ancho, la caja del móvil llega al borde.
       const left = Math.max(0, Math.min(...boxes.map((box) => box.left)));
-      const top = Math.max(0, Math.min(...boxes.map((box) => box.top)));
+      const top = Math.min(...boxes.map((box) => box.top));
       const right = Math.min(innerWidth, Math.max(...boxes.map((box) => box.right)));
       const bottom = Math.max(...boxes.map((box) => box.bottom));
       return { x: left + scrollX, y: top + scrollY, width: right - left, height: bottom - top };
