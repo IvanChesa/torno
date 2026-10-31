@@ -10,8 +10,10 @@ export const HOME_CONTENT = {
     title: 'Tócalo',
     intro:
       'Cuatro capas en bucle: elige un sonido en el menú del dial principal o graba con el micrófono. Nada suena hasta que tocas, y tu audio nunca sale del navegador. Con el teclado: Espacio reproduce, R graba, Z deshace y ? enseña los atajos.',
-    loading: 'Cargando el instrumento…',
     poster: 'Torno, el instrumento, visto de frente.',
+    /** Sin WebGL, el plato HTML en su lugar (el aviso cuidado, en la fase 8). */
+    noWebgl:
+      'Este navegador no puede mostrar el 3D: aquí tienes el instrumento sin él, con los mismos controles.',
   },
   sample: {
     title: 'Muestrario del diseño',

@@ -1,21 +1,9 @@
-:host {
-  display: grid;
-  gap: var(--space-4);
-}
-
 /*
  * El instrumento: la pantalla encima y el plato redondo debajo, con las mismas posiciones que el
- * aparato en 3D (DISENO.md §7.1). El cuerpo, en `--instrument-plate`: con este tono, los rótulos y
- * los controles cumplen AA (§2.1).
+ * aparato en 3D (DISENO.md §7.1). El panel que los rodea es de `InstrumentShell` (`is-panel`).
  */
-.instrument {
-  display: grid;
-  justify-items: center;
-  gap: var(--space-5);
-  padding: var(--space-6) var(--space-4);
-  border-radius: var(--radius-panel);
-  background: var(--color-surface);
-  color: var(--color-ink);
+:host {
+  display: block;
 }
 
 .instrument__screen {
@@ -80,6 +68,14 @@
 
 .plate-label[data-side='bottom'] {
   translate: -50% 0;
+}
+
+/* «Pausar movimiento» y los atajos, debajo del plato. */
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
 }
 
 /* En el escritorio, los rótulos van alrededor; la leyenda, solo en el móvil. */
@@ -253,10 +249,6 @@
 
 /* En el móvil, el plato a todo el ancho y los rótulos en la leyenda. */
 @media (max-width: 47.99rem) {
-  .instrument {
-    padding: var(--space-4) 0 var(--space-5);
-  }
-
   .plate-wrap {
     padding: 0;
   }

@@ -84,4 +84,27 @@ describe('LayerHistory', () => {
     expect(label(history.current)).toBe(9);
     expect(history.at(1)).toBeNull();
   });
+
+  it('la versión sube con cada cambio del estado actual, también con la cuarta sobregrabación', () => {
+    const history = new LayerHistory();
+    const versions = [history.version];
+    for (let i = 1; i <= 5; i++) {
+      history.push(content(i));
+      versions.push(history.version);
+    }
+    // Con 3 deshacer, los contadores ya no cambian: la versión, sí.
+    expect(history.undoCount).toBe(3);
+    expect(new Set(versions).size).toBe(versions.length);
+    const pushed = history.version;
+    expect(history.undo()).toBe(true);
+    expect(history.version).toBe(pushed + 1);
+    expect(history.redo()).toBe(true);
+    expect(history.version).toBe(pushed + 2);
+    // Lo que no cambia el estado actual no la mueve.
+    expect(history.redo()).toBe(false);
+    expect(history.dropOldest()).toBe(true);
+    expect(history.version).toBe(pushed + 2);
+    history.reset(null);
+    expect(history.version).toBe(pushed + 3);
+  });
 });

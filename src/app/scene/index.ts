@@ -5,8 +5,8 @@
  */
 import type { SceneEngine, SceneOptions } from './engine';
 
-export { VIEWS } from './options';
-export type { View } from './options';
+export { ORBIT_LIMITS, SHOTS, VIEWS } from './options';
+export type { CameraGoal, ControlBox, Orbit, SceneMotion, Shot, View, Waveform } from './options';
 export { QUALITY_LEVELS } from './quality';
 export type { QualityLevel } from './quality';
 export type { FrameStats, SceneEngine, SceneEvent, SceneOptions, SceneStats } from './engine';

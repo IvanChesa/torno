@@ -34,10 +34,13 @@ type Processor = FakeProcessorBase & {
   process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean;
 };
 let Registered: new () => Processor;
+/** El `currentFrame` del worklet: avanza un bloque con cada `process()`. */
+let frame = 0;
 
 beforeAll(async () => {
   vi.stubGlobal('AudioWorkletProcessor', FakeProcessorBase);
   vi.stubGlobal('sampleRate', RATE);
+  vi.stubGlobal('currentFrame', 0);
   vi.stubGlobal('registerProcessor', (name: string, ctor: new () => Processor) => {
     expect(name).toBe(PROCESSOR_NAME);
     Registered = ctor;
@@ -52,7 +55,9 @@ function run(processor: Processor, blocks: number, input?: (frame: number) => nu
     const outL = new Float32Array(128);
     const outR = new Float32Array(128);
     const mic = input ? Float32Array.from({ length: 128 }, (_, i) => input(b * 128 + i)) : null;
+    vi.stubGlobal('currentFrame', frame);
     const alive = processor.process(mic ? [[mic]] : [[]], [[outL, outR]]);
+    frame += 128;
     expect(alive).toBe(true);
     left.push(...outL);
   }
@@ -78,6 +83,10 @@ describe('worklet', () => {
     expect(statuses.length).toBeLessThanOrEqual(30);
     // Siempre el mismo objeto (el clonado lo hace postMessage).
     expect(new Set(statuses).size).toBe(1);
+    // El estado lleva la muestra del contexto en la que acaba su bloque (la del último enviado).
+    expect(statuses.at(-1)!.contextFrame % 128).toBe(0);
+    expect(statuses.at(-1)!.contextFrame).toBeGreaterThan(0);
+    expect(statuses.at(-1)!.contextFrame).toBeLessThanOrEqual(frame);
   });
 
   it('ignora lo que no es del protocolo y rechaza (con aviso) los comandos no válidos', () => {

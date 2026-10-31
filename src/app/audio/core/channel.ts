@@ -147,6 +147,7 @@ export class LayerChannel {
     layer.undo = this.history.undoCount;
     layer.redo = this.history.redoCount;
     layer.discHeld = this.discHeld;
+    layer.contentVersion = this.history.version;
   }
 
   // --- Lo que suena -----------------------------------------------------------------------------

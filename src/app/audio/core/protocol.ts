@@ -12,7 +12,12 @@
 import type { TakeBars } from './constants';
 import type { SessionError, SessionState } from './session';
 
-export const PROTOCOL_VERSION = 3;
+/**
+ * Sube con cada cambio de forma de los mensajes: un worklet viejo en la caché no se entiende con un
+ * hilo principal nuevo (4: la versión del sonido de cada capa y la muestra del contexto del estado,
+ * fase 6).
+ */
+export const PROTOCOL_VERSION = 4;
 
 /** Nombre con el que se registra el procesador del worklet. */
 export const PROCESSOR_NAME = 'torno';
@@ -158,6 +163,8 @@ export interface LayerStatus {
   undo: number;
   redo: number;
   discHeld: boolean;
+  /** Sube cada vez que cambia el sonido de la capa (la pantalla rehace su forma de onda). */
+  contentVersion: number;
 }
 
 export interface CoreStatus extends Versioned {
@@ -165,6 +172,12 @@ export interface CoreStatus extends Versioned {
   /** Muestra y pulso del transporte. */
   frame: number;
   beat: number;
+  /**
+   * La muestra del contexto (`currentFrame` del worklet) en la que acaba el bloque de este estado:
+   * con ella, el hilo principal sabe cuándo suena ese pulso por el altavoz (`AudioEngine.heardAt`),
+   * sin depender de cuándo le llega el mensaje. La pone el adaptador del worklet; el núcleo, 0.
+   */
+  contextFrame: number;
   bpm: number;
   transport: TransportState;
   recording: RecordingState;

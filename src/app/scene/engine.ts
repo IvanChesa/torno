@@ -21,7 +21,9 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   PMREMGenerator,
+  Raycaster,
   Scene,
+  Sphere,
   Vector3,
   WebGLRenderer,
   type Material,
@@ -30,8 +32,29 @@ import {
   type WebGLRenderTarget,
 } from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { BODY, samePose, type InstrumentPose } from '../instrument';
-import { FOV, frame, VIEW_ANGLES } from './camera/views';
+import {
+  BODY,
+  DECK_HEIGHT,
+  LAYER_CONTROLS,
+  samePose,
+  SCREEN,
+  TRAY,
+  type ControlId,
+  type InstrumentPose,
+} from '../instrument';
+import { SHADOW_RADIUS, shadowRing, shotPoints, silhouette } from './camera/shots';
+import {
+  blend,
+  ease,
+  fit,
+  FOV,
+  orbitPlacement,
+  orbitSphere,
+  place,
+  shotPlacement,
+  VIEW_ANGLES,
+  type CameraPlacement,
+} from './camera/views';
 import { disposeObject } from './dispose';
 import {
   createMaterials,
@@ -40,12 +63,27 @@ import {
   type InstrumentMaterials,
 } from './materials/materials';
 import { printTexture } from './materials/print';
-import { ScreenPainter } from './materials/screen';
+import {
+  ScreenPainter,
+  screenOverlay,
+  type ScreenLane,
+  type ScreenOverlay,
+} from './materials/screen';
 import { contactShadowTexture, labelTexture, loadScreenFont } from './materials/textures';
 import { MM, rad } from './model/geometry';
+import { Highlight } from './model/highlight';
 import { buildInstrument, type InstrumentModel } from './model/instrument';
 import { applyPose } from './model/pose';
-import type { View } from './options';
+import {
+  ORBIT_LIMITS,
+  type CameraGoal,
+  type ControlBox,
+  type Orbit,
+  type SceneMotion,
+  type Shot,
+  type Waveform,
+} from './options';
+import { controlShapes, projectControls, type ControlShape } from './projection';
 import {
   antialiasFor,
   drawingBufferBytes,
@@ -63,7 +101,8 @@ export interface SceneOptions {
   readonly pose: InstrumentPose;
   /** El nivel con el que se empieza; si no, el que toca al dispositivo. */
   readonly quality?: QualityLevel;
-  readonly view?: View;
+  /** Lo que encuadra la cámara al empezar; si no, el aparato entero («Tocar», completo). */
+  readonly camera?: CameraGoal;
   /** `?captura=1`: todo fijo, en calidad alta y sin bajada automática. */
   readonly capture: boolean;
   readonly onEvent?: (event: SceneEvent) => void;
@@ -74,7 +113,9 @@ export type SceneEvent =
   | { readonly type: 'ready' }
   | { readonly type: 'context-lost' }
   | { readonly type: 'context-restored' }
-  | { readonly type: 'quality'; readonly level: QualityLevel; readonly automatic: boolean };
+  | { readonly type: 'quality'; readonly level: QualityLevel; readonly automatic: boolean }
+  /** La cámara o el tamaño han cambiado: las cajas de los controles ya no valen (`project()`). */
+  | { readonly type: 'camera' };
 
 /** Lo que cuesta pintar el aparato y lo que ocupa (para el informe y el indicador de desarrollo). */
 export interface SceneStats {
@@ -92,6 +133,17 @@ export interface SceneStats {
   readonly buildMs: number;
   /** Memoria de vídeo estimada, en MB: texturas, geometría, entorno y lienzo. */
   readonly vramMb: number;
+  /** Lo que ha girado el disco (vueltas) con lo último que llegó del audio. */
+  readonly disc: number;
+  /** La hora del fotograma de ese giro (reloj de `performance.now()`): su velocidad, en los e2e. */
+  readonly discTime: number;
+  /** El control con el anillo de luz (el enfocado con el teclado o bajo el puntero), o `null`. */
+  readonly highlight: ControlId | null;
+  /**
+   * El cuerpo de la letra de la primera fila de la pantalla, en píxeles CSS (su alto en el centro
+   * de la pantalla, con esta cámara): si se lee (revisión del bloque C, hallazgo 1).
+   */
+  readonly screenFontPx: number;
 }
 
 /** Una medida de los FPS pintando seguido. */
@@ -102,17 +154,16 @@ export interface FrameStats {
   readonly p95Ms: number;
 }
 
-/**
- * Radio de la sombra de contacto, en mm: se desvanece del todo 8 mm más allá del canto del cuerpo, y
- * el encuadre la incluye entera (antes, el lienzo la cortaba en recto: revisión de la fase 5, #2).
- */
-const SHADOW_RADIUS = BODY.radius + 8;
-/** Puntos del borde de la sombra que entran en la silueta del encuadre. */
-const SHADOW_RING_POINTS = 48;
-/** Cada cuántos vértices se toma uno para la silueta del encuadre. */
-const SILHOUETTE_STEP = 5;
 /** Lo más que se filtran las texturas vistas de lado. */
 const MAX_ANISOTROPY = 8;
+/** Lo que dura el viaje de la cámara de un encuadre a otro. */
+const CAMERA_TRAVEL_MS = 650;
+/** Cada cuánto, como mucho, se mira qué controles tapa otra pieza (al girar en «Inspeccionar»). */
+const OCCLUSION_MS = 100;
+/** Los pilotos laten con el nivel: a nivel 0, esta fracción de su luz; a nivel 1, toda. */
+const PILOT_PULSE_FLOOR = 0.45;
+/** Lo que se aviva el piloto de grabar con cada pulso de la cuenta previa. */
+const RECORD_FLASH = 1.2;
 
 /**
  * Lo que se construye para un nivel de calidad (y se libera entero al cambiarlo). Los rótulos de las
@@ -123,7 +174,14 @@ interface Build {
   readonly model: InstrumentModel;
   readonly materials: InstrumentMaterials;
   readonly screen: ScreenPainter;
+  readonly overlay: ScreenOverlay;
   readonly shadow: Mesh;
+  /** Las piezas de los controles, para proyectarlas. */
+  readonly shapes: readonly ControlShape[];
+  /** Los puntos que encuadra cada encuadre de «Tocar» (y el aparato sin sombra, para el móvil). */
+  readonly shots: Readonly<Record<Shot | 'aparato', readonly Vector3[]>>;
+  /** La esfera que envuelve el aparato con su sombra (la órbita de «Inspeccionar»). */
+  readonly sphere: Sphere;
 }
 
 /** Lo que se usa de dentro de `PMREMGenerator` (three 0.186) para compilar sus *shaders* antes. */
@@ -164,10 +222,26 @@ export class SceneEngine {
   readonly #monitor: FrameMonitor;
   #level: QualityLevel;
   #pose: InstrumentPose;
-  #view: View;
+  #goal: CameraGoal;
+  /** Dónde está la cámara, y el viaje de un encuadre a otro (si lo hay). */
+  #placement: CameraPlacement | null = null;
+  #travel: { from: CameraPlacement; to: CameraPlacement; start: number } | null = null;
+  /** Las cajas de los controles con la cámara de ahora (`null`: hay que proyectarlas otra vez). */
+  #boxes: ControlBox[] | null = null;
+  #occlusionAt = -Infinity;
+  #occluded: ReadonlySet<ControlId> = new Set();
+  readonly #raycaster = new Raycaster();
+  #highlight: Highlight | null = null;
+  #motion: SceneMotion | null = null;
+  #motionTime = 0;
+  /** De dónde sale el movimiento de cada fotograma mientras suena (o `null`: quieto). */
+  #motionSource: ((time: number) => SceneMotion) | null = null;
+  readonly #scratch = new PerspectiveCamera(FOV, 1, 0.01, 10);
+  /** La luz de cada piloto (y del de grabar, el último) según la pose, sin latir. */
+  #pilotBase: number[] = [];
+  #waveforms: readonly Waveform[] = [];
   #build: Build | null = null;
   #environment: { readonly target: WebGLRenderTarget; readonly size: number } | null = null;
-  #silhouette: Vector3[] = [];
   #width = 0;
   #height = 0;
   /** El `requestAnimationFrame` pedido, o 0. */
@@ -202,7 +276,7 @@ export class SceneEngine {
     this.#onEvent = options.onEvent;
     this.#capture = options.capture;
     this.#pose = options.pose;
-    this.#view = options.view ?? 'frente';
+    this.#goal = options.camera ?? { kind: 'shot', shot: 'completo' };
     const hints = deviceHints();
     // En las capturas, alta salvo que pidan otra (`?calidad=`), para medir cada nivel.
     this.#level = options.quality ?? (options.capture ? 'high' : initialQuality(hints));
@@ -245,16 +319,104 @@ export class SceneEngine {
     this.#pose = pose;
     const build = this.#build;
     if (!build) return;
-    applyPose(build.model, build.materials, pose);
-    build.screen.paint(pose.display);
+    this.#applyPose(build);
     this.#invalidate();
   }
 
-  setView(view: View): void {
-    if (view === this.#view) return;
-    this.#view = view;
-    this.#frameView();
+  /**
+   * Lo que encuadra la cámara: un encuadre de «Tocar», la órbita de «Inspeccionar» o una vista. Con
+   * `travel`, la cámara viaja hasta él (quien llama lo pide solo sin la pausa de movimiento).
+   */
+  setCamera(goal: CameraGoal, travel = false): void {
+    this.#goal = goal;
+    const build = this.#build;
+    if (!build || this.#width <= 0) return;
+    const to = this.#goalPlacement(build);
+    const from = this.#placement;
+    if (travel && from && !this.#capture) {
+      this.#travel = { from, to, start: performance.now() };
+      this.#continuousUntil = Math.max(this.#continuousUntil, performance.now() + CAMERA_TRAVEL_MS);
+    } else {
+      this.#travel = null;
+      this.#applyPlacement(to);
+    }
     this.#invalidate();
+  }
+
+  get camera(): CameraGoal {
+    return this.#goal;
+  }
+
+  /** Desde dónde mira la cámara ahora (para empezar la órbita donde está). */
+  get angles(): Orbit | null {
+    const angles = this.#placement?.angles;
+    return angles ? { azimuth: angles.azimuth, elevation: angles.elevation } : null;
+  }
+
+  /**
+   * Las cajas de los controles en píxeles CSS del lienzo, con la cámara de ahora (se recalculan solo
+   * si ha cambiado: lo avisa el evento `camera`). En la órbita, los que tapa otra pieza no se ven.
+   */
+  project(): readonly ControlBox[] {
+    const build = this.#build;
+    if (!build || this.#width <= 0) return [];
+    const orbit = this.#goal.kind === 'orbit';
+    const now = performance.now();
+    // Mientras se gira, mirar qué tapa qué es lo caro (un rayo por control): 10 veces por segundo.
+    const occlusionDue = orbit && !this.#travel && now - this.#occlusionAt >= OCCLUSION_MS;
+    if (this.#boxes && !occlusionDue) return this.#boxes;
+    let boxes = projectControls(
+      build.shapes,
+      this.#camera,
+      this.#width,
+      this.#height,
+      occlusionDue ? { raycaster: this.#raycaster, root: build.model.root } : null,
+    );
+    if (occlusionDue) {
+      this.#occlusionAt = now;
+      this.#occluded = new Set(boxes.filter((box) => !box.visible).map((box) => box.id));
+    } else if (orbit) {
+      boxes = boxes.map((box) => (this.#occluded.has(box.id) ? { ...box, visible: false } : box));
+    } else {
+      this.#occluded = new Set();
+    }
+    this.#boxes = boxes;
+    return boxes;
+  }
+
+  /** El anillo de luz en el control enfocado o bajo el puntero (o ninguno). */
+  setHighlight(id: ControlId | null): void {
+    if (this.#highlight?.set(id, this.#pose.arm)) this.#invalidate();
+  }
+
+  /**
+   * Lo que se mueve con el audio en este fotograma (el escenario lo pide en cada uno mientras suena
+   * o se agarra el disco): el disco, el latido de los pilotos, el destello del de grabar y los
+   * cabezales y medidores de la pantalla. Solo repinta si algo cambia.
+   */
+  setMotion(motion: SceneMotion): void {
+    this.#motion = motion;
+    this.#motionTime = performance.now();
+    const build = this.#build;
+    if (!build) return;
+    if (this.#applyMotion(build, motion)) this.#invalidate();
+  }
+
+  /**
+   * Pintar seguido mientras suena: en cada fotograma, antes de pintar, se pide el movimiento a
+   * `source` con la hora del fotograma (en el mismo, sin uno de retraso). Con `null`, se para: 0 fps
+   * sin nada que mover.
+   */
+  setMotionSource(source: ((time: number) => SceneMotion) | null): void {
+    this.#motionSource = source;
+    if (source) this.#invalidate();
+  }
+
+  /** Las formas de onda de las capas (solo cambian cuando cambia su sonido). */
+  setWaveforms(waveforms: readonly Waveform[]): void {
+    this.#waveforms = waveforms;
+    const build = this.#build;
+    if (build && this.#paintScreen(build)) this.#invalidate();
   }
 
   /** Cambia de nivel a mano (y se empieza a medir de cero para la bajada automática). */
@@ -294,6 +456,10 @@ export class SceneEngine {
       frames: this.#frames,
       buildMs: Math.round(this.#buildMs * 10) / 10,
       vramMb: Math.round((this.#vramBytes() / 2 ** 20) * 10) / 10,
+      disc: this.#motion?.disc ?? 0,
+      discTime: Math.round(this.#motionTime * 10) / 10,
+      highlight: this.#highlight?.id ?? null,
+      screenFontPx: Math.round(this.#screenFontPx() * 10) / 10,
     };
   }
 
@@ -311,7 +477,7 @@ export class SceneEngine {
         this.#benchmark = null;
         this.#continuousUntil = 0;
         const disc = this.#build?.model.controls.get('disc');
-        if (disc) disc.rotation.y = 0;
+        if (disc) disc.rotation.y = discAngle(this.#motion?.disc ?? 0);
         this.#invalidate();
         const sorted = [...times].sort((a, b) => a - b);
         const total = times.reduce((sum, time) => sum + time, 0);
@@ -342,6 +508,8 @@ export class SceneEngine {
     this.#canvas.removeEventListener('webglcontextrestored', this.#onContextRestored);
     if (this.#build) this.#disposeBuild(this.#build);
     this.#build = null;
+    this.#highlight?.dispose();
+    this.#highlight = null;
     this.#environment?.target.dispose();
     this.#environment = null;
     this.#renderer.dispose();
@@ -371,8 +539,11 @@ export class SceneEngine {
     start = performance.now();
     const model = buildInstrument(materials, settings);
     const screen = new ScreenPainter();
-    screen.paint(this.#pose.display);
     materials.screen.emissiveMap = screen.texture;
+    const overlay = screenOverlay(
+      materials.screen,
+      (screen.texture.image as { width: number }).width,
+    );
     materials.print.map = printTexture(settings.printSize);
     for (const [icon, label] of model.labels) {
       label.material = new MeshStandardMaterial({
@@ -387,14 +558,29 @@ export class SceneEngine {
       });
     }
     const shadow = contactShadow();
-    applyPose(model, materials, this.#pose);
+    model.root.updateMatrixWorld(true);
+    const shapes = controlShapes(model);
+    const outline = [...silhouette(model), ...shadowRing()];
+    const sphere = orbitSphere(outline);
+    const build: Build = {
+      level,
+      model,
+      materials,
+      screen,
+      overlay,
+      shadow,
+      shapes,
+      shots: shotPoints(model, shapes, outline),
+      sphere,
+    };
+    this.#applyPose(build);
     const anisotropy = Math.min(MAX_ANISOTROPY, this.#renderer.capabilities.getMaxAnisotropy());
     for (const texture of materialTextures(materials)) texture.anisotropy = anisotropy;
     elapsed += performance.now() - start;
     this.#buildMs = elapsed;
     await yieldToMain();
     if (this.#disposed) {
-      this.#disposeBuild({ level, model, materials, screen, shadow });
+      this.#disposeBuild(build);
       return;
     }
 
@@ -410,17 +596,20 @@ export class SceneEngine {
     // uno en uno y con una pausa entre ellos. Mientras, se sigue viendo lo de antes.
     await this.#prepare([model.root, shadow], environment.target.texture);
     if (this.#disposed) {
-      this.#disposeBuild({ level, model, materials, screen, shadow });
+      this.#disposeBuild(build);
       if (environment !== previous) environment.target.dispose();
       return;
     }
 
     // La pose de ahora (pudo cambiar mientras se construía) y, a la vez, el aparato y el entorno.
-    applyPose(model, materials, this.#pose);
-    screen.paint(this.#pose.display);
+    this.#applyPose(build);
     const old = this.#build;
-    this.#build = { level, model, materials, screen, shadow };
+    this.#build = build;
     this.#scene.add(model.root, shadow);
+    if (!this.#highlight) {
+      this.#highlight = new Highlight(settings.smallSegments);
+      this.#scene.add(this.#highlight.mesh);
+    }
     this.#environment = environment;
     this.#scene.environment = environment.target.texture;
     if (old) {
@@ -429,9 +618,68 @@ export class SceneEngine {
     }
     if (previous && previous !== environment) previous.target.dispose();
     this.#level = level;
-    model.root.updateMatrixWorld(true);
-    this.#silhouette = [...silhouette(model), ...shadowRing()];
     this.#applySize();
+  }
+
+  /** La pose en las piezas, la pantalla y lo que late encima (si suena). */
+  #applyPose(build: Build): void {
+    applyPose(build.model, build.materials, this.#pose);
+    this.#pilotBase = [
+      ...build.materials.pilots.map((material) => material.emissiveIntensity),
+      build.materials.ledRecord.emissiveIntensity,
+    ];
+    this.#paintScreen(build);
+    if (this.#motion) this.#applyMotion(build, this.#motion);
+    if (this.#highlight?.id === 'arm') this.#highlight.set('arm', this.#pose.arm);
+  }
+
+  /** La pantalla: el texto y, en la principal, los carriles de las capas. Dice si ha repintado. */
+  #paintScreen(build: Build): boolean {
+    const pose = this.#pose;
+    const lanes: ScreenLane[] = pose.layers.map((layer, i) => ({
+      waveform: this.#waveforms[i] ?? null,
+      active: layer.pilot !== 'off',
+      muted: layer.muted,
+      selected: i === pose.selected,
+    }));
+    const painted = build.screen.paint(pose.display, lanes);
+    build.overlay.setLanes(build.screen.lanes);
+    return painted;
+  }
+
+  /** El movimiento de un fotograma en las piezas. Dice si ha cambiado algo que se ve. */
+  #applyMotion(build: Build, motion: SceneMotion): boolean {
+    let changed = false;
+    const disc = build.model.controls.get('disc');
+    const angle = discAngle(motion.disc);
+    if (disc && disc.rotation.y !== angle) {
+      disc.rotation.y = angle;
+      changed = true;
+    }
+    build.materials.pilots.forEach((material, i) => {
+      const base = this.#pilotBase[i] ?? material.emissiveIntensity;
+      // Solo laten los que tienen sonido (no la cola ni la grabación, que avisan de otra cosa).
+      const level = motion.levels[i] ?? 0;
+      const intensity =
+        this.#pose.layers[i]?.pilot === 'content'
+          ? base * (PILOT_PULSE_FLOOR + (1 - PILOT_PULSE_FLOOR) * level)
+          : base;
+      if (material.emissiveIntensity !== intensity) {
+        material.emissiveIntensity = intensity;
+        changed = true;
+      }
+    });
+    const recordBase = this.#pilotBase[LAYER_CONTROLS.length] ?? 0;
+    const record =
+      this.#pose.recordLight === 'count-in'
+        ? recordBase + RECORD_FLASH * motion.recordFlash
+        : recordBase;
+    if (build.materials.ledRecord.emissiveIntensity !== record) {
+      build.materials.ledRecord.emissiveIntensity = record;
+      changed = true;
+    }
+    if (build.overlay.set(motion.heads, motion.levels)) changed = true;
+    return changed;
   }
 
   /**
@@ -545,7 +793,7 @@ export class SceneEngine {
   }
 
   /** Las piezas, todos los materiales (los rótulos incluidos) y sus texturas, cada uno una vez. */
-  #disposeBuild(build: Build): void {
+  #disposeBuild(build: Pick<Build, 'model' | 'materials' | 'shadow'>): void {
     disposeObject(build.model.root, materialList(build.materials));
     disposeObject(build.shadow);
   }
@@ -559,16 +807,61 @@ export class SceneEngine {
     this.#renderer.setSize(this.#width, this.#height, false);
     this.#camera.aspect = this.#width / this.#height;
     this.#camera.updateProjectionMatrix();
-    this.#frameView();
+    const build = this.#build;
+    if (!build) return;
+    // Otro tamaño, otro encuadre (el del móvil, si el lienzo pasa a cuadrado): sin viaje.
+    this.#travel = null;
+    this.#applyPlacement(this.#goalPlacement(build));
   }
 
-  #frameView(): void {
-    if (this.#silhouette.length === 0) return;
-    const target = frame(this.#camera, VIEW_ANGLES[this.#view], this.#silhouette);
-    const distance = this.#camera.position.distanceTo(target);
-    this.#camera.near = distance / 20;
-    this.#camera.far = distance * 4;
+  /** Dónde tiene que acabar la cámara para lo que se encuadra ahora. */
+  #goalPlacement(build: Build): CameraPlacement {
+    const scratch = this.#scratch;
+    scratch.aspect = this.#camera.aspect;
+    scratch.updateProjectionMatrix();
+    const goal = this.#goal;
+    switch (goal.kind) {
+      case 'view':
+        return fit(scratch, VIEW_ANGLES[goal.view], build.shots.completo);
+      case 'shot':
+        return shotPlacement(scratch, goal.shot, build.shots);
+      case 'orbit':
+        return orbitPlacement(
+          scratch,
+          clampOrbit(goal.orbit),
+          build.sphere.center,
+          build.sphere.radius,
+        );
+    }
+  }
+
+  /** Pone la cámara (y ajusta lo que ve de cerca y de lejos); las cajas de los controles caducan. */
+  #applyPlacement(placement: CameraPlacement): void {
+    place(this.#camera, placement);
+    this.#camera.near = placement.distance / 20;
+    this.#camera.far = placement.distance * 4;
     this.#camera.updateProjectionMatrix();
+    this.#placement = placement;
+    this.#boxes = null;
+    this.#onEvent?.({ type: 'camera' });
+  }
+
+  /** El cuerpo de la primera fila de la pantalla, en píxeles CSS, con la cámara de ahora. */
+  #screenFontPx(): number {
+    const build = this.#build;
+    if (!build || this.#height <= 0) return 0;
+    const lean = Math.tan(rad(TRAY.lean));
+    const point = (height: number) =>
+      new Vector3(0, (DECK_HEIGHT + height) * MM, -(TRAY.innerRadius + height * lean) * MM).project(
+        this.#camera,
+      );
+    const top = point(SCREEN.top);
+    const bottom = point(SCREEN.bottom);
+    const pixels = Math.hypot(
+      ((top.x - bottom.x) / 2) * this.#width,
+      ((top.y - bottom.y) / 2) * this.#height,
+    );
+    return pixels * build.screen.firstRowFont;
   }
 
   // --- Bucle bajo demanda --------------------------------------------------------------------------
@@ -581,11 +874,23 @@ export class SceneEngine {
   #render(time: number): void {
     this.#frame = 0;
     if (this.#disposed || this.#lost || !this.#build) return;
+    const build = this.#build;
+    const travel = this.#travel;
+    if (travel) {
+      const t = (performance.now() - travel.start) / CAMERA_TRAVEL_MS;
+      if (t >= 1) this.#travel = null;
+      this.#applyPlacement(t >= 1 ? travel.to : blend(travel.from, travel.to, ease(t)));
+    }
+    if (this.#motionSource) {
+      this.#motion = this.#motionSource(time);
+      this.#motionTime = time;
+      this.#applyMotion(build, this.#motion);
+    }
     const benchmark = this.#benchmark;
     if (benchmark) {
       if (benchmark.last > 0) benchmark.times.push(time - benchmark.last);
       benchmark.last = time;
-      const disc = this.#build.model.controls.get('disc');
+      const disc = build.model.controls.get('disc');
       if (disc) disc.rotation.y = (time / 1000) * Math.PI;
     }
     this.#renderer.render(this.#scene, this.#camera);
@@ -594,7 +899,8 @@ export class SceneEngine {
       this.#ready = true;
       this.#onEvent?.({ type: 'ready' });
     }
-    if (performance.now() < this.#continuousUntil) {
+    const moving = this.#motionSource !== null || this.#travel !== null;
+    if (moving || performance.now() < this.#continuousUntil) {
       if (!benchmark && !this.#capture) {
         const lower = this.#monitor.frame(time);
         if (lower) void this.#changeQuality(lower, true);
@@ -697,28 +1003,15 @@ function contactShadow(): Mesh {
   return shadow;
 }
 
-/** El borde de la sombra de contacto, en la mesa: el encuadre la deja entera dentro del lienzo. */
-function shadowRing(): Vector3[] {
-  return Array.from({ length: SHADOW_RING_POINTS }, (_, i) => {
-    const angle = (2 * Math.PI * i) / SHADOW_RING_POINTS;
-    return new Vector3(
-      SHADOW_RADIUS * MM * Math.sin(angle),
-      0,
-      SHADOW_RADIUS * MM * Math.cos(angle),
-    );
-  });
+/** El giro del disco para unas vueltas: en el sentido de las agujas del reloj visto desde arriba. */
+function discAngle(turns: number): number {
+  return -2 * Math.PI * (turns % 1);
 }
 
-/** Unos cuantos vértices de todo el aparato, en coordenadas de la escena: su silueta. */
-function silhouette(model: InstrumentModel): Vector3[] {
-  const points: Vector3[] = [];
-  model.root.traverse((object) => {
-    const mesh = object as Mesh;
-    if (!mesh.isMesh) return;
-    const position = mesh.geometry.getAttribute('position');
-    for (let i = 0; i < position.count; i += SILHOUETTE_STEP) {
-      points.push(new Vector3().fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld));
-    }
-  });
-  return points;
+function clampOrbit({ azimuth, elevation }: Orbit): Orbit {
+  const { azimuth: a, elevation: e } = ORBIT_LIMITS;
+  return {
+    azimuth: Math.min(a.max, Math.max(a.min, azimuth)),
+    elevation: Math.min(e.max, Math.max(e.min, elevation)),
+  };
 }

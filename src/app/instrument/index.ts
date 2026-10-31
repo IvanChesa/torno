@@ -13,6 +13,7 @@ export * from './instrument.content';
 export * from './keyboard';
 export * from './layout';
 export * from './menu';
+export * from './motion';
 export * from './plate';
 export * from './pose';
 export * from './sounds';

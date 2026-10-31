@@ -23,4 +23,6 @@ export const PALETTE = {
   recess: '#17110b',
   /** La tinta de los rótulos de las teclas (`--color-bg`). */
   ink: '#252712',
+  /** El anillo de luz del control enfocado o bajo el puntero (`--color-focus`, fase 6). */
+  focus: '#f1ece0',
 } as const;

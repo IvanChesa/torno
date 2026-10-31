@@ -57,6 +57,9 @@ class FakeEngine {
   send(command: unknown): void {
     this.#log('send', command);
   }
+  heardAt(): number {
+    return performance.now();
+  }
   async record(options: unknown): Promise<void> {
     this.#log('record', options);
   }
@@ -146,16 +149,18 @@ function layer(change: Partial<LayerStatus> = {}): LayerStatus {
     undo: 0,
     redo: 0,
     discHeld: false,
+    contentVersion: 0,
     ...change,
   };
 }
 
 function status(change: Partial<CoreStatus> = {}, notices: Notice[] = []): CoreStatus {
   return {
-    v: 3,
+    v: 4,
     type: 'status',
     frame: 0,
     beat: 0,
+    contextFrame: 0,
     bpm: 90,
     transport: 'stopped',
     recording: 'idle',
@@ -534,6 +539,41 @@ describe('SessionStore', () => {
     expect(autosave.calls).toEqual([['promote']]);
     expect(store.recovery()).toBeNull();
     expect(store.state().settings.takeBars).toBe(2);
+  });
+
+  it('con la confirmación de «Recuperar» abierta no se autoguarda nada; al cancelarla, sí', async () => {
+    const { store, engine } = await setup();
+    const scheduled = () => engine.calls.filter((call) => call[0] === 'scheduleAutosave');
+    await store.checkAutosave();
+    engine.emit(withContent());
+    store.input({ type: 'turn', control: 'layer-0', steps: -5 });
+    expect(scheduled().at(-1)?.[2]).toBe('pending');
+    // «Recuperar» con sonido: pide confirmación y anula el autoguardado que esperaba (si llegara
+    // mientras se confirma, pisaría el hueco que se va a recuperar).
+    await store.recover();
+    expect(store.confirmRecover()).toBe('main');
+    expect(engine.calls.at(-1)?.[0]).toBe('cancelAutosave');
+    const before = scheduled().length;
+    store.input({ type: 'turn', control: 'layer-0', steps: -5 });
+    expect(scheduled()).toHaveLength(before);
+    // «Cancelar»: lo tocado se autoguarda, en el hueco nuevo.
+    store.cancelRecover();
+    expect(scheduled()).toHaveLength(before + 1);
+    expect(scheduled().at(-1)?.[2]).toBe('pending');
+  });
+
+  it('con los dos huecos ofrecidos, lo nuevo espera a que se conteste: no pisa «lo que tocaste después»', async () => {
+    const { store, engine, autosave } = await setup();
+    autosave.dates = { main: 1_700_000_000_000, pending: 1_700_000_600_000 };
+    await store.checkAutosave();
+    engine.emit(withContent());
+    store.input({ type: 'turn', control: 'layer-0', steps: -5 });
+    expect(engine.calls.some((call) => call[0] === 'scheduleAutosave')).toBe(false);
+    // Se contesta («Empezar de cero»): lo tocado pasa a ser la sesión autoguardada.
+    await store.discardAutosave();
+    expect(engine.calls.filter((call) => call[0] === 'autosaveNow').at(-1)?.[2]).toBe('main');
+    store.input({ type: 'turn', control: 'layer-0', steps: -5 });
+    expect(engine.calls.filter((call) => call[0] === 'scheduleAutosave').at(-1)?.[2]).toBe('main');
   });
 
   it('«Empezar de cero» con sonido en la sesión actual la deja como la única autoguardada', async () => {

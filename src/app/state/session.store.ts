@@ -56,6 +56,10 @@ const LOCAL_GRACE_MS = 400;
 const ANNOUNCE_MS = 700;
 /** Lo que se espera a que el audio esté listo para recuperar la sesión anterior. */
 const RECOVER_WAIT_MS = 10_000;
+/** Tramos de la forma de onda de cada capa en la pantalla del aparato. */
+export const WAVEFORM_BINS = 96;
+/** Tras un cambio de sonido, lo que se espera antes de pedir las formas de onda (antirrebote). */
+const WAVEFORM_DELAY_MS = 300;
 
 /** Espera a que el motor esté listo (o falla: error, o `ms` sin conseguirlo). */
 function whenReady(engine: AudioEngine, ms: number): Promise<boolean> {
@@ -166,6 +170,7 @@ export class SessionStore {
   readonly #autoLatencyMs = signal(0);
   readonly #announcement = signal('');
   readonly #firstSounds = signal<readonly FirstSound[]>([]);
+  readonly #waveforms = signal<readonly (Float32Array | null)[]>([]);
 
   /** El modelo del instrumento (controles, ajustes, menú). */
   readonly state = this.#state.asReadonly();
@@ -188,6 +193,11 @@ export class SessionStore {
   readonly announcement = this.#announcement.asReadonly();
   /** Con el diagnóstico abierto: cuánto tardó en sonar cada «reproducir». */
   readonly firstSounds = this.#firstSounds.asReadonly();
+  /**
+   * La forma de onda de cada capa (picos por tramo, de 0 a 1) o `null` si está vacía. Cambia solo
+   * cuando cambia el sonido de una capa: la pinta la pantalla del aparato 3D.
+   */
+  readonly waveforms = this.#waveforms.asReadonly();
   readonly display = computed<DisplayModel>(() => {
     const details = this.#details();
     return displayModel(this.#state(), this.#audio(), {
@@ -202,7 +212,22 @@ export class SessionStore {
   #engine: AudioEngine | null = null;
   #starting: Promise<AudioEngine | null> | null = null;
   #latest: CoreStatus | null = null;
+  /**
+   * Cuándo suena por el altavoz lo que cuenta `#latest` (reloj de `performance.now()`): el disco
+   * extrapola desde ahí.
+   */
+  #latestAt = 0;
   #statusTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Las versiones del sonido de las capas de las últimas formas de onda pedidas. */
+  #waveformKey = '';
+  /** Las pinta alguien (el escenario 3D): si no, no se copia la sesión para nada. */
+  #waveformsShown = false;
+  /**
+   * Hay una edición sin autoguardar que espera a que se conteste el panel de recuperar (o su
+   * confirmación): se guarda al contestar.
+   */
+  #autosaveDeferred = false;
+  #waveformTimer: ReturnType<typeof setTimeout> | undefined;
   #messageTimer: ReturnType<typeof setTimeout> | undefined;
   #announceTimer: ReturnType<typeof setTimeout> | undefined;
   /** Cuándo se movió un control por última vez (`-Infinity`: nunca, o ya no cuenta). */
@@ -231,6 +256,19 @@ export class SessionStore {
   /** El último estado del audio, sin signals (los medidores lo leen en cada fotograma). */
   get latestStatus(): CoreStatus | null {
     return this.#latest;
+  }
+
+  /** Cuándo suena el último estado del audio (reloj de `performance.now()`). */
+  get latestStatusAt(): number {
+    return this.#latestAt;
+  }
+
+  /** El escenario 3D pinta las formas de onda (y deja de pintarlas al irse). */
+  showWaveforms(shown: boolean): void {
+    this.#waveformsShown = shown;
+    this.#waveformKey = '';
+    clearTimeout(this.#waveformTimer);
+    if (shown && this.#latest) this.#watchWaveforms(this.#latest);
   }
 
   // --- Entradas ---------------------------------------------------------------------------------
@@ -396,7 +434,11 @@ export class SessionStore {
   async recover(slot: AutosaveSlot = 'main'): Promise<void> {
     if (this.#busy() === 'recovering') return;
     if (this.#hasContent() && this.#confirmRecover() !== slot) {
+      // Mientras se confirma, nada se autoguarda (tampoco lo que ya esperaba): pisaría la sesión
+      // que se va a recuperar. Si se cancela, se guarda entonces.
       this.#confirmRecover.set(slot);
+      this.#engine?.cancelAutosave();
+      this.#autosaveDeferred = true;
       return;
     }
     this.#confirmRecover.set(null);
@@ -407,6 +449,8 @@ export class SessionStore {
       const engine = await this.start();
       if (!engine || !(await whenReady(engine, RECOVER_WAIT_MS))) {
         this.#show(text.messages.recoverLater, 'error');
+        // El panel sigue: lo que esperaba se guarda (o sigue esperando) como siempre.
+        if (this.#autosaveDeferred) this.#autosave();
         return;
       }
       engine.cancelAutosave();
@@ -425,9 +469,10 @@ export class SessionStore {
     }
   }
 
-  /** Vuelve del paso de confirmar «Recuperar» al panel. */
+  /** Vuelve del paso de confirmar «Recuperar» al panel (y lo que esperaba se autoguarda). */
   cancelRecover(): void {
     this.#confirmRecover.set(null);
+    if (this.#autosaveDeferred) this.#autosave();
   }
 
   /**
@@ -450,6 +495,7 @@ export class SessionStore {
   async clearAutosave(): Promise<void> {
     this.#recovery.set(null);
     this.#confirmRecover.set(null);
+    this.#autosaveDeferred = false;
     this.#engine?.cancelAutosave();
     if (await this.#api.deleteAutosave()) this.#show(text.messages.autosaveCleared);
   }
@@ -653,10 +699,20 @@ export class SessionStore {
   /**
    * Autoguardado tras una edición. Mientras el panel de recuperar sigue sin contestar, va al hueco
    * nuevo y no pisa la sesión anterior.
+   *
+   * Lo nuevo espera, sin guardarse, en dos casos (la carrera vista en la fase 5): con la confirmación
+   * de «Recuperar» abierta, y con los dos huecos ofrecidos (el nuevo ya guarda «lo que tocaste
+   * después»: 1,5 s después de tocar algo, lo pisaba). Se guarda al contestar.
    */
   #autosave(): void {
-    const slot = this.#recovery() === null ? 'main' : 'pending';
-    this.#engine?.scheduleAutosave(this.#tornoSettings(), slot);
+    const recovery = this.#recovery();
+    if (this.#confirmRecover() !== null || (recovery !== null && recovery.pending !== null)) {
+      this.#autosaveDeferred = true;
+      this.#engine?.cancelAutosave();
+      return;
+    }
+    this.#autosaveDeferred = false;
+    this.#engine?.scheduleAutosave(this.#tornoSettings(), recovery === null ? 'main' : 'pending');
   }
 
   // --- Eventos del motor ------------------------------------------------------------------------
@@ -668,6 +724,7 @@ export class SessionStore {
         return;
       case 'status':
         this.#latest = event.status;
+        this.#latestAt = this.#engine?.heardAt(event.status) ?? performance.now();
         for (let i = 0; i < event.status.noticeCount; i++) this.#onNotice(event.status.notices[i]!);
         this.#scheduleStatus();
         return;
@@ -777,6 +834,41 @@ export class SessionStore {
       });
     }
     this.#syncControls(status);
+    this.#watchWaveforms(status);
+  }
+
+  /**
+   * Las formas de onda se vuelven a pedir cuando cambia el sonido de alguna capa (su versión), con
+   * antirrebote. Durante una toma, no: la copia de la sesión coincidiría con la de la toma (el pico
+   * de memoria de PLAN §5); al terminarla, sí.
+   */
+  #watchWaveforms(status: CoreStatus): void {
+    if (!this.#waveformsShown || status.recording !== 'idle') return;
+    const key = status.layers
+      .map((layer) => (layer.hasContent ? layer.contentVersion : -1))
+      .join(',');
+    if (key === this.#waveformKey) return;
+    this.#waveformKey = key;
+    clearTimeout(this.#waveformTimer);
+    if (status.layers.every((layer) => !layer.hasContent)) {
+      this.#waveforms.set(status.layers.map(() => null));
+      return;
+    }
+    this.#waveformTimer = setTimeout(() => void this.#refreshWaveforms(key), WAVEFORM_DELAY_MS);
+  }
+
+  async #refreshWaveforms(key: string): Promise<void> {
+    const engine = this.#engine;
+    try {
+      if (!engine || engine.state !== 'ready') throw new Error('sin audio');
+      // Una toma (o su cuenta previa) que ha empezado en la espera: ahora no; al terminarla.
+      if (this.#latest && this.#latest.recording !== 'idle') throw new Error('grabando');
+      const waveforms = await engine.waveforms(WAVEFORM_BINS);
+      if (key === this.#waveformKey) this.#waveforms.set(waveforms);
+    } catch {
+      // Se vuelve a intentar con el siguiente estado del audio.
+      if (key === this.#waveformKey) this.#waveformKey = '';
+    }
   }
 
   /** Los valores en directo vuelven a los del audio si nadie los está moviendo. */

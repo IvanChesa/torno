@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { CONTROLS, control, controlLayer, layerControl } from './catalog';
 import {
+  accelerated,
+  CIRCULAR_SWEEP,
+  circularSteps,
+  DIAL_SWEEP,
   gesture,
   IDLE,
+  MENU_STEP_ANGLE,
+  wrapAngle,
   type GestureInput,
   type GestureOutput,
   type GestureState,
@@ -165,5 +171,31 @@ describe('teclado', () => {
     expect(shortcutFor(key('?'), null)).toEqual({ type: 'help' });
     expect(shortcutFor(key('r', { ctrlKey: true }), null)).toBeNull();
     expect(shortcutFor(key('r', { repeat: true }), null)).toBeNull();
+  });
+});
+
+describe('arrastres', () => {
+  it('despacio, un píxel es un píxel; deprisa, cuenta más, hasta ×4', () => {
+    expect(accelerated(10, 100)).toBe(10);
+    expect(accelerated(-10, 100)).toBe(-10);
+    expect(accelerated(10, 10)).toBeGreaterThan(10);
+    expect(accelerated(200, 10)).toBe(800);
+    expect(accelerated(-200, 10)).toBe(-800);
+    // Sin tiempo (dos movimientos en el mismo instante), sin aceleración.
+    expect(accelerated(10, 0)).toBe(10);
+  });
+
+  it('en círculo, 270° son todo el recorrido; en el menú, una fila cada 20°', () => {
+    expect(circularSteps(DIAL_SWEEP, 100, false)).toBeCloseTo(100, 10);
+    expect(circularSteps(-DIAL_SWEEP / 2, 200, false)).toBeCloseTo(-100, 10);
+    expect(circularSteps(MENU_STEP_ANGLE * 3, 200, true)).toBeCloseTo(3, 10);
+    expect(CIRCULAR_SWEEP).toBeLessThan(DIAL_SWEEP);
+  });
+
+  it('los ángulos se dejan entre −π y π (el paso por detrás no da una vuelta entera)', () => {
+    expect(wrapAngle(3 * Math.PI)).toBeCloseTo(Math.PI, 10);
+    expect(wrapAngle(-Math.PI)).toBeCloseTo(Math.PI, 10);
+    expect(wrapAngle(Math.PI / 2 - 2 * Math.PI)).toBeCloseTo(Math.PI / 2, 10);
+    expect(wrapAngle(0.1)).toBeCloseTo(0.1, 10);
   });
 });

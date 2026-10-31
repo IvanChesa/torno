@@ -1,6 +1,6 @@
 import { Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { SESSION_CONTENT, SessionStore } from '../../state';
-import { HTML_INSTRUMENT_CONTENT } from './html-instrument.content';
+import { INSTRUMENT_COMMON_CONTENT } from './instrument-common.content';
 
 /**
  * Avisos alrededor del instrumento: el estado del audio («Toca para activar el sonido», reposo…),
@@ -58,6 +58,7 @@ import { HTML_INSTRUMENT_CONTENT } from './html-instrument.content';
           <p>{{ recoveryText.question(dates.main) }}</p>
           @if (dates.pending; as pending) {
             <p>{{ recoveryText.pendingQuestion(pending) }}</p>
+            <p>{{ recoveryText.waitNote }}</p>
           }
           <div class="actions">
             <button type="button" class="button" data-audio-unlock (click)="store.recover()">
@@ -186,7 +187,7 @@ import { HTML_INSTRUMENT_CONTENT } from './html-instrument.content';
 })
 export class InstrumentNotices {
   protected readonly store = inject(SessionStore);
-  protected readonly text = HTML_INSTRUMENT_CONTENT;
+  protected readonly text = INSTRUMENT_COMMON_CONTENT;
   protected readonly engineText = SESSION_CONTENT.engine;
   protected readonly recoveryText = SESSION_CONTENT.recovery;
   protected readonly shortcuts = [...this.text.help.shortcuts, ...this.text.help.controls];

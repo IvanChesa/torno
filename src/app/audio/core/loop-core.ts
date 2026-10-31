@@ -1340,6 +1340,7 @@ function emptyLayerStatus(): LayerStatus {
     undo: 0,
     redo: 0,
     discHeld: false,
+    contentVersion: 0,
   };
 }
 
@@ -1353,6 +1354,7 @@ function createStatus(): CoreStatus {
     type: 'status',
     frame: 0,
     beat: 0,
+    contextFrame: 0,
     bpm: DEFAULT_BPM,
     transport: 'stopped',
     recording: 'idle',

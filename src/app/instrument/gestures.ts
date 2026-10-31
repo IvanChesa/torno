@@ -123,3 +123,47 @@ export function gesture(
       return input.type === 'up' ? step(IDLE, { type: 'drop' }) : step(state);
   }
 }
+
+/**
+ * Arrastrar deprisa mueve más (PLAN fase 6, «con aceleración»): por debajo de `from` px/ms, cada
+ * píxel cuenta lo mismo; por encima, más, hasta `max` veces. Así se recorre un dial entero sin
+ * levantar el dedo y, despacio, se afina paso a paso.
+ */
+export const ACCELERATION = { from: 0.35, gain: 2, max: 4 } as const;
+
+/** Los píxeles de un arrastre, con la aceleración por su velocidad (`ms` desde el anterior). */
+export function accelerated(pixels: number, ms: number): number {
+  if (!(ms > 0)) return pixels;
+  const speed = Math.abs(pixels) / ms;
+  const factor = Math.min(
+    ACCELERATION.max,
+    1 + ACCELERATION.gain * Math.max(0, speed - ACCELERATION.from),
+  );
+  return pixels * factor;
+}
+
+/**
+ * Un dial también se gira en círculo: el arrastre empieza en vertical y, cuando el puntero ha dado
+ * esta vuelta alrededor del centro del dial (sin pasar por encima de él), sigue al ángulo.
+ */
+export const CIRCULAR_SWEEP = Math.PI / 4;
+/** Lo que gira la aguja de un dial de punta a punta, como en el 3D y en el plato: 270°. */
+export const DIAL_SWEEP = (3 * Math.PI) / 2;
+/** En el menú, el dial principal en círculo avanza una fila cada 20°. */
+export const MENU_STEP_ANGLE = Math.PI / 9;
+
+/** Un ángulo en (−π, π]. */
+export function wrapAngle(angle: number): number {
+  let result = angle % (2 * Math.PI);
+  if (result > Math.PI) result -= 2 * Math.PI;
+  if (result <= -Math.PI) result += 2 * Math.PI;
+  return result;
+}
+
+/**
+ * Los pasos de un giro en círculo de `radians` (a favor de las agujas del reloj, positivo): la vuelta
+ * de la aguja (270°) es todo el recorrido del dial; en el menú, una fila cada 20°.
+ */
+export function circularSteps(radians: number, range: number, menu: boolean): number {
+  return menu ? radians / MENU_STEP_ANGLE : (radians * range) / DIAL_SWEEP;
+}

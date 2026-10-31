@@ -319,6 +319,10 @@ test.describe('archivos', () => {
     // Se toca algo con sonido y luego «Recuperar»: pide confirmación, con «Cancelar» primero.
     await driver.chooseSound(MENU.categories.drums);
     await driver.expectScreen('CAPA 1 · BATERÍA');
+    // Más que el antirrebote del autoguardado (1,5 s): con los dos huecos ofrecidos, lo tocado
+    // espera a que se conteste y no pisa «lo que tocaste después» (la carrera de la fase 5, que
+    // solo se veía con la máquina cargada; ahora pasaría siempre, si volviera).
+    await page.waitForTimeout(2500);
     await recover.click();
     const cancel = page.getByRole('button', { name: 'Cancelar' });
     await expect(cancel).toBeFocused();

@@ -1,5 +1,8 @@
 import { computed, Directive, ElementRef, inject, input, type OnDestroy } from '@angular/core';
 import {
+  accelerated,
+  CIRCULAR_SWEEP,
+  circularSteps,
   control,
   controlValue,
   gesture,
@@ -8,6 +11,7 @@ import {
   keyDown,
   keyUp,
   PX_PER_STEP,
+  wrapAngle,
   type ControlId,
   type GestureOutput,
   type GestureState,
@@ -18,13 +22,25 @@ import { SessionStore } from '../../state';
 
 /** El `click` que llega tras soltar el puntero, como mucho este tiempo después. */
 const CLICK_AFTER_POINTER_MS = 600;
+/** Lo que se puede acercar o alejar del centro de un dial un arrastre en círculo. */
+const CIRCLE_TOLERANCE = 0.3;
+
+/** Una dirección en la pantalla (x a la derecha, y hacia abajo). */
+export interface ScreenAxis {
+  readonly x: number;
+  readonly y: number;
+}
 
 /**
  * Un control del instrumento (PLAN §4.7, D10): el mismo elemento recibe el puntero, el táctil, el
- * teclado y el lector de pantalla. En las teclas (`button` nativo), pulsar es su `click` (también
- * con Intro, Espacio o el clic virtual de un lector) y mantener sale del puntero o de Mayús+Intro.
- * En los diales, el disco, el brazo y la rueda (`role="slider"`), los gestos van por la máquina de
- * `instrument/gestures` y el teclado por `instrument/keyboard`.
+ * teclado y el lector de pantalla, en el plato HTML y encima del 3D. En las teclas (`button`
+ * nativo), pulsar es su `click` (también con Intro, Espacio o el clic virtual de un lector) y
+ * mantener sale del puntero o de Mayús+Intro. En los diales, el disco, el brazo y la rueda
+ * (`role="slider"`), los gestos van por la máquina de `instrument/gestures` y el teclado por
+ * `instrument/keyboard`.
+ *
+ * Arrastrar deprisa mueve más (aceleración). Un dial también se gira en círculo: tras dar 45° de
+ * vuelta alrededor de su centro, el arrastre sigue al ángulo (270° son todo su recorrido).
  */
 @Directive({
   selector: '[trnControl]',
@@ -58,7 +74,12 @@ export class ControlDirective implements OnDestroy {
    * defecto, hacia arriba o hacia la derecha; el brazo y la rueda del plato redondo lo cambian para
    * seguir su recorrido.
    */
-  readonly trnAxis = input<{ readonly x: number; readonly y: number }>({ x: 1, y: -1 });
+  readonly trnAxis = input<ScreenAxis>({ x: 1, y: -1 });
+  /**
+   * Si está, el eje se pide al arrastrar (y manda sobre `trnAxis`): encima del 3D, el del brazo y el
+   * de la rueda dependen de la cámara, y cambian sin pasar por los signals.
+   */
+  readonly trnAxisSource = input<(() => ScreenAxis) | null>(null);
 
   private readonly store = inject(SessionStore);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -86,9 +107,21 @@ export class ControlDirective implements OnDestroy {
   /** Hasta cuándo el `click` que sigue a un gesto de puntero ya está atendido. */
   private suppressClickUntil = 0;
   private remainder = 0;
-  /** Disco: ángulo del puntero y vueltas desde que se agarró. */
+  /** Disco y diales: ángulo del puntero alrededor del centro; el disco, vueltas desde que se agarró. */
   private angle = 0;
   private turns = 0;
+  /**
+   * Diales: lo que ha girado el puntero alrededor del centro sin acercarse ni alejarse de él, a qué
+   * distancia empezó y si ya se sigue al ángulo.
+   */
+  private swept = 0;
+  private startDistance = 0;
+  private circular = false;
+  /** El último movimiento del puntero: su ángulo, su distancia al centro y su momento. */
+  private pointerAngle = 0;
+  private pointerDistance = 0;
+  private pointerTime = 0;
+  private lastTurnTime = 0;
 
   ngOnDestroy(): void {
     clearTimeout(this.holdTimer);
@@ -100,9 +133,14 @@ export class ControlDirective implements OnDestroy {
     this.element.nativeElement.setPointerCapture?.(event.pointerId);
     const spec = this.spec();
     this.remainder = 0;
+    this.swept = 0;
+    this.circular = false;
+    this.track(event);
+    this.angle = this.pointerAngle;
+    this.startDistance = this.pointerDistance;
+    this.lastTurnTime = event.timeStamp;
     this.feed({ type: 'down', time: event.timeStamp, x: event.clientX, y: event.clientY });
     if (spec.kind === 'disc') {
-      this.angle = this.angleOf(event);
       this.turns = 0;
     } else if (spec.gestures.includes('hold')) {
       clearTimeout(this.holdTimer);
@@ -116,13 +154,11 @@ export class ControlDirective implements OnDestroy {
 
   protected onPointerMove(event: PointerEvent): void {
     if (this.gestureState.phase === 'idle') return;
+    this.track(event);
     if (this.spec().kind === 'disc' && this.gestureState.phase === 'grabbed') {
       // El disco sigue al ángulo del puntero alrededor de su centro: una vuelta, un compás.
-      const angle = this.angleOf(event);
-      let delta = angle - this.angle;
-      if (delta > Math.PI) delta -= 2 * Math.PI;
-      if (delta < -Math.PI) delta += 2 * Math.PI;
-      this.angle = angle;
+      const delta = wrapAngle(this.pointerAngle - this.angle);
+      this.angle = this.pointerAngle;
       this.turns += delta / (2 * Math.PI);
       this.store.input({ type: 'drag', turns: this.turns });
       return;
@@ -243,9 +279,7 @@ export class ControlDirective implements OnDestroy {
         this.store.input({ type: 'hold', control: id });
         return;
       case 'turn': {
-        // Arrastrar en el sentido de su eje (hacia arriba o hacia la derecha) sube el valor.
-        const axis = this.trnAxis();
-        this.remainder += (output.dx * axis.x + output.dy * axis.y) / PX_PER_STEP;
+        this.remainder += this.turnSteps(output.dx, output.dy);
         const steps = Math.trunc(this.remainder);
         if (steps !== 0) {
           this.remainder -= steps;
@@ -264,12 +298,45 @@ export class ControlDirective implements OnDestroy {
     }
   }
 
-  private angleOf(event: PointerEvent): number {
+  /**
+   * Los pasos de un tramo de arrastre. En el sentido de su eje (hacia arriba o hacia la derecha, si
+   * no dice otro), con aceleración. En un dial que ya ha dado 45° de vuelta alrededor de su centro,
+   * los del ángulo que ha girado (a favor de las agujas del reloj, sube).
+   */
+  private turnSteps(dx: number, dy: number): number {
+    const spec = this.spec();
+    const elapsed = this.pointerTime - this.lastTurnTime;
+    this.lastTurnTime = this.pointerTime;
+    if (spec.kind === 'dial') {
+      const delta = wrapAngle(this.pointerAngle - this.angle);
+      this.angle = this.pointerAngle;
+      // En círculo, el puntero va alrededor del centro a la misma distancia (±30 %), y no muy cerca
+      // de él (ahí el ángulo salta con cualquier temblor). Un arrastre en vertical que empieza a un
+      // lado también gira alrededor del centro, pero se aleja de él: sigue en vertical.
+      const radius = this.element.nativeElement.getBoundingClientRect().width / 2;
+      const around =
+        this.startDistance > radius / 2 &&
+        Math.abs(this.pointerDistance - this.startDistance) <=
+          CIRCLE_TOLERANCE * this.startDistance;
+      this.swept = around ? this.swept + delta : 0;
+      if (!this.circular && Math.abs(this.swept) >= CIRCULAR_SWEEP) this.circular = true;
+      if (this.circular) {
+        const menu = spec.id === 'main' && this.store.state().menu.open;
+        return circularSteps(delta, spec.max - spec.min, menu);
+      }
+    }
+    const axis = this.trnAxisSource()?.() ?? this.trnAxis();
+    return accelerated(dx * axis.x + dy * axis.y, elapsed) / PX_PER_STEP;
+  }
+
+  /** El ángulo y la distancia del puntero al centro del control, y su momento. */
+  private track(event: PointerEvent): void {
     const box = this.element.nativeElement.getBoundingClientRect();
-    return Math.atan2(
-      event.clientY - (box.top + box.height / 2),
-      event.clientX - (box.left + box.width / 2),
-    );
+    const x = event.clientX - (box.left + box.width / 2);
+    const y = event.clientY - (box.top + box.height / 2);
+    this.pointerAngle = Math.atan2(y, x);
+    this.pointerDistance = Math.hypot(x, y);
+    this.pointerTime = event.timeStamp;
   }
 }
 
