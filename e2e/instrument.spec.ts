@@ -21,6 +21,40 @@ const WORKLET = /\/audio\/processor\.[A-Z0-9]+\.js$/;
 const GESTURE = /^(new|resume):(pointerup|click|keydown)$/;
 
 test.describe('instrumento HTML', () => {
+  test('«Pausar movimiento» también en el plato: el disco no gira, los medidores no se mueven y se recuerda', async ({
+    page,
+  }) => {
+    const driver = new InstrumentDriver(page);
+    await driver.open();
+    const pause = page.getByRole('button', { name: 'Pausar movimiento' });
+    await pause.click();
+    await expect(pause).toHaveAttribute('aria-pressed', 'true');
+    await driver.key('play', 'Enter');
+    await expect(driver.control('play')).toHaveAttribute('aria-pressed', 'true', {
+      timeout: 15_000,
+    });
+    await page.waitForTimeout(800);
+    const painted = () =>
+      page.evaluate(() => ({
+        turn: document
+          .querySelector<HTMLElement>('[data-control="disc"]')!
+          .style.getPropertyValue('--turn'),
+        levels: [...document.querySelectorAll<HTMLElement>('.meter__fill')].map((meter) =>
+          Number(meter.style.getPropertyValue('--level') || 0),
+        ),
+      }));
+    const before = await painted();
+    await page.waitForTimeout(1500);
+    expect(await painted()).toEqual(before);
+    expect(before.levels.every((level) => level === 0)).toBe(true);
+    // Es una preferencia: al volver, sigue puesta.
+    await driver.open();
+    await expect(page.getByRole('button', { name: 'Pausar movimiento' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
   test('antes del gesto, ni contexto ni sonido: solo se prepara en silencio', async ({ page }) => {
     const workers: string[] = [];
     page.on('worker', (worker) => workers.push(worker.url()));

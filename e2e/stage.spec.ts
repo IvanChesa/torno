@@ -220,6 +220,19 @@ async function drag(page: Page, target: Locator, dx: number, dy: number): Promis
   await page.mouse.up();
 }
 
+/** Mantiene pulsado un control con el ratón (más que los 500 ms de «mantener»). */
+async function hold(page: Page, target: Locator): Promise<void> {
+  const box = (await target.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(700);
+  await page.mouse.up();
+}
+
+/** Lo que la página se sale a lo ancho (0: nada). */
+const overflowX = (page: Page) =>
+  page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+
 /** Reproduce desde la tecla del 3D (la primera vez, ALFAR en la capa 1) y espera a que suene. */
 async function play(page: Page, how: 'click' | 'tap' = 'click'): Promise<void> {
   const key = zone(page, 'play');
@@ -306,9 +319,21 @@ test.describe('el instrumento 3D: ratón y teclado', () => {
     await expect(disc).toHaveAttribute('aria-valuetext', /Congelado/);
     await page.mouse.up();
     await expect(disc).not.toHaveAttribute('aria-valuetext', /Congelado/);
-    // Pausar y, con el reposo, parar el audio (y volver de él).
+    // Pausar. En pausa (sin pintar seguido: los clics no se confunden con «mantener»), deshacer
+    // vacía la capa 1 y mantener deshacer la rehace.
     await zone(page, 'play').click();
     await expect(zone(page, 'play')).toHaveAttribute('aria-pressed', 'false');
+    const screen = page.locator('trn-instrument-screen');
+    await zone(page, 'undo').click();
+    await expect(screen).toContainText('CAPA 1 · VACÍA');
+    await hold(page, zone(page, 'undo'));
+    await expect(screen).toContainText('CAPA 1 · BATERÍA');
+    // Mantener reproducir, sonando: para y vuelve al principio.
+    await zone(page, 'play').click();
+    await expect(zone(page, 'play')).toHaveAttribute('aria-pressed', 'true');
+    await hold(page, zone(page, 'play'));
+    await expect(zone(page, 'play')).toHaveAttribute('aria-pressed', 'false');
+    // Con el reposo, parar el audio (y volver de él).
     await zone(page, 'standby').click();
     await expect(zone(page, 'standby')).toHaveAttribute('aria-pressed', 'true');
     await zone(page, 'standby').click();
@@ -379,6 +404,24 @@ test.describe('el instrumento 3D: ratón y teclado', () => {
     await expect(zone(page, 'standby')).toHaveAttribute('aria-pressed', 'true');
   });
 
+  test('grabar una toma con el micrófono desde la tecla del 3D', async ({ page }) => {
+    test.setTimeout(120_000);
+    await openInstrument(page);
+    // Con la pausa de movimiento, el 3D no pinta seguido en la cuenta ni en la toma: los clics no se
+    // confunden con «mantener» (que cancelaría la toma) con el WebGL por software.
+    await page.getByRole('button', { name: 'Pausar movimiento' }).click();
+    const screen = page.locator('trn-instrument-screen');
+    // La capa 2 (vacía), grabar (cuenta previa y toma libre) y grabar otra vez para cerrarla.
+    await zone(page, 'layer-1').click();
+    await expect(screen).toContainText('CAPA 2');
+    await zone(page, 'record').click();
+    await expect(screen).toContainText('GRABANDO', { timeout: 30_000 });
+    await page.waitForTimeout(1000);
+    await zone(page, 'record').click();
+    await expect(screen).toContainText('CAPA 2 · GRABACIÓN', { timeout: 20_000 });
+    await expect(zone(page, 'record')).toHaveAttribute('aria-pressed', 'false');
+  });
+
   test('el anillo de luz del 3D sigue al foco del teclado y al puntero', async ({
     page,
   }, testInfo) => {
@@ -406,8 +449,19 @@ test.describe('el instrumento 3D: ratón y teclado', () => {
     await openInstrument(page);
     const layer = async () => (await zone(page, 'layer-0').boundingBox())!.width;
     const before = await layer();
+    // Ningún encuadre ensancha la página: lo que se sale del lienzo se recorta.
+    for (const [name, camera] of [
+      ['Controles', 'controles'],
+      ['Inspeccionar', 'inspeccionar'],
+      ['Completo', 'completo'],
+    ] as const) {
+      await page.getByRole('button', { name }).click();
+      await expect(stage(page)).toHaveAttribute('data-camara', camera);
+      await expect.poll(() => overflowX(page)).toBe(0);
+    }
     await page.getByRole('button', { name: 'Capas' }).click();
     await expect(stage(page)).toHaveAttribute('data-camara', 'capas');
+    await expect.poll(() => overflowX(page)).toBe(0);
     // De cerca, los diales de las capas se ven (y se tocan) más grandes.
     await expect.poll(layer).toBeGreaterThan(before * 1.3);
     await page.getByRole('button', { name: 'Inspeccionar' }).click();
@@ -573,6 +627,21 @@ test.describe('el instrumento 3D en el móvil', () => {
     expect(pairs).toEqual([]);
   });
 
+  test('en el móvil, ningún encuadre ensancha la página', async ({ page }) => {
+    test.setTimeout(90_000);
+    await openInstrument(page);
+    for (const [name, camera] of [
+      ['Capas', 'capas'],
+      ['Controles', 'controles'],
+      ['Inspeccionar', 'inspeccionar'],
+      ['Completo', 'completo'],
+    ] as const) {
+      await page.getByRole('button', { name }).click();
+      await expect(stage(page)).toHaveAttribute('data-camara', camera);
+      await expect.poll(() => overflowX(page)).toBe(0);
+    }
+  });
+
   test('con el dedo: tocar y arrastrar los controles; fuera de ellos, la página se desplaza', async ({
     page,
   }) => {
@@ -598,6 +667,14 @@ test.describe('el instrumento 3D en el móvil', () => {
     await swipe(dial.x + dial.width / 2, dial.y + dial.height / 2, 0, 50);
     await expect.poll(() => numberOf(zone(page, 'layer-1'), 'aria-valuenow')).toBeLessThan(100);
     expect(await scroll()).toBe(before);
+    // Mantener una capa con el dedo la silencia (sin abrir la selección de texto).
+    const layer = (await zone(page, 'layer-0').boundingBox())!;
+    const point = { x: layer.x + layer.width / 2, y: layer.y + layer.height / 2 };
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+    await page.waitForTimeout(700);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect(zone(page, 'layer-0')).toHaveAttribute('aria-valuetext', /en silencio/);
+    expect(await page.evaluate(() => getSelection()?.toString() ?? '')).toBe('');
     await play(page, 'tap');
     // Fuera de los controles (la esquina de abajo a la izquierda del lienzo), la página se desplaza.
     const box = (await stage(page).boundingBox())!;
