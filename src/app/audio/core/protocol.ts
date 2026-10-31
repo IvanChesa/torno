@@ -158,6 +158,8 @@ export interface LayerStatus {
   undo: number;
   redo: number;
   discHeld: boolean;
+  /** Sube cada vez que cambia el sonido de la capa (la pantalla rehace su forma de onda). */
+  contentVersion: number;
 }
 
 export interface CoreStatus extends Versioned {

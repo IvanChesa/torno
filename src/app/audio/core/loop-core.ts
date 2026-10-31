@@ -1340,6 +1340,7 @@ function emptyLayerStatus(): LayerStatus {
     undo: 0,
     redo: 0,
     discHeld: false,
+    contentVersion: 0,
   };
 }
 

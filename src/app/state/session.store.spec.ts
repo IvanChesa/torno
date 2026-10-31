@@ -146,6 +146,7 @@ function layer(change: Partial<LayerStatus> = {}): LayerStatus {
     undo: 0,
     redo: 0,
     discHeld: false,
+    contentVersion: 0,
     ...change,
   };
 }
