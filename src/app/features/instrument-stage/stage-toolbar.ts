@@ -1,21 +1,20 @@
-import { Component, inject, input, output } from '@angular/core';
-import { MotionPreference } from '../../core/motion';
+import { Component, ElementRef, inject, input, output } from '@angular/core';
 import { SHOTS, type CameraGoal, type Shot } from '../../scene';
-import { SessionStore } from '../../state';
+import { InstrumentTools } from '../instrument-common/instrument-tools';
 import { INSTRUMENT_STAGE_CONTENT } from './instrument-stage.content';
 
 /**
  * La barra del escenario 3D (PLAN fase 6):
  * - los encuadres de «Tocar» (completo, capas y controles) e «Inspeccionar»;
  * - la pantalla completa (si el navegador la tiene: en el iPhone no);
- * - «Pausar movimiento»;
- * - la chuleta de atajos.
+ * - «Pausar movimiento» y la chuleta de atajos (`InstrumentTools`, como en el plato HTML).
  *
  * Son botones con `aria-pressed`. Llevan `data-sin-atajos`: dentro del instrumento, Espacio e
  * Intro los pulsan a ellos y no reproducen.
  */
 @Component({
   selector: 'trn-stage-toolbar',
+  imports: [InstrumentTools],
   host: { 'data-sin-atajos': '' },
   template: `
     <div class="bar">
@@ -23,7 +22,7 @@ import { INSTRUMENT_STAGE_CONTENT } from './instrument-stage.content';
         @for (item of shots; track item) {
           <button
             type="button"
-            class="tool"
+            class="toggle"
             [attr.aria-pressed]="isShot(item)"
             (click)="shotChange.emit(item)"
           >
@@ -33,7 +32,7 @@ import { INSTRUMENT_STAGE_CONTENT } from './instrument-stage.content';
       </div>
       <button
         type="button"
-        class="tool"
+        class="toggle"
         [attr.aria-pressed]="camera().kind === 'orbit'"
         (click)="inspect.emit()"
       >
@@ -42,44 +41,25 @@ import { INSTRUMENT_STAGE_CONTENT } from './instrument-stage.content';
       @if (fullscreenAvailable()) {
         <button
           type="button"
-          class="tool"
+          class="toggle"
           [attr.aria-pressed]="fullscreen()"
           (click)="fullscreenChange.emit()"
         >
           {{ text.fullscreen }}
         </button>
       }
-      <button
-        type="button"
-        class="tool"
-        [attr.aria-pressed]="motion.paused()"
-        [attr.aria-describedby]="motion.reduced() ? 'trn-movimiento-sistema' : null"
-        (click)="motion.toggle()"
-      >
-        {{ text.pauseMotion }}
-      </button>
-      <button
-        type="button"
-        class="tool"
-        [attr.aria-pressed]="store.state().help"
-        (click)="toggleHelp()"
-      >
-        {{ text.shortcuts }}
-      </button>
+      <div class="tools"><trn-instrument-tools /></div>
     </div>
-    @if (motion.reduced()) {
-      <p id="trn-movimiento-sistema" class="note">{{ text.reducedBySystem }}</p>
-    }
   `,
   styles: `
     :host {
       display: grid;
       justify-items: center;
-      gap: var(--space-2);
     }
 
     .bar,
-    .group {
+    .group,
+    .tools {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
@@ -91,48 +71,22 @@ import { INSTRUMENT_STAGE_CONTENT } from './instrument-stage.content';
       border-inline-end: 1px solid var(--color-ink-faint);
     }
 
-    .tool {
-      min-block-size: var(--target-min);
-      padding-inline: var(--space-3);
-      border: 1px solid var(--color-ink-faint);
-      border-radius: var(--radius-s);
-      background: transparent;
-      color: var(--color-ink);
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      cursor: pointer;
-    }
-
-    .tool[aria-pressed='true'] {
-      border-color: var(--color-ink);
-      background: var(--color-ink);
-      color: var(--color-bg);
-    }
-
-    .note {
-      margin: 0;
-      color: var(--color-ink-muted);
-      font-size: var(--text-xs);
-    }
-
-    /* En el móvil, más apretada: los encuadres en una fila y lo demás debajo. */
+    /* En el móvil, más apretada. */
     @media (max-width: 47.99rem) {
       .bar {
         gap: var(--space-1);
       }
 
-      .group {
+      /* Tres filas, con o sin la pantalla completa: los encuadres, «Inspeccionar» y lo común. */
+      .group,
+      .tools {
         flex-basis: 100%;
         padding-inline-end: 0;
         border-inline-end: 0;
       }
 
-      .tool {
-        padding-inline: var(--space-2);
-        font-size: 0.75rem;
-        letter-spacing: 0;
+      .tools {
+        gap: var(--space-1);
       }
     }
   `,
@@ -147,15 +101,15 @@ export class StageToolbar {
 
   protected readonly text = INSTRUMENT_STAGE_CONTENT;
   protected readonly shots = SHOTS;
-  protected readonly motion = inject(MotionPreference);
-  protected readonly store = inject(SessionStore);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  /** El foco, al botón del encuadre que está puesto (cuando el control enfocado deja de verse). */
+  focusCurrent(): void {
+    this.host.nativeElement.querySelector<HTMLElement>('.group [aria-pressed="true"]')?.focus();
+  }
 
   protected isShot(shot: Shot): boolean {
     const camera = this.camera();
     return camera.kind === 'shot' && camera.shot === shot;
-  }
-
-  protected toggleHelp(): void {
-    this.store.input({ type: 'toggle-help' });
   }
 }

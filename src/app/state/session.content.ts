@@ -101,6 +101,8 @@ export const SESSION_CONTENT = {
     question: (date: string) => `Hay una sesión autoguardada en este navegador (${date}).`,
     pendingQuestion: (date: string) =>
       `También se guardó lo que tocaste después sin contestar a esto (${date}).`,
+    /** Con los dos huecos ofrecidos, lo nuevo no se autoguarda hasta contestar. */
+    waitNote: 'Lo que toques ahora no se guardará hasta que elijas una de las dos.',
     recover: 'Recuperar la sesión anterior',
     recoverPending: 'Recuperar lo que tocaste después',
     discard: 'Empezar de cero',

@@ -53,14 +53,14 @@ import { STAGE_POSTER } from './stage-poster';
       aspect-ratio: 5 / 4;
     }
 
-    /* La barra: una fila de botones; en el móvil, dos. */
+    /* La barra: una fila de botones; en el móvil, tres (como StageToolbar). */
     .bar {
       block-size: var(--target-min);
     }
 
     @media (max-width: 47.99rem) {
       .bar {
-        block-size: calc(2 * var(--target-min) + var(--space-2));
+        block-size: calc(3 * var(--target-min) + 2 * var(--space-1));
       }
 
       .box {

@@ -17,6 +17,8 @@ export interface MotionStatus {
   readonly bpm: number;
   readonly transport: string;
   readonly recording: string;
+  /** Pulsos que faltan para que empiece a grabar (con el transporte parado, la cuenta va aparte). */
+  readonly countInBeats: number;
   readonly layers: readonly {
     readonly hasContent: boolean;
     readonly lengthBeats: number;
@@ -121,7 +123,13 @@ export class InstrumentMotion {
       return (wrapped < 0 ? wrapped + layer.lengthBeats : wrapped) / layer.lengthBeats;
     });
     const countIn = status?.recording === 'count-in';
-    const phase = beat - Math.floor(beat);
+    let phase = beat - Math.floor(beat);
+    if (countIn && status && !playing) {
+      // Con el transporte parado (la primera toma), el núcleo cuenta con un temporizador y el pulso
+      // del transporte no se mueve: la fase sale de los pulsos que faltan.
+      const remaining = status.countInBeats - ((time - this.#at) * status.bpm) / 60_000;
+      phase = (((1 - (remaining % 1)) % 1) + 1) % 1;
+    }
     const recordFlash = countIn && phase < FLASH_BEATS ? 1 - phase / FLASH_BEATS : 0;
     return { disc: this.#disc, levels, heads, recordFlash };
   }

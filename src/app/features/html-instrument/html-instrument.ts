@@ -24,6 +24,7 @@ import { SessionStore } from '../../state';
 import { ControlDirective } from '../instrument-common/control.directive';
 import { InstrumentScreen } from '../instrument-common/instrument-screen';
 import { controlHintId, InstrumentShell } from '../instrument-common/instrument-shell';
+import { InstrumentTools } from '../instrument-common/instrument-tools';
 import { HTML_INSTRUMENT_CONTENT } from './html-instrument.content';
 import { InstrumentTracks } from './instrument-tracks';
 
@@ -51,7 +52,7 @@ function labelText(id: PlateLabelId): string {
  */
 @Component({
   selector: 'trn-html-instrument',
-  imports: [ControlDirective, InstrumentScreen, InstrumentShell, InstrumentTracks],
+  imports: [ControlDirective, InstrumentScreen, InstrumentShell, InstrumentTools, InstrumentTracks],
   templateUrl: './html-instrument.html',
   styleUrl: './html-instrument.css',
 })
@@ -97,6 +98,13 @@ export class HtmlInstrument {
         this.paint();
       }
     });
+    // Con la pausa de movimiento, el disco agarrado sigue a la mano (no es movimiento automático):
+    // se repinta con cada estado del audio (≤ 10/s), sin bucle.
+    effect(() => {
+      this.store.audio();
+      const held = this.store.state().discHeld;
+      if (this.rendered && held && this.motion.still()) this.paint();
+    });
     destroyRef.onDestroy(() => cancelAnimationFrame(this.frame));
   }
 
@@ -125,8 +133,9 @@ export class HtmlInstrument {
       const level = rms > 0 ? Math.min(1, Math.max(0, 1 + (20 * Math.log10(rms)) / 48)) : 0;
       meter.nativeElement.style.setProperty('--level', level.toFixed(3));
     });
-    if (still || !status) return;
+    if (!status) return;
     const state = this.store.state();
+    if (still && !state.discHeld) return;
     const beat = state.discHeld ? (status.layers[state.selected]?.positionBeats ?? 0) : status.beat;
     this.disc().nativeElement.style.setProperty('--turn', ((beat / BEATS_PER_TURN) % 1).toFixed(4));
   }

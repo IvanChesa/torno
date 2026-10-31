@@ -29,4 +29,9 @@ export const INSTRUMENT_COMMON_CONTENT = {
     clear: 'Borrar autoguardado',
   },
   fileInputLabel: 'Abrir una sesión de Torno',
+  tools: {
+    pauseMotion: 'Pausar movimiento',
+    reducedBySystem: 'Tu sistema ya pide menos movimiento: nada se mueve solo.',
+    shortcuts: 'Atajos',
+  },
 } as const;

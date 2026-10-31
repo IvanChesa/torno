@@ -20,6 +20,7 @@ function status(change: Partial<MotionStatus> = {}): MotionStatus {
     bpm: 90,
     transport: 'playing',
     recording: 'idle',
+    countInBeats: 0,
     layers: Array.from({ length: LAYER_COUNT }, () => layer()),
     ...change,
   };
@@ -130,6 +131,17 @@ describe('el movimiento con el audio', () => {
     expect(motion.frame(500, null).recordFlash).toBe(0);
     motion.update(status({ beat: 3, bpm: 60 }), 600);
     expect(motion.frame(600, null).recordFlash).toBe(0);
+  });
+
+  it('también con el transporte parado (la primera toma): la cuenta va por los pulsos que faltan', () => {
+    const motion = new InstrumentMotion();
+    const counting = { transport: 'stopped', recording: 'count-in', bpm: 60, beat: 0 } as const;
+    motion.update(status({ ...counting, countInBeats: 4 }), 0);
+    expect(motion.frame(0, null).recordFlash).toBe(1);
+    expect(motion.frame(100, null).recordFlash).toBeCloseTo(0.6, 6);
+    expect(motion.frame(500, null).recordFlash).toBe(0);
+    // Un pulso después, otro destello.
+    expect(motion.frame(1000, null).recordFlash).toBeCloseTo(1, 6);
   });
 
   it('el disco va con lo que suena: un estado que sale por el altavoz dentro de 50 ms', () => {

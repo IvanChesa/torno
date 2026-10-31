@@ -14,7 +14,7 @@ import {
   type Material,
   type WebGLProgramParametersWithUniforms,
 } from 'three';
-import { LAYER_COUNT, SCREEN, TRAY, type DisplayModel } from '../../instrument';
+import { LAYER_COUNT, menuWindow, SCREEN, TRAY, type DisplayModel } from '../../instrument';
 import { rad } from '../model/geometry';
 import type { Waveform } from '../options';
 import { PALETTE } from './palette';
@@ -101,25 +101,16 @@ export function screenText(display: DisplayModel): ScreenText {
         ],
         lanes: true,
       };
-    case 'menu': {
-      const menu = display.rows;
-      const selected = Math.max(
-        0,
-        menu.findIndex((item) => item.selected),
-      );
-      const start = Math.min(selected, Math.max(0, menu.length - VISIBLE_MENU_ROWS));
+    case 'menu':
       return {
         rows: [
           row(display.title, display.status, 0.62, false, true),
-          ...menu
-            .slice(start, start + VISIBLE_MENU_ROWS)
-            .map((item) =>
-              row(item.label, item.editing ? `‹ ${item.value} ›` : item.value, 1, item.selected),
-            ),
+          ...menuWindow(display.rows, VISIBLE_MENU_ROWS).map((item) =>
+            row(item.label, item.editing ? `‹ ${item.value} ›` : item.value, 1, item.selected),
+          ),
         ],
         lanes: false,
       };
-    }
     case 'confirm':
       return {
         rows: [

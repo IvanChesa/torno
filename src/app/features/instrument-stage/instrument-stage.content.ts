@@ -20,7 +20,4 @@ export const INSTRUMENT_STAGE_CONTENT = {
     },
   },
   fullscreen: 'Pantalla completa',
-  pauseMotion: 'Pausar movimiento',
-  reducedBySystem: 'Tu sistema ya pide menos movimiento: nada se mueve solo.',
-  shortcuts: 'Atajos',
 } as const;

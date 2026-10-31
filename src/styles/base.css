@@ -174,6 +174,38 @@ kbd {
   background: var(--color-accent-hover);
 }
 
+/*
+ * Los botones de las barras de los instrumentos (encuadres, «Pausar movimiento», «Atajos»): letra
+ * de pantalla y, pulsados (`aria-pressed`), en negativo. Nunca menos de 44 px de alto.
+ */
+.toggle {
+  min-block-size: var(--target-min);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--color-ink-faint);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.toggle[aria-pressed='true'] {
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-bg);
+}
+
+@media (max-width: 47.99rem) {
+  .toggle {
+    padding-inline: var(--space-2);
+    font-size: 0.75rem;
+    letter-spacing: 0;
+  }
+}
+
 .button:active {
   transform: scale(0.97);
 }

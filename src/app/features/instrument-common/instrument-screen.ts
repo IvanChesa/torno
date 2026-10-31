@@ -1,5 +1,5 @@
 import { Component, computed, input } from '@angular/core';
-import type { DisplayModel } from '../../instrument';
+import { menuWindow, type DisplayModel } from '../../instrument';
 
 /** Filas del menú que caben en la pantalla a la vez (las de alrededor del cursor). */
 const VISIBLE_ROWS = 4;
@@ -121,16 +121,8 @@ export class InstrumentScreen {
   protected readonly lines = computed(() => this.display().lines.map(keepSeparator));
   protected readonly status = computed(() => keepSeparator(this.display().status));
 
-  /** Las filas visibles: una ventana alrededor de la elegida. */
-  protected readonly rows = computed(() => {
-    const rows = this.display().rows;
-    const visible = this.compact() ? COMPACT_ROWS : VISIBLE_ROWS;
-    if (rows.length <= visible) return rows;
-    const selected = Math.max(
-      0,
-      rows.findIndex((row) => row.selected),
-    );
-    const start = Math.min(Math.max(0, selected - 1), rows.length - visible);
-    return rows.slice(start, start + visible);
-  });
+  /** Las filas visibles: una ventana alrededor de la elegida (la misma que la del 3D). */
+  protected readonly rows = computed(() =>
+    menuWindow(this.display().rows, this.compact() ? COMPACT_ROWS : VISIBLE_ROWS),
+  );
 }

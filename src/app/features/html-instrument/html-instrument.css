@@ -70,6 +70,14 @@
   translate: -50% 0;
 }
 
+/* «Pausar movimiento» y los atajos, debajo del plato. */
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
 /* En el escritorio, los rótulos van alrededor; la leyenda, solo en el móvil. */
 .legend {
   display: none;

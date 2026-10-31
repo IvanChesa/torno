@@ -229,6 +229,24 @@ function confirmQuestion(action: NonNullable<InstrumentState['menu']['confirm']>
   }
 }
 
+/**
+ * Las filas del menú que caben a la vez (`size`) alrededor de la elegida: la elegida, con la de
+ * antes si caben más de dos, y las siguientes; al final de la lista, las últimas. La misma ventana
+ * en la pantalla del 3D, en su espejo y en el plato HTML.
+ */
+export function menuWindow<T extends { readonly selected: boolean }>(
+  rows: readonly T[],
+  size: number,
+): readonly T[] {
+  if (rows.length <= size) return rows;
+  const selected = Math.max(
+    0,
+    rows.findIndex((row) => row.selected),
+  );
+  const start = Math.min(Math.max(0, selected - Math.floor((size - 1) / 2)), rows.length - size);
+  return rows.slice(start, start + size);
+}
+
 /** «CAPA 2 · VACÍA» → «Capa 2, vacía.»: las líneas de pantalla, en frases para leer en voz. */
 export function sentences(parts: readonly string[]): string {
   return parts

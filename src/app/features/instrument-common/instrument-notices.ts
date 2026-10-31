@@ -58,6 +58,7 @@ import { INSTRUMENT_COMMON_CONTENT } from './instrument-common.content';
           <p>{{ recoveryText.question(dates.main) }}</p>
           @if (dates.pending; as pending) {
             <p>{{ recoveryText.pendingQuestion(pending) }}</p>
+            <p>{{ recoveryText.waitNote }}</p>
           }
           <div class="actions">
             <button type="button" class="button" data-audio-unlock (click)="store.recover()">
