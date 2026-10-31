@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-6-interaccion`
 - **Fecha:** 2026-10-31
-- **Estado:** en curso. Solo está el plan (§0); no hay código. La sesión se cortó por el límite de uso al terminar el plan. Al retomarla, se empieza por la entrega 6.a.
+- **Estado:** en curso. Entrega 6.a hecha (`f70779a`); sigue la 6.b. La revisión parcial del bloque C (`docs/revisiones/bloque-C.md`) añade a la fase la pantalla legible (hallazgo 1) y la carrera del autoguardado.
 
 ## 0. Plan de la fase
 
@@ -101,6 +101,19 @@
 
 ## 1. Resumen
 (en curso)
+
+### Progreso por entregas
+- **6.a · Motor 3D** (`f70779a`):
+  - encuadres de «Tocar» (completo, capas y controles), con su versión del móvil (lienzo 1:1, cámara más alta; el completo apura el aparato sin su sombra, con un margen del 2 %);
+  - órbita de «Inspeccionar» (acimut ±150°, elevación de 10° a 85°, a distancia fija) y viaje de 650 ms entre encuadres;
+  - `project()`, con la caja de la cara que se toca y el eje del arrastre de cada control. En la órbita, un rayo dice qué controles tapa otra pieza (10 veces por segundo como mucho);
+  - el anillo de luz del foco, el movimiento ligado al audio (`setMotionSource`: en el mismo fotograma, 0 fps sin fuente) y la pantalla nueva.
+  - Las piezas comparten `engine.ts`, así que van en un solo commit; desde aquí, un commit por pieza.
+  - Tests en Node (57 de la escena): las zonas de 44 px no se pisan en 360×360, 390×390 ni en el escritorio de 900×720; los encuadres caen dentro del lienzo; la bandeja tapa el reposo visto desde el fondo.
+- **Pantalla (revisión del bloque C, hallazgo 1).** Ocupa todo el ancho: arriba, la capa elegida en grande y, debajo, el tempo y el estado; abajo, un carril por capa con su forma de onda y su medidor.
+  - Medido (`screenFontPx`, el alto de la pantalla proyectado por el cuerpo de la fila): 10,2 px de cuerpo en la portada de 1440×900, frente a unos 5 px antes.
+  - El móvil se mide con el encuadre 1:1 de la 6.b.
+  - Los cabezales y los medidores los pinta el *shader* con *uniforms*: la textura de 1664×256 solo se sube cuando cambia el texto o una forma de onda.
 
 ## 2. Criterios de aceptación
 | Criterio | ✅/❌ | Evidencia |
