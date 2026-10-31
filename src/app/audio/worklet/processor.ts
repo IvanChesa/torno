@@ -64,6 +64,8 @@ class TornoProcessor extends AudioWorkletProcessor {
     }
     if (core.statusReady) {
       core.statusReady = false;
+      // El estado cuenta lo que hay al final de este bloque: su muestra del contexto.
+      core.status.contextFrame = currentFrame + (left?.length ?? 128);
       this.port.postMessage(core.status);
     }
     if (this.#copyHead < this.#copies.length) {

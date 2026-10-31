@@ -436,11 +436,6 @@ export class InstrumentStage {
       const engine = this.engine();
       if (!engine || this.capture) return;
       if (this.moving()) {
-        untracked(() => {
-          // El disco va con lo que suena: lo que tarda en salir por el altavoz, de retraso.
-          const audio = this.store.diagnostics();
-          this.motionClock.setLatency((audio?.baseLatencyMs ?? 0) + (audio?.outputLatencyMs ?? 0));
-        });
         engine.setMotionSource(this.motionSource);
       } else {
         engine.setMotionSource(null);

@@ -57,6 +57,9 @@ class FakeEngine {
   send(command: unknown): void {
     this.#log('send', command);
   }
+  heardAt(): number {
+    return performance.now();
+  }
   async record(options: unknown): Promise<void> {
     this.#log('record', options);
   }
@@ -153,10 +156,11 @@ function layer(change: Partial<LayerStatus> = {}): LayerStatus {
 
 function status(change: Partial<CoreStatus> = {}, notices: Notice[] = []): CoreStatus {
   return {
-    v: 3,
+    v: 4,
     type: 'status',
     frame: 0,
     beat: 0,
+    contextFrame: 0,
     bpm: 90,
     transport: 'stopped',
     recording: 'idle',

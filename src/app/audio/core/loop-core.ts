@@ -1354,6 +1354,7 @@ function createStatus(): CoreStatus {
     type: 'status',
     frame: 0,
     beat: 0,
+    contextFrame: 0,
     bpm: DEFAULT_BPM,
     transport: 'stopped',
     recording: 'idle',

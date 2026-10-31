@@ -1,9 +1,10 @@
 /**
  * Lo que se mueve con el audio en cada fotograma (PLAN §4.6 y fase 6, «Sincronía»): el disco a una
  * vuelta por compás, el nivel de cada capa, por dónde va cada una y el destello del piloto de grabar
- * en la cuenta previa. Lo calcula a partir del último estado del audio, que llega como mucho 30
- * veces por segundo, y del momento en que llegó: entre dos estados, el pulso avanza con el tempo, y
- * con cada estado nuevo se vuelve a anclar en el del núcleo. Un solo reloj, el de muestras del
+ * en la cuenta previa. Lo calcula a partir del último estado del audio (llega como mucho 30 veces
+ * por segundo) y del momento en que suena por el altavoz (`AudioEngine.heardAt`, del reloj del
+ * contexto: no depende de cuándo llegó el mensaje). Entre dos estados, el pulso avanza con el tempo,
+ * y con cada estado nuevo se vuelve a anclar en el del núcleo. Un solo reloj, el de muestras del
  * worklet: esto solo lo lee (CLAUDE.md, «Hilo de audio»).
  *
  * Sin DOM ni audio: se prueba en Node.
@@ -54,10 +55,8 @@ export function meterLevel(rms: number): number {
 
 export class InstrumentMotion {
   #status: MotionStatus | null = null;
-  /** Cuándo llegó el estado (reloj de `performance.now()`). */
+  /** Cuándo suena el estado (reloj de `performance.now()`); puede ser dentro de unos ms. */
   #at = 0;
-  /** Lo que tarda en oírse lo que sale del núcleo, en ms: el disco va con lo que suena. */
-  #latencyMs = 0;
   #shownBeat = 0;
   #levels = new Array<number>(LAYER_COUNT).fill(0);
   #lastTime = -1;
@@ -65,25 +64,22 @@ export class InstrumentMotion {
   #heldBase: number | null = null;
   #disc = 0;
 
-  /** El último estado del audio, que llegó en `at`. */
+  /** El último estado del audio, que suena por el altavoz en `at`. */
   update(status: MotionStatus, at: number): void {
     if (status === this.#status) return;
     this.#status = status;
     this.#at = at;
   }
 
-  /** Lo que tarda en oírse lo que sale del núcleo (la latencia de salida), en ms. */
-  setLatency(ms: number): void {
-    this.#latencyMs = Number.isFinite(ms) && ms > 0 ? ms : 0;
-  }
-
-  /** El pulso del transporte en `time` (reloj de `performance.now()`), sin retroceder por retrasos. */
+  /**
+   * El pulso que suena en `time` (reloj de `performance.now()`), sin retroceder por retrasos. Antes
+   * de `at` (lo que aún no ha salido por el altavoz), un poco antes del pulso del estado.
+   */
   beat(time: number): number {
     const status = this.#status;
     if (!status) return 0;
     const playing = status.transport === 'playing';
-    const elapsed = Math.max(0, time - this.#at - this.#latencyMs);
-    const target = playing ? status.beat + (elapsed * status.bpm) / 60_000 : status.beat;
+    const target = playing ? status.beat + ((time - this.#at) * status.bpm) / 60_000 : status.beat;
     const back = this.#shownBeat - target;
     // Un estado que llega un poco tarde dejaría el disco atrás: se queda donde está hasta que el
     // tempo lo alcanza. Un salto (parar, cargar una sesión) sí se ve.

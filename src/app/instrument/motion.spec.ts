@@ -132,10 +132,10 @@ describe('el movimiento con el audio', () => {
     expect(motion.frame(600, null).recordFlash).toBe(0);
   });
 
-  it('con la latencia de salida, el disco va con lo que suena (un poco por detrás del núcleo)', () => {
+  it('el disco va con lo que suena: un estado que sale por el altavoz dentro de 50 ms', () => {
     const motion = new InstrumentMotion();
-    motion.setLatency(50);
-    motion.update(status({ beat: 0, bpm: 60 }), 0);
-    expect(motion.frame(1000, null).disc).toBeCloseTo(0.95 / BEATS_PER_TURN, 10);
+    motion.update(status({ beat: 1, bpm: 60 }), 50);
+    expect(motion.frame(0, null).disc).toBeCloseTo(0.95 / BEATS_PER_TURN, 10);
+    expect(motion.frame(1050, null).disc).toBeCloseTo(2 / BEATS_PER_TURN, 10);
   });
 });

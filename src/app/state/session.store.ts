@@ -212,7 +212,10 @@ export class SessionStore {
   #engine: AudioEngine | null = null;
   #starting: Promise<AudioEngine | null> | null = null;
   #latest: CoreStatus | null = null;
-  /** Cuándo llegó `#latest` (reloj de `performance.now()`): el disco extrapola desde ahí. */
+  /**
+   * Cuándo suena por el altavoz lo que cuenta `#latest` (reloj de `performance.now()`): el disco
+   * extrapola desde ahí.
+   */
   #latestAt = 0;
   #statusTimer: ReturnType<typeof setTimeout> | undefined;
   /** Las versiones del sonido de las capas de las últimas formas de onda pedidas. */
@@ -253,7 +256,7 @@ export class SessionStore {
     return this.#latest;
   }
 
-  /** Cuándo llegó el último estado del audio (reloj de `performance.now()`). */
+  /** Cuándo suena el último estado del audio (reloj de `performance.now()`). */
   get latestStatusAt(): number {
     return this.#latestAt;
   }
@@ -711,7 +714,7 @@ export class SessionStore {
         return;
       case 'status':
         this.#latest = event.status;
-        this.#latestAt = performance.now();
+        this.#latestAt = this.#engine?.heardAt(event.status) ?? performance.now();
         for (let i = 0; i < event.status.noticeCount; i++) this.#onNotice(event.status.notices[i]!);
         this.#scheduleStatus();
         return;

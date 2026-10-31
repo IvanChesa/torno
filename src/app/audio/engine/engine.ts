@@ -266,6 +266,26 @@ export class AudioEngine {
     return { samples: this.#analyserData, sampleRate: context.sampleRate, end };
   }
 
+  /**
+   * Cuándo sale por el altavoz el final del bloque de un estado del núcleo (reloj de
+   * `performance.now()`): el disco del 3D va con lo que suena, y no depende de cuándo llegó el
+   * mensaje (con el hilo principal ocupado, puede tardar). `getOutputTimestamp` dice a qué hora sale
+   * un instante del contexto. Sin esa marca, la hora de ahora corregida con lo que el contexto ya ha
+   * avanzado desde el estado, más la latencia de salida.
+   */
+  heardAt(status: CoreStatus): number {
+    const context = this.#context;
+    if (!context) return performance.now();
+    const seconds = status.contextFrame / context.sampleRate;
+    const stamp =
+      typeof context.getOutputTimestamp === 'function' ? context.getOutputTimestamp() : undefined;
+    if (stamp?.performanceTime && stamp.contextTime !== undefined) {
+      return stamp.performanceTime + (seconds - stamp.contextTime) * 1000;
+    }
+    const latency = (context.outputLatency || 0) + (context.baseLatency || 0);
+    return performance.now() + (seconds - context.currentTime + latency) * 1000;
+  }
+
   subscribe(listener: (event: EngineEvent) => void): () => void {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);
