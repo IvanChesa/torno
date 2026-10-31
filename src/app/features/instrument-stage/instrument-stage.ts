@@ -18,6 +18,7 @@ import {
   createSceneEngine,
   QUALITY_LEVELS,
   VIEWS,
+  type CameraGoal,
   type QualityLevel,
   type SceneEngine,
   type SceneEvent,
@@ -30,6 +31,11 @@ import { STAGE_POSTER } from './stage-poster';
 
 function pick<T extends string>(value: string | null, options: readonly T[]): T | undefined {
   return options.find((option) => option === value);
+}
+
+/** Con `?vista=`, una vista de las capturas; si no, el encuadre de «Tocar» de siempre. */
+function viewGoal(view: View | undefined): CameraGoal | undefined {
+  return view ? { kind: 'view', view } : undefined;
 }
 
 /**
@@ -218,7 +224,7 @@ export class InstrumentStage {
         canvas,
         pose: this.pose(),
         capture,
-        view: capture ? pick<View>(params.get('vista'), VIEWS) : undefined,
+        camera: viewGoal(capture ? pick<View>(params.get('vista'), VIEWS) : undefined),
         quality: capture
           ? (pick<QualityLevel>(params.get('calidad'), QUALITY_LEVELS) ?? 'high')
           : undefined,

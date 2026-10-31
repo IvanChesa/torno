@@ -10,7 +10,7 @@ import {
   knurlNormal,
   periodicNoise,
 } from './procedural';
-import { screenRows, SCREEN_ROWS, VISIBLE_MENU_ROWS } from './screen';
+import { firstRowFont, laneGeometry, SCREEN_LAYOUT, screenText, VISIBLE_MENU_ROWS } from './screen';
 
 describe('ruido periódico', () => {
   const size = 64;
@@ -125,7 +125,7 @@ describe('lo impreso en la cubierta', () => {
   });
 });
 
-describe('las filas de la pantalla', () => {
+describe('la pantalla', () => {
   const display = (change: Partial<DisplayModel>): DisplayModel => ({
     mode: 'main',
     title: '',
@@ -137,25 +137,68 @@ describe('las filas de la pantalla', () => {
     ...change,
   });
 
-  it('la principal: sus líneas (el estado va aparte, abajo)', () => {
-    expect(screenRows(display({})).map((row) => row.text)).toEqual([
-      '90 BPM · PAUSA',
-      'CAPA 1 · BATERÍA · ALFAR',
+  it('la principal, en todo el ancho: la capa en grande y debajo el tempo con el estado; y los carriles', () => {
+    const text = screenText(display({}));
+    expect(text.lanes).toBe(true);
+    expect(text.rows.map((row) => [row.left, row.right])).toEqual([
+      ['CAPA 1 · BATERÍA · ALFAR', ''],
+      ['90 BPM · PAUSA', 'TOMA LIBRE'],
     ]);
+    expect(text.rows[0]!.size).toBeGreaterThan(text.rows[1]!.size);
   });
 
-  it('el menú: el título a media luz y una ventana alrededor de la fila elegida, invertida', () => {
+  it('la letra de la primera fila es el doble de la de antes (1/4 del alto, no 1/8): se lee', () => {
+    // Antes: 5 filas iguales, con la letra al 72 % de cada una (0,127 del alto).
+    expect(firstRowFont(screenText(display({})))).toBeGreaterThan(0.24);
+  });
+
+  it('el menú: el título a media luz con el estado, y la fila elegida (invertida) con la siguiente', () => {
     const rows = Array.from({ length: 7 }, (_, i) => ({
       label: `FILA ${i}`,
       value: i === 5 ? '4' : '',
       selected: i === 5,
       editing: i === 5,
     }));
-    const result = screenRows(display({ mode: 'menu', title: 'BUCLE', lines: [], rows }));
-    expect(result[0]).toEqual({ text: 'BUCLE', value: '', inverted: false, dim: true });
-    expect(result.slice(1).map((row) => row.text)).toEqual(['FILA 4', 'FILA 5', 'FILA 6']);
-    expect(result.slice(1)).toHaveLength(VISIBLE_MENU_ROWS);
-    expect(result[2]).toEqual({ text: 'FILA 5', value: '‹ 4 ›', inverted: true, dim: false });
-    expect(result.length).toBeLessThan(SCREEN_ROWS);
+    const text = screenText(display({ mode: 'menu', title: 'BUCLE', lines: [], rows }));
+    expect(text.lanes).toBe(false);
+    expect(text.rows[0]).toEqual({
+      left: 'BUCLE',
+      right: 'TOMA LIBRE',
+      size: 0.62,
+      inverted: false,
+      dim: true,
+    });
+    expect(text.rows.slice(1).map((row) => row.left)).toEqual(['FILA 5', 'FILA 6']);
+    expect(text.rows.slice(1)).toHaveLength(VISIBLE_MENU_ROWS);
+    expect(text.rows[1]).toMatchObject({ right: '‹ 4 ›', inverted: true });
+    // Al final de la lista, la ventana enseña la anterior.
+    const last = rows.map((row, i) => ({ ...row, selected: i === 6, editing: false }));
+    const end = screenText(display({ mode: 'menu', title: 'BUCLE', lines: [], rows: last }));
+    expect(end.rows.slice(1).map((row) => row.left)).toEqual(['FILA 5', 'FILA 6']);
+  });
+
+  it('la confirmación: la pregunta y las dos opciones, con la elegida invertida', () => {
+    const text = screenText(
+      display({
+        mode: 'confirm',
+        lines: ['¿BORRAR LA CAPA 2?'],
+        rows: [
+          { label: 'CANCELAR', value: '', selected: true, editing: false },
+          { label: 'BORRAR', value: '', selected: false, editing: false },
+        ],
+      }),
+    );
+    expect(text.rows.map((row) => [row.left, row.inverted])).toEqual([
+      ['¿BORRAR LA CAPA 2?', false],
+      ['CANCELAR', true],
+      ['BORRAR', false],
+    ]);
+  });
+
+  it('los cuatro carriles caben en el ancho, con el medidor detrás de la forma de onda', () => {
+    const lane = laneGeometry();
+    expect(lane.x0 + 3 * lane.step + lane.width).toBeCloseTo(1 - SCREEN_LAYOUT.padX, 10);
+    expect(SCREEN_LAYOUT.meterStart).toBeGreaterThan(SCREEN_LAYOUT.waveEnd);
+    expect(SCREEN_LAYOUT.lanesTop).toBeGreaterThan(SCREEN_LAYOUT.textBottom);
   });
 });

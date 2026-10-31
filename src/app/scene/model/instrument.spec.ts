@@ -217,6 +217,7 @@ describe('el aparato', () => {
     expect(PALETTE.phosphor).toBe(token('color-phosphor'));
     expect(PALETTE.warning).toBe(token('color-warning'));
     expect(PALETTE.ink).toBe(token('color-bg'));
+    expect(PALETTE.focus).toBe(token('color-focus'));
   });
 
   it('a más calidad, más segmentos: el alto tiene más triángulos que el bajo, con las mismas piezas', () => {
