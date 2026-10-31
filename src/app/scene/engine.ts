@@ -138,6 +138,8 @@ export interface SceneStats {
   readonly disc: number;
   /** La hora del fotograma de ese giro (reloj de `performance.now()`): su velocidad, en los e2e. */
   readonly discTime: number;
+  /** El control con el anillo de luz (el enfocado con el teclado o bajo el puntero), o `null`. */
+  readonly highlight: ControlId | null;
   /**
    * El cuerpo de la letra de la primera fila de la pantalla, en píxeles CSS (su alto en el centro
    * de la pantalla, con esta cámara): si se lee (revisión del bloque C, hallazgo 1).
@@ -462,6 +464,7 @@ export class SceneEngine {
       vramMb: Math.round((this.#vramBytes() / 2 ** 20) * 10) / 10,
       disc: this.#motion?.disc ?? 0,
       discTime: Math.round(this.#motionTime * 10) / 10,
+      highlight: this.#highlight?.id ?? null,
       screenFontPx: Math.round(this.#screenFontPx() * 10) / 10,
     };
   }

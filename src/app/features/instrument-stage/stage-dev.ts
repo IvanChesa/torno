@@ -14,6 +14,7 @@ import {
   type SceneEngine,
   type SceneStats,
 } from '../../scene';
+import { SessionStore } from '../../state';
 import { STAGE_DEV_CONTENT } from './stage-dev.content';
 
 /** Cada cuánto se leen las cifras (2 veces por segundo: los signals, por debajo de 10/s). */
@@ -38,6 +39,9 @@ const BENCHMARK_MS = 5000;
       [attr.data-texturas]="stats()?.textures"
       [attr.data-disco]="stats()?.disc"
       [attr.data-disco-ms]="stats()?.discTime"
+      [attr.data-resaltado]="stats()?.highlight ?? ''"
+      [attr.data-pulso]="transport()?.beat"
+      [attr.data-pulso-ms]="transport()?.at"
     >
       <p class="dev__line">{{ line() }}</p>
       <div class="dev__buttons">
@@ -111,6 +115,12 @@ export class StageDev {
   protected readonly text = STAGE_DEV_CONTENT;
   protected readonly levels = QUALITY_LEVELS;
   protected readonly stats = signal<SceneStats | null>(null);
+  /**
+   * El último pulso del transporte y cuándo suena (para comparar la velocidad del disco con la del
+   * transporte, no con el tempo: el reloj del audio no tiene por qué ir al ritmo del de la página).
+   */
+  protected readonly transport = signal<{ beat: number; at: number } | null>(null);
+  private readonly store = inject(SessionStore);
   protected readonly result = signal<FrameStats | null>(null);
   protected readonly measuring = signal(false);
   protected readonly line = computed(() => {
@@ -132,7 +142,15 @@ export class StageDev {
   constructor() {
     const destroyRef = inject(DestroyRef);
     afterNextRender(() => {
-      const read = () => this.stats.set(this.engine().stats());
+      const read = () => {
+        this.stats.set(this.engine().stats());
+        const status = this.store.latestStatus;
+        this.transport.set(
+          status
+            ? { beat: status.beat, at: Math.round(this.store.latestStatusAt * 10) / 10 }
+            : null,
+        );
+      };
       read();
       const timer = setInterval(read, STATS_MS);
       destroyRef.onDestroy(() => clearInterval(timer));
