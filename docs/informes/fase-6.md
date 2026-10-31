@@ -238,14 +238,14 @@ npm run check  (salida completa en la consola de la sesión)
     ✔ Fuentes                         144,1 kB  (error > 150)
     ✔ Bundle inicial sin motor de audio, síntesis, worklet ni 3D.
 ```
-**e2e** (`npx playwright test --workers=3`, 7,6 min, tras corregir la revisión): **130 en verde y 3 saltados** (los del panel de desarrollo en el proyecto del build), sin fallos:
+**e2e** (`npx playwright test --workers=3`, 8,6 min, tras corregir la revisión y aligerar para el CI los del 3D, §12): **130 en verde y 3 saltados** (los del panel de desarrollo en el proyecto del build), sin fallos. Los dos proyectos del escenario van ahora uno detrás de otro, cada uno en un solo worker:
 - `dev`: 42;
 - `estatico` (el build, como en Pages): 58;
 - `webkit`: 1;
 - `escena-dev`: 16;
 - `escena-estatico`: 13 y 3 saltados.
 
-Los 16 del escenario son 5 de la fase 5 y 11 nuevos (§2 y §12). En las pruebas sueltas, con otro proyecto corriendo sus e2e en la misma máquina, los del escenario se pasaban a veces de tiempo al crear el contexto del navegador. Por eso los de escritorio usan una ventana de 900×700.
+Los 16 del escenario son 5 de la fase 5 y 11 nuevos (§2 y §12). Los de escritorio usan una ventana de 800×600 y los que tocan mucho van en calidad baja. Con el WebGL por software (el del CI, y el de esta máquina con otro proyecto corriendo sus e2e a la vez), cada tecla espera a un fotograma.
 
 Métricas de la fase:
 - **3D** (`npm run capturas -- --medir`, RTX 3060, Chromium con D3D11, build):
@@ -309,7 +309,7 @@ Revisión del subagente: `docs/revisiones/fase-6.md`. Veredicto: CAMBIOS NECESAR
 
 | Hallazgo | Acción | Commit |
 |---|---|---|
-| 1 (Importante) | **Corregido.** La capa de controles se recorta al lienzo (`overflow: clip`). Se ocultan, y dejan de recibir el foco, los controles a los que no les quedan 44 px de zona dentro (en «Controles» del móvil, las capas 2 y 3). e2e: `scrollWidth` igual a `clientWidth` en cada encuadre, a 900×700 y a 360×740. | `ef89655`, `343af57` |
+| 1 (Importante) | **Corregido.** La capa de controles se recorta al lienzo (`overflow: clip`). Se ocultan, y dejan de recibir el foco, los controles a los que no les quedan 44 px de zona dentro (en «Controles» del móvil, las capas 2 y 3). e2e: `scrollWidth` igual a `clientWidth` en cada encuadre, a 800×600 y a 360×740. | `ef89655`, `343af57` |
 | 2 (Importante) | **Corregido.** «Pausar movimiento» y «Atajos», en `InstrumentTools`: en la barra del 3D y debajo del plato HTML. e2e con `?sin3d=1`: el disco no gira, los medidores siguen a 0 y la preferencia se recuerda. | `b14cd57`, `343af57` |
 | 3 (Menor) | **Corregido.** Con el transporte parado, la fase del destello sale de los pulsos que faltan (`countInBeats`), con su test. | `b14cd57` |
 | 4 (Menor) | **Corregido.** `#refreshWaveforms` vuelve a mirar si hay una toma antes de copiar la sesión. Las formas de onda solo se calculan si el 3D las pinta (`showWaveforms`). | `ef89655` |
@@ -324,3 +324,14 @@ Revisión del subagente: `docs/revisiones/fase-6.md`. Veredicto: CAMBIOS NECESAR
 | 13 (Menor) | **Anotado** para Iván (`PENDIENTES.md`, con las dos opciones) y fijado en un test de 320 px: solo se pisan la capa 1 y el volumen. | `ef89655` |
 | 14 (Menor) | **Corregido.** En el informe:<br>· la clave es `torno.movimiento`;<br>· `data-movimiento` solo con la pausa de quien toca;<br>· «Inspeccionar» va sin zum, ahora en §4;<br>· el criterio 1 cuenta lo que prueban el ratón y el dedo. | este informe |
 | 15 (Sugerencia) | **Hecho.** En «Inspeccionar», el disco no se agarra con el puntero: arrastrar encima gira el aparato (con el teclado, Espacio sí lo agarra). | `ef89655` |
+
+**El CI de la rama.** Con estas correcciones, el CI de GitHub falló donde en local pasaba (`65387f5`). La prueba del teclado y la de la velocidad del disco se pasaban de tiempo, y la de la pose (fase 5) contaba un fotograma de más. Su WebGL es por software: cada tecla y cada lectura esperan a un fotograma, y los dos proyectos del escenario iban a la vez. `a14d521` lo arregla sin tocar lo que se comprueba:
+- los dos proyectos del escenario van uno detrás de otro, cada uno en un solo worker;
+- las pruebas que tocan mucho van en calidad baja y en una ventana de 800×600 (aún de escritorio), y esperan a que el 3D se quede quieto tras cambiar de calidad;
+- la de la velocidad lee el panel de una vez por muestra, y la del teclado sube de diez en diez (Re Pág) en lugar de flecha a flecha;
+- `drag` y `hold` llevan el control a la vista antes de tocarlo;
+- la de la pose espera a que se asienten los fotogramas: el anillo del foco y la pose pueden ir en dos;
+- «Inspeccionar» parte del frente (Inicio) hasta 150° y 10°, y «Capas» compara la pieza proyectada (`--w`), no su zona de 44 px;
+- el arrastre del plato HTML va despacio (5 px cada 20 ms): más rápido entra la aceleración de la fase 6, con su test en Node.
+
+Resultado: el CI de `a14d521` en verde en 12 min 12 s (e2e: 130 en verde y 3 saltados, en 9,6 min).
