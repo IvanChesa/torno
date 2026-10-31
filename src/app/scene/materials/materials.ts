@@ -85,11 +85,13 @@ export function createMaterials({ grainSize }: MaterialOptions): InstrumentMater
       // Visto desde arriba, el brillo rugoso de la base reflejaba las luces del techo de la
       // habitación por todo el disco y lavaba el oliva (nota de la sesión de plan). El brillo del
       // vidriado es el de la capa de encima, lisa: refleja las luces donde tocan y deja ver el color
-      // en el resto. La base apenas brilla.
+      // en el resto. La base apenas brilla. Desde el encuadre del móvil (64°), con la capa entera
+      // (1) el centro del disco aún salía casi blanco: a 0,45, y el entorno a 0,6, se lee oliva con
+      // un brillo suave, también desde delante.
       specularIntensity: 0.2,
-      clearcoat: 1,
+      clearcoat: 0.45,
       clearcoatRoughness: 0.06,
-      envMapIntensity: 0.85,
+      envMapIntensity: 0.6,
     }),
     brass: new MeshPhysicalMaterial({
       name: 'latón',
