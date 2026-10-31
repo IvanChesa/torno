@@ -203,7 +203,10 @@ kbd {
   white-space: nowrap;
 }
 
-/* --- Movimiento: nada se mueve con movimiento reducido ni en las capturas (?captura=1) --- */
+/*
+ * --- Movimiento: nada se mueve con movimiento reducido, con «Pausar movimiento» (el documento lleva
+ * `data-movimiento="pausado"`, core/motion.ts) ni en las capturas (?captura=1) ---
+ */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -213,6 +216,15 @@ kbd {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+:root[data-movimiento='pausado'] *,
+:root[data-movimiento='pausado'] *::before,
+:root[data-movimiento='pausado'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 :root[data-captura] *,
