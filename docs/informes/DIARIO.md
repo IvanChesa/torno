@@ -15,6 +15,7 @@ Lo escribe Claude Code (CLAUDE.md, «Ciclo de cada fase» y «Paradas»):
 | 3 · Biblioteca de sonidos y menú completo (`fase-3-sonidos`, fusión `acef572`) | 2026-10-26 | CAMBIOS NECESARIOS: 0 Bloqueantes; el Importante (clic con saltos de tempo grandes y el filtro antialias encendido), los 6 Menores y 1 de las 2 Sugerencias, corregidos; la #9, razonada ([revisión](../revisiones/fase-3.md), [informe](fase-3.md)) | 12 bucles propios en Re menor a 90 BPM, deterministas (hash fijado) y sin junta · picos −1,1 a −14,1 dBFS, RMS en su objetivo por papel · fundamentales de los bajos, nota a nota, a ≤ 15 cents · render ≤ 32 ms en caliente a 48 kHz (en frío, hasta 43–61 ms; a 96 kHz, hasta 93) · tono de 12 kHz a 240 BPM: imagen a −68,7 dB · LoopCore 237× (97 BPM), 65× a 240 BPM, 36× en el peor caso · la cola entra en la muestra 128 000 (el compás siguiente) · JS de `/` 301,5 kB · worklet 40,8 kB · worker de exportación 41,7 kB · worker de síntesis 17,4 kB · 430 tests en Node (98,4 % de sentencias) + 50 en Angular + 89 e2e |
 | 4 · Vista previa en Cloudflare Pages, entrega continua y pruebas en el móvil (`fase-4-staging`, fusión `45c5df7`) | 2026-10-27 | CAMBIOS NECESARIOS: 0 Bloqueantes; el Importante (la lista de proyectos de la cuenta habría salido en el registro público), los 6 Menores y 6 de las 8 Sugerencias, corregidos; la #10, para la fase 7, y la #14, propuesta a Iván ([revisión](../revisiones/fase-4.md), [informe](fase-4.md)) | `staging.torno.pages.dev` publicada con el build que probó el CI: `verify-pages` 52/52 (50/50 en local) · rutas sin barra final (308), 404 propia y CSP con 3 hashes · 24 archivos, el mayor 0,28 MiB de 25 · e2e 97/97, 57 de ellos contra `wrangler pages dev` · JS de `/` 302,1 kB · desbloqueo 1,9 kB · worklet 40,8 kB · worker de exportación 41,7 kB · 453 tests en Node + 67 en Angular · primera reproducción en frío hasta el altavoz: 157–238 ms en el escritorio y 203–251 ms en el CI |
 | 5 · Diseño del instrumento y modelo 3D (`fase-5-modelo-3d`, fusión `673ad51`) | 2026-10-31 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 2 Importantes (los medidores pisaban los pilotos del plato y el lienzo cortaba la sombra de contacto), los 5 Menores y 3 de las 4 Sugerencias, corregidos; la #11 (commits más pequeños), para la fase 6 ([revisión](../revisiones/fase-5.md), [informe](fase-5.md)) | aparato redondo aprobado por Iván (Terracota, Neutral) · 51 llamadas de dibujo; 49 158, 36 498 y 25 454 triángulos por nivel · VRAM estimada de 61,2 MB en alto y 36,3 MB en bajo en el escritorio · generación 71–85 ms · tarea más larga del arranque 53–63 ms (antes, 610–630 en frío) · 144 fps en el escritorio (RTX 3060) · chunk 3D 622,6 kB · JS de `/` 303,7 kB · primera visita de 594 kB sin el 3D y 1,22 MB con él · 518 tests en Node + 70 en Angular + 107 e2e · el compás, exacto a la muestra a cualquier tempo |
+| 6 · Interacción y sincronía (`fase-6-interaccion`, fusión `cc4f6be`) | 2026-10-31 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 2 Importantes (en «Capas» la página se ensanchaba; el plato HTML no tenía «Pausar movimiento»), 11 de los 12 Menores y la Sugerencia, corregidos; el #13 (320 px), para Iván ([revisión](../revisiones/fase-6.md), [informe](fase-6.md)) | el 3D es el instrumento: controles nativos encima de cada pieza (ratón, dedo y teclado) · zonas de 44 px sin pisarse en 360 y 390 px · disco = transporte 0,00 % con la GPU (±1 % en Node con estados que llegan tarde) · respuesta tecla → audio 0,4–1,1 ms y ratón 3,9–4,3 ms · 0 animaciones con «Pausar movimiento» o movimiento reducido · pantalla del 3D a 10 px de cuerpo en el escritorio (antes ~5) · primera visita sin el 3D 596,0 kB y con él 1328,9 kB · chunk 3D 650,7 kB · JS de `/` 306,6 kB · 144 fps · tarea más larga 57–64 ms · VRAM 60,6 MB en alto · 551 tests en Node + 72 en Angular + 130 e2e |
 
 ## Bloques
 
@@ -315,3 +316,41 @@ Además, el e2e del tempo por pulsaciones comprueba ahora el tempo con el moment
 - el instrumento HTML como plato redondo con la pantalla encima.
 
 La 5.b sigue parada: falta lo otro que pide, las pruebas del móvil en `docs/PRUEBAS-MOVIL.md`, que siguen sin rellenar.
+
+### Bloque C · 2026-10-31 · terminado (parada de fin de bloque)
+
+**Hecho.**
+- **Fase 5, fusionada** (`673ad51`): el modelo definitivo (Terracota y Neutral, aprobados por Iván), `SceneEngine`, el escenario en la portada con su póster y el plato HTML redondo. El detalle, en la sección de la entrega 5.a y en su fila.
+- **Revisión parcial del bloque C** (`docs/revisiones/bloque-C.md`, con commit en la rama de la fase 6): la fase 5, aprobada. Para la 6 pedía dos cosas: la pantalla legible y la carrera del autoguardado.
+- **Fase 6, fusionada** (`cc4f6be`; [informe](fase-6.md), [revisión](../revisiones/fase-6.md)): el 3D es el instrumento de la portada.
+  - **Controles:** cada pieza lleva encima su control nativo, con los gestos, el teclado y los nombres del plato HTML. Se toca con el ratón, el dedo y el teclado, con zonas de 44 px como poco en el móvil.
+  - **Cámara:** encuadres de «Tocar» (completo, capas y controles, con los del móvil 1:1), «Inspeccionar» con órbita limitada y pantalla completa.
+  - **Sincronía:** el disco va al reloj del worklet; los pilotos laten, y la pantalla lleva en todo el ancho la forma de onda, el cabezal y el medidor de cada capa.
+  - **«Pausar movimiento»** y movimiento reducido en todo, también en el plato.
+  - **La carrera del autoguardado**, corregida y con su test.
+  - **Lo común de los dos instrumentos**, en `instrument-common`, y cada uno en su trozo.
+
+**Métricas** (las de la fila de la fase 6):
+- disco = transporte con un 0,00 % de diferencia con la GPU, y ±1 % en el test en Node con estados que llegan tarde;
+- respuesta de 0,4–4,3 ms;
+- zonas de 44 px sin pisarse en 360 px;
+- primera visita: 596 kB sin el 3D y 1,33 MB con él;
+- 144 fps; chunk 3D de 650,7 kB; JS de `/` de 306,6 kB;
+- `npm run check` en verde con 551 tests en Node y 72 en Angular; e2e 130/130, con 3 saltados;
+- CI de GitHub en 12 min (los e2e, 9,6 min): los e2e del 3D, con el WebGL por software del CI y uno detrás de otro, se llevan la mayor parte.
+
+**Desviaciones** (informe de la fase 6, §4):
+- formas de onda de las cuatro capas (§0.2), no solo de la elegida;
+- la pantalla del 3D no se lee en el móvil (4,2 px de cuerpo a 360 px de ancho): se lee el espejo HTML de encima;
+- «Inspeccionar» va sin zum: la órbita, a una distancia fija;
+- el motor de la 6.a, en un commit;
+- el plato HTML ya no pinta los medidores con movimiento reducido.
+
+**Para Iván** (`docs/PENDIENTES.md`):
+- **Tocar el 3D en el móvil**: tras la fusión, en `https://staging.torno.pages.dev`.
+- **Propuesta 1 del informe de la fase 6:** con los dos huecos de recuperar ofrecidos, lo que se toca espera a que se conteste (añadirlo a PLAN §4.8).
+- **Propuesta 2:** el espejo HTML de la pantalla, siempre encima del 3D (decidir en la fase 7, con la maqueta de la web).
+- **Las zonas táctiles a 320 px** (revisión de la fase 6, #13): la capa 1 y el volumen se pisan unos 4 px. Encogerlas por debajo de 360 px o dejarlo así; se decide en la fase 8, con tu móvil.
+- Siguen para la fase 8 las cifras del móvil: primer sonido en frío, latencia calibrada, tomas seguidas y FPS del 3D tocando.
+
+**Siguiente.** El bloque D (la fase 7: la web de producto, la guía y el contenido). No lo empiezo: espera a la revisión del bloque C y al prompt de Iván.
