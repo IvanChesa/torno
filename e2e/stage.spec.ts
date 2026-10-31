@@ -65,7 +65,9 @@ test.describe('escenario 3D', () => {
     await expect(page.locator('canvas')).toHaveCount(0);
   });
 
-  test('sin WebGL, el escenario lo dice y el instrumento HTML funciona igual', async ({ page }) => {
+  test('sin WebGL, la portada lo dice y pone el instrumento HTML, que funciona igual', async ({
+    page,
+  }) => {
     await page.addInitScript(() => {
       const original = HTMLCanvasElement.prototype.getContext;
       HTMLCanvasElement.prototype.getContext = function (
@@ -86,7 +88,8 @@ test.describe('escenario 3D', () => {
     await expect(page.getByText('Este navegador no puede mostrar el 3D')).toBeVisible({
       timeout: READY_MS,
     });
-    await expect(stage(page)).not.toHaveAttribute('data-listo');
+    await expect(page.locator('trn-instrument-stage')).toHaveCount(0);
+    await expect(page.locator('trn-html-instrument')).toHaveCount(1);
     const driver = new InstrumentDriver(page);
     await driver.control('layer-1').focus();
     await page.keyboard.press('ArrowDown');

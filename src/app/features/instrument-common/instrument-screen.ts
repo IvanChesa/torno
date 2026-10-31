@@ -3,6 +3,8 @@ import type { DisplayModel } from '../../instrument';
 
 /** Filas del menú que caben en la pantalla a la vez (las de alrededor del cursor). */
 const VISIBLE_ROWS = 4;
+/** En el espejo del 3D (`compact`), dos: con el título y el estado, cuatro líneas siempre. */
+const COMPACT_ROWS = 2;
 
 /**
  * La pantalla del aparato (fósforo sobre negro): pinta el modelo de pantalla del instrumento. No es
@@ -13,6 +15,7 @@ const keepSeparator = (text: string) => text.replaceAll(' · ', '\u00a0· ');
 
 @Component({
   selector: 'trn-instrument-screen',
+  host: { '[class.is-compact]': 'compact()' },
   template: `
     <div class="screen" [attr.data-mode]="display().mode">
       @if (display().title) {
@@ -65,6 +68,17 @@ const keepSeparator = (text: string) => text.replaceAll(' · ', '\u00a0· ');
       text-transform: uppercase;
     }
 
+    /*
+     * Encima del 3D, el espejo de su pantalla: siempre del mismo alto (cuatro líneas), para que al
+     * abrir el menú el aparato no se mueva bajo el dedo. El marcador de la portada mide lo mismo.
+     */
+    :host(.is-compact) .screen {
+      box-sizing: border-box;
+      min-block-size: 0;
+      block-size: var(--instrument-mirror-height);
+      overflow: hidden;
+    }
+
     p {
       margin: 0;
     }
@@ -101,6 +115,8 @@ const keepSeparator = (text: string) => text.replaceAll(' · ', '\u00a0· ');
 })
 export class InstrumentScreen {
   readonly display = input.required<DisplayModel>();
+  /** Sin alto mínimo (el espejo de la pantalla encima del 3D). */
+  readonly compact = input(false);
   /** Las líneas parten detrás del «·», nunca delante («CAPA 1 · BATERÍA ·» / «ALFAR»). */
   protected readonly lines = computed(() => this.display().lines.map(keepSeparator));
   protected readonly status = computed(() => keepSeparator(this.display().status));
@@ -108,12 +124,13 @@ export class InstrumentScreen {
   /** Las filas visibles: una ventana alrededor de la elegida. */
   protected readonly rows = computed(() => {
     const rows = this.display().rows;
-    if (rows.length <= VISIBLE_ROWS) return rows;
+    const visible = this.compact() ? COMPACT_ROWS : VISIBLE_ROWS;
+    if (rows.length <= visible) return rows;
     const selected = Math.max(
       0,
       rows.findIndex((row) => row.selected),
     );
-    const start = Math.min(Math.max(0, selected - 1), rows.length - VISIBLE_ROWS);
-    return rows.slice(start, start + VISIBLE_ROWS);
+    const start = Math.min(Math.max(0, selected - 1), rows.length - visible);
+    return rows.slice(start, start + visible);
   });
 }

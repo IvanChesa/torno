@@ -6,7 +6,8 @@ import { InstrumentDriver } from './support/instrument';
 // Un toque sobre el instrumento antes de la hidratación (PLAN §4.9, fase 2): acaba con el audio
 // desbloqueado en el gesto real o con el aviso «Toca para activar el sonido», nunca con un error ni
 // en silencio sin explicación. Solo contra el build estático (los nombres de los archivos salen de
-// sus estadísticas).
+// sus estadísticas). Con `?sin3d=1`: lo que se prueba es el escenario y el desbloqueo, no el 3D (su
+// WebGL por software tardaría en dejar ver los controles).
 
 const NEEDS_GESTURE = 'Toca el instrumento para activar el sonido.';
 
@@ -54,7 +55,7 @@ test.describe('toques antes de la hidratación', () => {
   }) => {
     await instrumentAudio(page);
     const release = await hold(page, new RegExp(`/${(await homeChunk()).replace('.', '\\.')}$`));
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.goto('/?sin3d=1', { waitUntil: 'domcontentloaded' });
     // La escucha nativa ya está, pero la portada aún no se ha hidratado.
     await page.waitForFunction(() => window.__torno?.unlockReady === true);
     await page.locator('.stage').click();
@@ -74,7 +75,7 @@ test.describe('toques antes de la hidratación', () => {
     await instrumentAudio(page);
     const release = await hold(page, /\/main-[A-Z0-9]+\.js$/);
     // Sin el JS principal no llega `DOMContentLoaded` (espera a los módulos): basta con el HTML.
-    await page.goto('/', { waitUntil: 'commit' });
+    await page.goto('/?sin3d=1', { waitUntil: 'commit' });
     await page.locator('.stage').waitFor();
     await page.locator('.stage').click();
     expect(await audioCalls(page)).toEqual([]);

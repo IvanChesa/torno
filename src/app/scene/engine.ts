@@ -348,6 +348,12 @@ export class SceneEngine {
     return this.#goal;
   }
 
+  /** Desde dónde mira la cámara ahora (para empezar la órbita donde está). */
+  get angles(): Orbit | null {
+    const angles = this.#placement?.angles;
+    return angles ? { azimuth: angles.azimuth, elevation: angles.elevation } : null;
+  }
+
   /**
    * Las cajas de los controles en píxeles CSS del lienzo, con la cámara de ahora (se recalculan solo
    * si ha cambiado: lo avisa el evento `camera`). En la órbita, los que tapa otra pieza no se ven.
