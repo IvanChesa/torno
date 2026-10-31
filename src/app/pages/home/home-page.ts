@@ -69,14 +69,22 @@ import { HOME_CONTENT } from './home.content';
                 inicial (esbuild reparte por módulos) y lo pasaba de 300 kB. Un solo póster, sin
                 srcset, no la necesita.
               -->
-              <img
-                [src]="poster.src"
-                [width]="poster.width"
-                [height]="poster.height"
-                [alt]="text.instrument.poster"
-                loading="lazy"
-                decoding="async"
-              />
+              <picture>
+                <source
+                  [attr.media]="poster.mobileMedia"
+                  [attr.srcset]="poster.mobile.src"
+                  [attr.width]="poster.mobile.width"
+                  [attr.height]="poster.mobile.height"
+                />
+                <img
+                  [src]="poster.src"
+                  [width]="poster.width"
+                  [height]="poster.height"
+                  [alt]="text.instrument.poster"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </picture>
             </div>
             <div class="stage3d-placeholder__bar"></div>
           </div>

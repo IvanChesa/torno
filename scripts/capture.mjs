@@ -11,11 +11,14 @@
 //
 //      npm run capturas -- --fase=5 --solo=escenario
 //      → solo el escenario 3D (fase 5.b): el aparato desde 4 ángulos, en JPEG, con una hoja de
-//        contactos. Escribe en la consola lo que cuesta pintarlo, por nivel de calidad.
+//        contactos. Escribe en la consola lo que cuesta pintarlo, por nivel de calidad. Desde la
+//        fase 6, también el instrumento 3D entero en cada encuadre de «Tocar» (completo, capas y
+//        controles) y en «Inspeccionar», con su hoja de contactos.
 //
 //      npm run capturas -- --poster
-//      → el póster provisional del escenario (public/img/escenario.webp, 1200×960): una captura del
-//        propio motor, para que el fundido al primer fotograma no mueva nada.
+//      → los pósteres del escenario: el del escritorio (public/img/escenario.webp, 1200×960, 5:4)
+//        y el del móvil (public/img/escenario-movil.webp, 800×800, su encuadre 1:1). Son capturas
+//        del propio motor, para que el fundido al primer fotograma no mueva nada.
 //
 //      npm run capturas -- --medir
 //      → las cifras de PLAN §5 del escenario 3D con la GPU de verdad (Chromium, modo nuevo sin
@@ -48,8 +51,34 @@ const STAGE_VIEWS = [
   ['cenital', 'Cenital'],
   ['perfil', 'Perfil'],
 ];
-/** El póster: 1200×960 (5:4, como el lienzo). */
-const POSTER = { file: 'public/img/escenario.webp', width: 1200, height: 960, quality: 0.8 };
+/** Los encuadres del instrumento 3D (fase 6), con sus nombres para la hoja de contactos. */
+const STAGE_SHOTS = [
+  ['completo', 'Completo'],
+  ['capas', 'Capas'],
+  ['controles', 'Controles'],
+  ['inspeccionar', 'Inspeccionar'],
+];
+/**
+ * Los pósteres: el del escritorio, 1200×960 (5:4, como su lienzo), y el del móvil, 800×800 (1:1),
+ * cada uno en un tamaño de pantalla en el que la caja tiene esa proporción.
+ */
+const POSTERS = [
+  {
+    file: 'public/img/escenario.webp',
+    width: 1200,
+    height: 960,
+    viewport: { width: 1440, height: 1100 },
+    mobile: false,
+  },
+  {
+    file: 'public/img/escenario-movil.webp',
+    width: 800,
+    height: 800,
+    viewport: { width: 400, height: 860 },
+    mobile: true,
+  },
+];
+const POSTER_QUALITY = 0.8;
 
 const onlyArg = process.argv.find((arg) => arg.startsWith('--solo='))?.slice('--solo='.length);
 const posterArg = process.argv.includes('--poster');
@@ -150,6 +179,24 @@ async function captureStage(browser, context, base, viewport) {
     cells.push({ file, label: viewName });
   }
   await contactSheet(browser, cells, 2, path.join(outDir, `escenario-vistas-${viewport}.jpg`));
+  const shots = [];
+  for (const [shot, shotName] of STAGE_SHOTS) {
+    const { stats } = await openStage(page, base, { encuadre: shot });
+    const file = path.join(outDir, `instrumento3d-${shot}-${viewport}.jpg`);
+    await page
+      .locator('trn-instrument-stage')
+      .screenshot({ path: file, type: 'jpeg', quality: 88, animations: 'disabled' });
+    console.log(`✔ ${path.relative(ROOT, file)}`);
+    const { screenFontPx } = JSON.parse(stats ?? '{}');
+    console.log(`  La pantalla del 3D (${viewport}, ${shot}): ${screenFontPx} px de cuerpo`);
+    shots.push({ file, label: shotName });
+  }
+  await contactSheet(
+    browser,
+    shots,
+    2,
+    path.join(outDir, `instrumento3d-encuadres-${viewport}.jpg`),
+  );
   for (const quality of ['medium', 'low']) {
     const { stats } = await openStage(page, base, { calidad: quality });
     console.log(`  Coste de pintarlo (${viewport}, ${quality}): ${stats}`);
@@ -196,13 +243,15 @@ async function captureStagePose(page, base, viewport) {
 }
 
 /**
- * El póster del escenario: el lienzo en `?captura=1` (con el fondo de la página), llevado a
- * 1200×960 y codificado en WebP por el propio navegador (sin dependencias para imágenes).
+ * Un póster del escenario: el lienzo en `?captura=1` (con el fondo de la página), llevado a su
+ * tamaño y codificado en WebP por el propio navegador (sin dependencias para imágenes).
  */
-async function capturePoster(browser, base) {
+async function capturePoster(browser, base, poster) {
   const page = await browser.newPage({
-    viewport: { width: 1440, height: 1100 },
+    viewport: poster.viewport,
     deviceScaleFactor: 2,
+    isMobile: poster.mobile,
+    hasTouch: poster.mobile,
     reducedMotion: 'reduce',
     colorScheme: 'dark',
   });
@@ -227,15 +276,15 @@ async function capturePoster(browser, base) {
     },
     {
       src: `data:image/png;base64,${png.toString('base64')}`,
-      width: POSTER.width,
-      height: POSTER.height,
-      quality: POSTER.quality,
+      width: poster.width,
+      height: poster.height,
+      quality: POSTER_QUALITY,
     },
   );
-  const file = path.join(ROOT, POSTER.file);
+  const file = path.join(ROOT, poster.file);
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, Buffer.from(webp, 'base64'));
-  console.log(`✔ ${POSTER.file} (${Math.round(Buffer.from(webp, 'base64').length / 1024)} kB)`);
+  console.log(`✔ ${poster.file} (${Math.round(Buffer.from(webp, 'base64').length / 1024)} kB)`);
   await encoder.close();
 }
 
@@ -340,7 +389,7 @@ try {
     await measureStage(server.url);
   }
   if (posterArg) {
-    await capturePoster(browser, server.url);
+    for (const poster of POSTERS) await capturePoster(browser, server.url, poster);
   }
   for (const viewport of phaseArg ? VIEWPORTS : []) {
     const context = await browser.newContext({

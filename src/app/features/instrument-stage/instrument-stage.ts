@@ -20,6 +20,7 @@ import {
   createSceneEngine,
   ORBIT_LIMITS,
   QUALITY_LEVELS,
+  SHOTS,
   VIEWS,
   type CameraGoal,
   type Orbit,
@@ -49,6 +50,8 @@ const ORBIT_DEGREES_PER_PX = { azimuth: 0.4, elevation: 0.25 } as const;
 const ORBIT_KEY_STEP = { azimuth: 10, elevation: 5 } as const;
 /** «Inspeccionar» empieza de frente si no hay cámara de la que partir. */
 const FRONT: Orbit = { azimuth: 0, elevation: 40 };
+/** Con `?captura=1&encuadre=inspeccionar`: tres cuartos desde la derecha, algo bajo. */
+const CAPTURE_ORBIT: Orbit = { azimuth: 35, elevation: 28 };
 /** Tras girar, otra mirada a qué controles tapa otra pieza (el motor la hace 10 veces por segundo). */
 const SETTLE_MS = 120;
 
@@ -74,8 +77,9 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
  * cabezales, leyendo el último estado del audio sin pasar por los signals. Quieto, 0 fps. Con
  * «Pausar movimiento», nada se mueve solo: el disco solo va con la mano.
  *
- * Con `?captura=1`, todo fijo y las cifras en `data-estadisticas` (y `?vista=` y `?calidad=` eligen
- * ángulo y nivel). En desarrollo y con `?diagnostico=1`, el panel de la escena.
+ * Con `?captura=1`, todo fijo y las cifras en `data-estadisticas`. `?vista=` elige un ángulo de las
+ * capturas, `?encuadre=` un encuadre (o `inspeccionar`) y `?calidad=` el nivel. En desarrollo y con
+ * `?diagnostico=1`, el panel de la escena.
  */
 @Component({
   selector: 'trn-instrument-stage',
@@ -93,15 +97,23 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
           [attr.data-camara]="cameraName()"
           [attr.data-estadisticas]="stats()"
         >
-          <img
-            class="stage3d__poster"
-            [class.is-gone]="shown()"
-            [src]="poster.src"
-            [width]="poster.width"
-            [height]="poster.height"
-            alt=""
-            decoding="async"
-          />
+          <picture>
+            <source
+              [attr.media]="poster.mobileMedia"
+              [attr.srcset]="poster.mobile.src"
+              [attr.width]="poster.mobile.width"
+              [attr.height]="poster.mobile.height"
+            />
+            <img
+              class="stage3d__poster"
+              [class.is-gone]="shown()"
+              [src]="poster.src"
+              [width]="poster.width"
+              [height]="poster.height"
+              alt=""
+              decoding="async"
+            />
+          </picture>
           <canvas
             #canvas
             role="img"
@@ -364,6 +376,7 @@ export class InstrumentStage {
       const params = new URLSearchParams(location.search);
       const capture = isCaptureMode(location.search);
       const view = capture ? pick<View>(params.get('vista'), VIEWS) : undefined;
+      if (capture) this.captureCamera(params.get('encuadre'));
       let created: SceneEngine | null = null;
       const onEvent = (event: SceneEvent) => {
         switch (event.type) {
@@ -478,6 +491,16 @@ export class InstrumentStage {
     };
     this.orbitView.set(this.orbit);
     this.setCamera({ kind: 'orbit', orbit: this.orbit }, true);
+  }
+
+  /** Con `?captura=1&encuadre=`: el encuadre de la captura, también en la barra. */
+  private captureCamera(name: string | null): void {
+    const shot = pick<Shot>(name, SHOTS);
+    if (shot) this.camera.set({ kind: 'shot', shot });
+    if (name !== 'inspeccionar') return;
+    this.orbit = CAPTURE_ORBIT;
+    this.orbitView.set(CAPTURE_ORBIT);
+    this.camera.set({ kind: 'orbit', orbit: CAPTURE_ORBIT });
   }
 
   /** Con la pausa de movimiento, la cámara corta; si no, viaja. */
