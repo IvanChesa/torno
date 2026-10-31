@@ -6,7 +6,7 @@ import { DesignSample } from '../../features/design-sample/design-sample';
 import { DiagnosticsPanel } from '../../features/diagnostics/diagnostics-panel';
 import { HtmlInstrument } from '../../features/html-instrument/html-instrument';
 import { InstrumentStage } from '../../features/instrument-stage/instrument-stage';
-import { STAGE_POSTER } from '../../features/instrument-stage/stage-poster';
+import { StagePlaceholder } from '../../features/instrument-stage/stage-placeholder';
 import { HOME_CONTENT } from './home.content';
 
 /**
@@ -28,7 +28,7 @@ import { HOME_CONTENT } from './home.content';
  */
 @Component({
   selector: 'trn-home-page',
-  imports: [DesignSample, DiagnosticsPanel, HtmlInstrument, InstrumentStage],
+  imports: [DesignSample, DiagnosticsPanel, HtmlInstrument, InstrumentStage, StagePlaceholder],
   host: { '(click)': 'tap($event)' },
   template: `
     <section class="hero">
@@ -50,44 +50,27 @@ import { HOME_CONTENT } from './home.content';
           <p class="stage__notice" role="status">{{ text.instrument.noWebgl }}</p>
         }
         <!--
-          Un solo @defer para los dos instrumentos, con el mismo marcador: con ?sin3d=1, lo que hay
-          dentro de .stage no cambia al hidratar, y un toque anterior (que Angular repite después)
-          sigue encontrando su sitio en la página.
+          Un @defer de fuera con los disparadores y el mismo marcador para los dos instrumentos: con
+          ?sin3d=1, lo que hay dentro de .stage no cambia al hidratar, y un toque anterior (que
+          Angular repite después) sigue encontrando su sitio en la página. Dentro, un @defer para
+          cada uno: solo se descarga el trozo del que se usa.
         -->
         @defer (on viewport; on idle; on interaction) {
           @if (htmlOnly() || noWebgl()) {
-            <trn-html-instrument />
+            @defer (on immediate) {
+              <trn-html-instrument />
+            } @placeholder {
+              <trn-stage-placeholder [alt]="text.instrument.poster" />
+            }
           } @else {
-            <trn-instrument-stage (failed)="noWebgl.set(true)" />
+            @defer (on immediate) {
+              <trn-instrument-stage (failed)="noWebgl.set(true)" />
+            } @placeholder {
+              <trn-stage-placeholder [alt]="text.instrument.poster" />
+            }
           }
         } @placeholder {
-          <div class="stage3d-placeholder">
-            <div class="stage3d-placeholder__mirror"></div>
-            <div class="stage3d-placeholder__box">
-              <!--
-                Un <img> sin NgOptimizedImage: la directiva entra en el trozo común del bundle
-                inicial (esbuild reparte por módulos) y lo pasaba de 300 kB. Un solo póster, sin
-                srcset, no la necesita.
-              -->
-              <picture>
-                <source
-                  [attr.media]="poster.mobileMedia"
-                  [attr.srcset]="poster.mobile.src"
-                  [attr.width]="poster.mobile.width"
-                  [attr.height]="poster.mobile.height"
-                />
-                <img
-                  [src]="poster.src"
-                  [width]="poster.width"
-                  [height]="poster.height"
-                  [alt]="text.instrument.poster"
-                  loading="lazy"
-                  decoding="async"
-                />
-              </picture>
-            </div>
-            <div class="stage3d-placeholder__bar"></div>
-          </div>
+          <trn-stage-placeholder [alt]="text.instrument.poster" />
         }
       </div>
       @if (diagnostics()) {
@@ -138,52 +121,6 @@ import { HOME_CONTENT } from './home.content';
       max-inline-size: var(--measure);
     }
 
-    /*
-     * El marcador ocupa lo mismo que el instrumento 3D: el espejo de la pantalla (dos líneas de
-     * texto), la caja del póster (5:4 en el escritorio, 1:1 y de borde a borde en el móvil) y la
-     * barra. Al llegar el instrumento, nada se mueve.
-     */
-    .stage3d-placeholder {
-      display: grid;
-      justify-items: center;
-      gap: var(--space-4);
-    }
-
-    .stage3d-placeholder__mirror {
-      inline-size: min(100%, 38rem);
-      block-size: var(--instrument-mirror-height);
-      border-radius: var(--radius-s);
-      background: var(--color-screen);
-    }
-
-    .stage3d-placeholder__box {
-      inline-size: min(100%, (100svh - 13rem) * 1.25);
-      aspect-ratio: 5 / 4;
-    }
-
-    /* La barra: una fila de botones; en el móvil, dos. */
-    .stage3d-placeholder__bar {
-      block-size: var(--target-min);
-    }
-
-    @media (max-width: 47.99rem) {
-      .stage3d-placeholder__bar {
-        block-size: calc(2 * var(--target-min) + var(--space-2));
-      }
-
-      .stage3d-placeholder__box {
-        inline-size: calc(100% + 2 * var(--page-margin));
-        margin-inline: calc(-1 * var(--page-margin));
-        aspect-ratio: 1;
-      }
-    }
-
-    .stage3d-placeholder img {
-      inline-size: 100%;
-      block-size: 100%;
-      object-fit: contain;
-    }
-
     .stage__notice {
       max-inline-size: var(--measure);
       margin-block-end: var(--space-4);
@@ -192,7 +129,6 @@ import { HOME_CONTENT } from './home.content';
 })
 export class HomePage {
   protected readonly text = HOME_CONTENT;
-  protected readonly poster = STAGE_POSTER;
   protected readonly diagnostics = signal(false);
   /** `?sin3d=1`: sin el escenario 3D (ni su póster). Solo se sabe en el navegador. */
   protected readonly htmlOnly = signal(false);
