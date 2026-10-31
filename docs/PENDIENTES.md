@@ -30,6 +30,8 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 - [ ] **Indexación en el lanzamiento (fase 9).** Hasta entonces todas las páginas llevan `noindex` (`indexable: false` en `src/app/core/site.config.ts`); al lanzar se pone a `true` y solo la 404 sigue con `noindex`. Confirmar que quieres que se indexe.
 - [x] **Precargar ALFAR al acercarse al instrumento** (revisión del bloque B, fase 4, #1): hecha al empezar el bloque C (30-10). En el escritorio, la primera reproducción en frío baja de 200–272 ms a 68–93 ms; la prueba 1 del móvil da la cifra de antes y la de después.
 - [x] **Las dos PR de Dependabot:** la #1 (wrangler 4.152.0) fusionada con su CI en verde (30-10); la #2 (`@types/node` 26), cerrada.
+- [ ] `TODO(ivan)`: **el autoguardado con los dos huecos ofrecidos** (informe de la fase 6, §10, propuesta 1). Lo que se toca entonces espera a que se conteste el panel, para no pisar «lo que tocaste después» (era la carrera de la fase 5). Si te parece bien, se añade a PLAN §4.8.
+- [ ] `TODO(ivan)`: **el espejo HTML de la pantalla encima del 3D** (informe de la fase 6, §10, propuesta 2): en el móvil es la única pantalla que se lee. En la fase 7, con la maqueta de la web, decidir si en el escritorio se queda o se pliega.
 
 ## Revisiones y pruebas de Iván
 - [ ] Ver `docs/DISENO.md` y las capturas de la fase 0 (`docs/informes/img/fase-0/`): paleta «Barro», Fraunces con el eje SOFT y Geist Mono (revisión del bloque 0).
@@ -42,6 +44,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
   4. el **instrumento HTML** como plato redondo con la pantalla encima (`docs/informes/img/fase-5/propuesta-html-*.png`).
 
   Con las pruebas del móvil, empieza la 5.b.
+- [ ] `TODO(ivan)`: **tocar el 3D en el móvil** (fase 6): en la vista previa de la rama (`https://fase-6-interaccion.torno.pages.dev`) o, tras la fusión, en staging. Diales, disco y brazo con el dedo, y desplazar la página por encima del aparato.
 - [ ] Revisar los textos de la web (fase 7).
 - [ ] Visto bueno final en el móvil y en el iPhone (fase 8), con las cifras que no dieron las pruebas del 30-10 (la lista de `docs/PRUEBAS-MOVIL.md` sirve otra vez):
   - `TODO(ivan)`: el **primer sonido en frío con la precarga** (prueba 1, con la cifra de antes y la de después). En la fase 8 también se mide en la primera visita real, por red y con la pestaña visible, además de en local. La sesión de plan vio 803 ms en el escritorio, pero con la pestaña en segundo plano: no es una cifra fiable;
