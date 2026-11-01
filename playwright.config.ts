@@ -11,7 +11,8 @@ import path from 'node:path';
 //   de los demás, uno detrás de otro y cada uno en un solo worker. El WebGL de Chromium sin interfaz
 //   es por software y ocupa la máquina: a la vez que los e2e del audio, que miden tiempos, los
 //   frenaría (una cola que entraba antes de verse), y dos escenarios a la vez, en el CI, se pasaban
-//   de tiempo (cada tecla espera a un fotograma).
+//   de tiempo (cada tecla espera a un fotograma). En el CI, cada escenario va en su propia máquina
+//   con --no-deps, a la vez que los demás (ci.yml, revisión del bloque C, #1).
 // Chromium sin interfaz va con --mute-audio (lo pone Playwright): el audio se procesa y se mide,
 // pero no suena por los altavoces. Su micrófono es un archivo propio (scripts/make-fake-mic.mjs).
 // Puertos poco comunes y sin reutilizar un servidor que ya escuche en ellos: en local puede haber
@@ -38,8 +39,15 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: CI,
   retries: CI ? 1 : 0,
-  // En el CI, «github» deja cada fallo como anotación del commit, visible sin abrir el registro.
-  reporter: CI ? [['list'], ['github'], ['html', { open: 'never' }]] : 'list',
+  // En el CI, «github» deja cada fallo como anotación del commit, visible sin abrir el registro, y
+  // «blob» guarda el informe de cada grupo (E2E_GRUPO, ci.yml) para unirlos si algo falla.
+  reporter: CI
+    ? [
+        ['list'],
+        ['github'],
+        ['blob', { fileName: `informe-${process.env['E2E_GRUPO'] ?? 'todo'}.zip` }],
+      ]
+    : 'list',
   use: {
     locale: 'es-ES',
     trace: 'retain-on-failure',
