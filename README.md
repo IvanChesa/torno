@@ -14,6 +14,9 @@ Proyecto en desarrollo, de [Iván Chesa Lapena](https://ivanchesa.com). El plan 
 - `npm run e2e`: Playwright (Chromium y WebKit) contra `ng serve` y contra el build servido como en Pages (`npm run build` antes).
 - `npm run check`: lint, tests, build, presupuestos de tamaño y límites de Pages. Obligatorio antes de cerrar una fase.
 - `npm run capturas -- --fase=N`: capturas deterministas (`?captura=1`) en `docs/informes/img/fase-N/` (`npm run build` antes).
+- `node scripts/render-poster.mjs`: las imágenes de la web renderizadas con el propio motor (los pósteres del 3D, los renders de las secciones y la imagen Open Graph) en `public/img/` (`npm run build` antes y después).
+- `node scripts/loop-anatomy.mjs`: las formas de onda de «Anatomía de un bucle», con la misma síntesis (si cambia un sonido).
+- `node scripts/capture-maqueta.mjs`: las capturas de la maqueta de la portada (`docs/maqueta/`).
 - `node scripts/verify-pages.mjs <URL> [--build dist/torno/browser]`: comprueba un despliegue como con `curl` (rutas, redirecciones, 404, cabeceras, caché y que sirve ese build).
 
 Requisitos: Node 22.22.3 o superior (o 24.15+). Para el e2e, `npx playwright install chromium webkit` la primera vez.
