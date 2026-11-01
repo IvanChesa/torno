@@ -17,9 +17,9 @@ test.describe('la anatomía de un bucle', () => {
   }) => {
     await instrumentAudio(page);
     await page.goto('/?sin3d=1');
-    const heading = page.getByRole('heading', { name: 'Anatomía de un bucle' });
-    await heading.scrollIntoViewIfNeeded();
+    // El título del marcador se cambia por el de la sección al llegar su `@defer`: se espera al botón.
     const listen = page.getByRole('button', { name: 'Escuchar batería: Alfar' });
+    await listen.scrollIntoViewIfNeeded();
     await expect(listen).toBeVisible();
     expect(await audioCalls(page)).toEqual([]);
 
@@ -43,8 +43,9 @@ test.describe('la anatomía de un bucle', () => {
   test('«Escuchar las cuatro» suena las cuatro capas a la vez', async ({ page }) => {
     await instrumentAudio(page);
     await page.goto('/?sin3d=1');
-    await page.getByRole('heading', { name: 'Anatomía de un bucle' }).scrollIntoViewIfNeeded();
-    await page.getByRole('button', { name: 'Escuchar las cuatro' }).click();
+    const all = page.getByRole('button', { name: 'Escuchar las cuatro' });
+    await all.scrollIntoViewIfNeeded();
+    await all.click();
     await expect(page.getByText('Suena: Alfar, Raíz, Olivo, Cierzo.')).toBeVisible();
     expect(await outputPeak(page)).toBeGreaterThan(0.05);
   });
