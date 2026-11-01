@@ -12,14 +12,25 @@ import { INSTRUMENT_ANCHOR } from './guide';
 @Component({
   selector: 'trn-details',
   template: `
-    <img
-      [src]="text.image.src"
-      [width]="text.image.width"
-      [height]="text.image.height"
-      [alt]="text.image.alt"
-      loading="lazy"
-      decoding="async"
-    />
+    <!--
+      La imagen, al verse (no en la primera visita: Chromium carga las «lazy» que quedan a menos de
+      unos 1250 px, y esta está justo debajo). Mientras, su hueco, del mismo tamaño.
+    -->
+    @defer (on viewport) {
+      <img
+        [src]="text.image.src"
+        [width]="text.image.width"
+        [height]="text.image.height"
+        [alt]="text.image.alt"
+        loading="lazy"
+        decoding="async"
+      />
+    } @placeholder {
+      <div
+        class="image-slot"
+        [style.aspect-ratio]="text.image.width + ' / ' + text.image.height"
+      ></div>
+    }
     <div class="text">
       <h2 id="detalles">{{ text.title }}</h2>
       <p>{{ text.intro }}</p>
@@ -54,7 +65,8 @@ import { INSTRUMENT_ANCHOR } from './guide';
     }
 
     /* El render lleva el fondo de la página: sobre el campo de la sección, un marco. */
-    img {
+    img,
+    .image-slot {
       inline-size: 100%;
       block-size: auto;
       border-radius: var(--radius-panel);

@@ -17,14 +17,25 @@ import { INTRO_CONTENT } from './intro.content';
         }
       </dl>
     </div>
-    <img
-      [src]="text.image.src"
-      [width]="text.image.width"
-      [height]="text.image.height"
-      [alt]="text.image.alt"
-      loading="lazy"
-      decoding="async"
-    />
+    <!--
+      La imagen, al verse (no en la primera visita: Chromium carga las «lazy» que quedan a menos de
+      unos 1250 px, y esta está justo debajo). Mientras, su hueco, del mismo tamaño.
+    -->
+    @defer (on viewport) {
+      <img
+        [src]="text.image.src"
+        [width]="text.image.width"
+        [height]="text.image.height"
+        [alt]="text.image.alt"
+        loading="lazy"
+        decoding="async"
+      />
+    } @placeholder {
+      <div
+        class="image-slot"
+        [style.aspect-ratio]="text.image.width + ' / ' + text.image.height"
+      ></div>
+    }
   `,
   styles: `
     :host {
@@ -61,7 +72,8 @@ import { INTRO_CONTENT } from './intro.content';
       color: var(--color-ink-muted);
     }
 
-    img {
+    img,
+    .image-slot {
       inline-size: 100%;
       block-size: auto;
       border-radius: var(--radius-panel);

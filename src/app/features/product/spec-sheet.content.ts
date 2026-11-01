@@ -58,13 +58,13 @@ const ROWS: readonly SpecRow[] = [
     name: 'Fotogramas por segundo',
     value: '144 fps',
     how: 'El 3D en el escritorio (RTX 3060), en los tres niveles de calidad: la frecuencia de la pantalla. Sin nada que mover, 0 fps. En el móvil, pendiente de medir.',
-    phase: 6,
+    phase: 7,
   },
   {
     name: 'Peso de la primera visita',
-    value: '596 kB · 1,33 MB',
+    value: '625 kB · 1,36 MB',
     how: 'Todo lo que se descarga para ver la portada, en bruto: sin el 3D y con él. El 3D se genera con código, sin modelos ni texturas que descargar.',
-    phase: 6,
+    phase: 7,
   },
 ];
 

@@ -132,7 +132,7 @@ import { HOME_CONTENT } from './home.content';
       visita. Mientras, su título y su entradilla, ya en el HTML prerenderizado.
     -->
     <section class="block" aria-labelledby="anatomia">
-      @defer (on viewport; on idle) {
+      @defer (on viewport) {
         <trn-loop-anatomy />
       } @placeholder {
         <div class="placeholder">
