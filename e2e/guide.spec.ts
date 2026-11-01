@@ -26,6 +26,11 @@ test.describe('la guía', () => {
     await expect(page.getByRole('heading', { name: 'Conoce tu instrumento' })).toBeVisible();
     const buttons = page.getByRole('button', { name: /^Ver en el instrumento: / });
     await expect(buttons).toHaveCount(9);
+    // Como con el teclado: un clic en plena hidratación de la guía podía no llevar el foco al
+    // control (CI de main tras la fusión de la fase 7). Se espera a que esté hidratada; el caso del
+    // clic temprano queda para la fase 8.
+    await buttons.first().scrollIntoViewIfNeeded();
+    await expect(page.locator('trn-guide[data-lista]')).toBeAttached();
     for (const [name, control] of ENTRIES) {
       await page.getByRole('button', { name: `Ver en el instrumento: ${name}` }).click();
       await expect(page.locator(`[data-control="${control}"]`)).toBeFocused();

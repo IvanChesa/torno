@@ -386,4 +386,6 @@ La 5.b sigue parada: falta lo otro que pide, las pruebas del móvil en `docs/PRU
 - **ivanchesa.com no resuelve** (01-11): los enlaces legales y de contacto, sin comprobar con `curl`.
 - **Probar en el móvil** la portada nueva en `https://staging.torno.pages.dev`: la guía, el despiece, la anatomía y el disco.
 
+**Tras la fusión.** El primer CI de `main` (`280e863`) falló en un e2e de la guía con el ratón (el clic en el primer control, justo al cargar, mientras la guía se hidrataba: el foco no llegaba a su control). Es el mismo caso que el del teclado de la revisión (#2): el test espera ahora a que la guía esté hidratada (20 de 20 con seis trabajadores a la vez). **Para la fase 8:** que un clic o un Intro en plena hidratación de la guía también lleve el foco al control.
+
 **Siguiente.** El bloque E (la fase 8: pulido y calidad). No lo empiezo: espera a la revisión del bloque D y al prompt de Iván.
