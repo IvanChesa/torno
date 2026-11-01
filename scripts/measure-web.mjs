@@ -5,7 +5,7 @@
 // en ella, medidas con las API del propio navegador.
 //
 // Uso: node scripts/measure-web.mjs [--veces 3]   (después de `npm run build`)
-/* global document, PerformanceObserver, window -- dentro de addInitScript() y evaluate(), en la página */
+/* global PerformanceObserver, window -- dentro de addInitScript() y evaluate(), en la página */
 import { chromium, devices } from '@playwright/test';
 import { startPagesServer } from './serve-pages.mjs';
 

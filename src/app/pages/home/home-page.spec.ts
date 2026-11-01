@@ -7,12 +7,10 @@ describe('HomePage', () => {
   beforeAll(() => {
     // jsdom no tiene IntersectionObserver (los `@defer` de la portada esperan a verse).
     globalThis.IntersectionObserver ??= class {
-      observe(): void {}
-      unobserve(): void {}
-      disconnect(): void {}
-      takeRecords(): IntersectionObserverEntry[] {
-        return [];
-      }
+      observe = (): void => undefined;
+      unobserve = (): void => undefined;
+      disconnect = (): void => undefined;
+      takeRecords = (): IntersectionObserverEntry[] => [];
     } as unknown as typeof IntersectionObserver;
   });
 
