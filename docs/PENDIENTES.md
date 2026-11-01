@@ -24,7 +24,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 - [x] **Subdominio definitivo:** `torno.ivanchesa.com` (31-10: la web de Iván pasa a ivanchesa.com y el .es se deja caducar). El código lo cambia la fase 7 en `src/app/core/site.config.ts`.
 - [x] **Autoguardado local** (D16): activado por defecto, visible y borrable (sin cambios de Iván antes del bloque A).
 - [ ] **Licencia del código propio** cuando el repo pase a público (MIT u otra).
-- [ ] `@lhci/cli` en el CI (fase 8).
+- [x] `@lhci/cli` en el CI (fase 8): aprobado (01-11). Y el tope de la primera visita sin el 3D, a 650 kB en bruto (01-11).
 - [x] **Autoguardado con el panel de recuperar sin contestar** (revisión de la fase 2, #21): **segundo hueco** (decisión de Iván, 26-10; PLAN §4.8). Se implementa al empezar el bloque B (`docs/revisiones/bloque-A.md`, #3).
 - [ ] **Micrófono entre tomas** (si las pruebas del móvil lo piden; sus cifras, en la fase 8): mantenerlo abierto durante una «sesión de grabación» o recalibrar cada toma con la cuenta previa (informe de la fase 2, §10, propuesta 1).
 - [ ] **Indexación en el lanzamiento (fase 9).** Hasta entonces todas las páginas llevan `noindex` (`indexable: false` en `src/app/core/site.config.ts`); al lanzar se pone a `true` y solo la 404 sigue con `noindex`. Confirmar que quieres que se indexe.
@@ -35,7 +35,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
   - Opción 1: por debajo de 360 px, encoger esa pareja (WCAG 2.2 pide 24 px).
   - Opción 2: dejarlo así, con el criterio en el encuadre del móvil desde 360 px.
   - Se decide en la fase 8, con tu móvil.
-- [ ] `TODO(ivan)`: **Lighthouse en la fase 7** (criterio de aceptación). ¿Vale `npx lighthouse` en local, sin añadirlo al proyecto, o PageSpeed Insights contra la vista previa? Mientras, LCP y CLS medidos con el navegador (informe de la fase 7, §2): `/` 600–992 ms y 0,003; `/sobre-el-proyecto` 272–464 ms y 0,003.
+- [ ] `TODO(ivan)`: **el rendimiento de `/` en Lighthouse móvil** (criterio de la fase 7; PageSpeed Insights, elegido por Iván el 01-11): **70–72** (§5: ≥ 90), por el TBT del 3D (2–3 s con la CPU que simula). Accesibilidad y buenas prácticas, 100; `/sobre-el-proyecto`, 100 en las tres. Elegir cómo bajarlo (informe de la fase 7, §10, propuesta 2): el 3D al tocar en el móvil, el 3D cuando la página está quieta (propuesta), menos trabajo en el hilo principal (fase 8) o aceptar < 90 en `/`.
 - [ ] `TODO(ivan)`: **el peso de la primera visita sin el 3D**: 625 kB (§5: ≤ 600), por el contenido de la web en el HTML. Subir el presupuesto a 650 kB (propuesta) o, en la fase 8, el plan B de las fuentes (−54 kB, sin el eje `SOFT` de los títulos). Informe de la fase 7, §10.
 - [ ] `TODO(ivan)`: **confirmar el espejo de la pantalla (opción B)** (informe de la fase 6, §10, propuesta 2; decidido con la maqueta de la fase 7). En el escritorio, una lectura pequeña en la esquina de la caja del 3D; en el móvil, encima, como antes. Capturas de las dos opciones: `docs/informes/img/fase-7/maqueta-espejo-{a,b}-*.png`. Volver a la A es cambiar solo el CSS del escenario.
 

@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-7-web-producto`
 - **Fecha:** 2026-11-01
-- **Estado:** listo para revisión (el criterio de Lighthouse, pendiente de la herramienta: §2 y §9)
+- **Estado:** fusionada; el criterio de Lighthouse no se cumple en el rendimiento de `/` (70–72 en PageSpeed Insights): §2 y §10
 
 ## 0. Plan de la fase
 
@@ -108,7 +108,7 @@ La portada es ya la web de producto: el titular junto al instrumento, «Qué es�
 | Criterio | ✅/❌ | Evidencia |
 |---|---|---|
 | Capturas de la maqueta y de la implementación coherentes | ✅ | Maqueta: `img/fase-7/maqueta-espejo-{a,b}-{escritorio,movil}.png`. Implementación: `img/fase-7/inicio-{escritorio,movil}.png` y `sobre-el-proyecto-*.png`. La misma retícula y el mismo orden: el titular a la izquierda del 3D, «Qué es» con su render a la derecha, la guía en filas sobre un escalón de tono, los materiales en un campo de color, la anatomía como disco a la izquierda, la ficha en tabla, las preguntas en dos columnas y el cierre con el titular grande. Diferencias, a propósito: la guía tiene los 9 controles (la maqueta, 4), la anatomía dibuja la forma de onda real de cada sonido alrededor de su anillo (la maqueta, anillos lisos) y la ficha tiene 9 filas con enlace a su informe. |
-| Lighthouse móvil según §5 en `/` y `/sobre-el-proyecto` | ⏳ | **Pendiente:** Lighthouse es una herramienta fuera de la lista cerrada (`CLAUDE.md`: se pregunta antes). Se ha preguntado a la sesión de plan si vale `npx lighthouse` en local o PageSpeed Insights contra la vista previa; sin respuesta al cerrar la fase (§9). Mientras, las métricas de §5 que pesan en él, medidas con las API del navegador en las mismas condiciones que Lighthouse en el móvil (Pixel 7, 4G lento, CPU ×4, en frío, 3 visitas; `node scripts/measure-web.mjs`): **`/`: LCP 600–992 ms (el póster) y CLS 0,003; `/sobre-el-proyecto`: LCP 272–464 ms (un párrafo) y CLS 0,003** (§5: ≤ 2,5 s y ≤ 0,05). Tras la revisión, también el TBT: `/` 379–410 ms y `/sobre-el-proyecto` 121–124 ms (§12, #3): la nota de rendimiento de `/` rondaría el 90, sin asegurarla. axe: 0 violaciones en las tres rutas, también con la portada recorrida e hidratada entera. |
+| Lighthouse móvil según §5 en `/` y `/sobre-el-proyecto` | ❌ en `/` (rendimiento) · ✅ lo demás | **PageSpeed Insights** (elegido por Iván el 01-11; Lighthouse 13.6.0, Moto G Power emulado, 4G lento) contra `https://staging.torno.pages.dev` con el build de `main` (`831a12d`), dos pasadas de `/` y una de `/sobre-el-proyecto`:<br>• **`/`: rendimiento 72 y 70** (§5: ≥ 90 ❌); accesibilidad 100 y buenas prácticas 100 (≥ 95 ✅). FCP 0,8 s, LCP 1,4–2,1 s, CLS 0,003, Speed Index 2,0–2,1 s y **TBT 2050–2860 ms**: «Minimiza el trabajo del hilo principal», 4,9 s, con 6 tareas largas (la llegada del 3D en reposo: el chunk de 631 kB y la generación del aparato con la CPU de un móvil lento).<br>• **`/sobre-el-proyecto`: 100, 100 y 100** (§5: ≥ 95 ✅). LCP 0,8 s, TBT 10 ms y CLS 0,012.<br>El SEO (66–69) no es criterio: es el `noindex` de la vista previa. Las métricas del navegador (`node scripts/measure-web.mjs`, CPU ×4) daban un TBT de 369–410 ms en `/`: Lighthouse simula una CPU mucho más lenta. Propuesta para Iván: §10, propuesta 2. |
 | e2e de privacidad en todas las rutas | ✅ | `e2e/static.spec.ts`: `/`, `/sobre-el-proyecto` y `/404` recorridas enteras (lo de abajo llega al acercarse): 0 peticiones fuera de `localhost`, 0 cookies y nada en `localStorage` que no sea de Torno. Siguen los de la fase 2 (0 peticiones al grabar, guardar y exportar, `files.spec.ts`). |
 | La guía nunca inicia el audio ni pide el micrófono (e2e) | ✅ | `e2e/guide.spec.ts` (plato HTML: los 9 botones con el ratón y uno con el teclado) y `stage.spec.ts` (3D): el foco llega a su control, la cámara a su encuadre, y no hay ni un `AudioContext`, ni un `resume`, ni una pista del micrófono (`audioCalls` vacío, `streamCount` 0). |
 | Ficha técnica: cada cifra tiene su medición documentada en un informe, y `/sobre-el-proyecto` explica cómo se midió | ✅ | Cada fila de `spec-sheet.content.ts` lleva cómo se midió y un enlace a su informe: fases 1 (memoria), 2 (primer sonido y toma alineada), 6 (del gesto al audio) y 7 (frecuencia, latencia de salida, CPU, FPS y peso: §6 de este informe). `/sobre-el-proyecto`, «Cómo se ha medido». |
@@ -201,6 +201,14 @@ Ninguna (ni `sharp`, §4).
    - b. Mantener 600 y, en la fase 8, el plan B de las fuentes de `DISENO.md` §3 (el corte `opsz` de Fraunces, −54 kB, sin el eje `SOFT` de los títulos: cambia la firma de la dirección).
 
    Propongo la a: el plan B se pensó para el rendimiento, y aquí el LCP (≤ 1 s con 4G lento) y el CLS (0,003) ya están muy por dentro de §5. Un dato más (revisión, #14): esos 625 kB en bruto son unos 310 kB con brotli por la red (las fuentes, 144 kB, no se comprimen). Que §5 diga si el peso de la primera visita se mide en bruto (como el JS) o transferido.
+
+2. **El rendimiento de `/` en Lighthouse móvil** (§5: ≥ 90; PageSpeed Insights, 70–72). Todo es el TBT (2050–2860 ms): el 3D llega «en reposo» y, con la CPU que simula Lighthouse, descargar, analizar y generar el aparato bloquea el hilo principal varios segundos. Opciones, de menos a más cambio:
+   - a. **El 3D, en el móvil, solo al tocar o al acercarse el dedo** (el póster hasta entonces, como ya hace la portada mientras carga). Lighthouse no lo cargaría y el TBT bajaría a lo de `/sobre-el-proyecto`; cambia la primera impresión en el móvil (el aparato se ve, pero no se mueve hasta el primer toque).
+   - b. **El 3D, cuando la página está quieta** (tras la carga y unos segundos sin trabajo): el usuario ve el póster y puede leer y desplazarse sin bloqueos, y el aparato llega después. Saca el trabajo de la ventana que mide Lighthouse, pero el móvil lento sigue notando esos segundos.
+   - c. **Menos trabajo en el hilo principal** en la fase 8: generar el aparato en un worker (`OffscreenCanvas`) o trocear más la generación y la subida a la GPU. Es lo que de verdad lo arregla, pero es el cambio más grande.
+   - d. **Aceptar < 90 en `/`**, porque el 3D es el producto, y dejar ≥ 90 para `/sobre-el-proyecto` y para `/?sin3d=1`.
+
+   Propongo la b ya en la fase 8, con la c medida en la misma fase si la b no basta.
 
 ## 11. Cómo probarlo
 - En la vista previa de la rama, `https://fase-7-web-producto.torno.pages.dev` (y, tras fusionar, `https://staging.torno.pages.dev`):
