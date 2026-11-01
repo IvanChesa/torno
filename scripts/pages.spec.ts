@@ -129,6 +129,20 @@ describe('el analizador de _headers', () => {
     expect(headersFor(parsed, '/x').get('x-tres')).toBeUndefined();
   });
 
+  it('«! Nombre» quita la cabecera, la den las reglas que la den (como Pages)', () => {
+    const lines = ['/*', '  X-Uno: a', '  X-Dos: b', '/og.jpg', '  ! X-Uno'];
+    const parsed = parseHeaders(lines.join('\n'));
+    expect(headersFor(parsed, '/og.jpg')).toEqual(new Map([['x-dos', 'b']]));
+    expect(headersFor(parsed, '/otra.jpg').get('x-uno')).toBe('a');
+    expect(() => parseHeaders(['/a', '  ! '].join('\n'))).toThrow(/! Nombre/);
+  });
+
+  it('la imagen Open Graph va sin CORP; lo demás, con `same-origin`', () => {
+    expect(header('/img/og.jpg', 'cross-origin-resource-policy')).toBeUndefined();
+    expect(header('/img/og.jpg', 'cache-control')).toBe('public, max-age=86400');
+    expect(header('/img/escenario.webp', 'cross-origin-resource-policy')).toBe('same-origin');
+  });
+
   it('une con una coma lo que dan dos reglas y respeta los nombres sin mayúsculas', () => {
     const parsed = parseHeaders('/*\n  X-Uno: a\n\n# comentario\n/b\n  x-uno: b\n');
     expect(headersFor(parsed, '/b')).toEqual(new Map([['x-uno', 'a, b']]));
@@ -136,7 +150,7 @@ describe('el analizador de _headers', () => {
   });
 
   it('rechaza lo que no entiende y lo que en Pages no casaría nunca', () => {
-    expect(() => parseHeaders('/*\n  ! X-Uno')).toThrow(/quitar cabeceras/);
+    expect(() => parseHeaders('  ! X-Uno')).toThrow(/sin patrón/);
     expect(() => parseHeaders('/*/*\n  X: y')).toThrow(/más de un \*/);
     expect(() => parseHeaders('  X: y')).toThrow(/sin patrón/);
     expect(() => parseHeaders('/*\n  sin dos puntos')).toThrow(/sin «:»/);

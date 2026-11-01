@@ -9,12 +9,14 @@
 //   y debajo sus cabeceras, con sangría (`Nombre: valor`);
 // - `*` (uno por patrón) casa con cualquier cosa, también con `/`; `:nombre` casa con un trozo sin
 //   `/` (y, en el dominio, sin `.`);
-// - si varias reglas dan la misma cabecera, sus valores se unen con una coma.
-// Lo que no entiende (quitar cabeceras con `!`, más de un `*`) y las reglas que en Pages no casarían
-// nunca (`http://…`, o de dominio sin ruta), las rechaza.
+// - si varias reglas dan la misma cabecera, sus valores se unen con una coma;
+// - `! Nombre` en una regla quita esa cabecera, la den las reglas que la den (fase 7: la imagen
+//   Open Graph sin `Cross-Origin-Resource-Policy`).
+// Lo que no entiende (más de un `*`) y las reglas que en Pages no casarían nunca (`http://…`, o de
+// dominio sin ruta), las rechaza.
 
 /**
- * @typedef {{ pattern: string, host: RegExp | null, path: RegExp, headers: [string, string][] }} HeaderRule
+ * @typedef {{ pattern: string, host: RegExp | null, path: RegExp, headers: [string, string][], removed: string[] }} HeaderRule
  */
 
 const escapeRegExp = (text) => text.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
@@ -60,12 +62,20 @@ export function parseHeaders(text) {
         host: absolute ? compile(absolute[1] ?? '', '[^./]+') : null,
         path: compile(absolute ? (absolute[2] ?? '/') : pattern, '[^/]+'),
         headers: [],
+        removed: [],
       };
       rules.push(rule);
       return;
     }
     const line = raw.trim();
-    if (line.startsWith('!')) throw new Error(`${where}: quitar cabeceras (!) no está admitido`);
+    if (line.startsWith('!')) {
+      const name = line.slice(1).trim();
+      if (!rule || !/^[A-Za-z][\w-]*$/.test(name)) {
+        throw new Error(`${where}: «! Nombre» sin patrón o con un nombre que no vale («${line}»)`);
+      }
+      rule.removed.push(name.toLowerCase());
+      return;
+    }
     const colon = line.indexOf(':');
     if (!rule || colon <= 0) throw new Error(`${where}: cabecera sin patrón o sin «:» («${line}»)`);
     rule.headers.push([line.slice(0, colon).trim(), line.slice(colon + 1).trim()]);
@@ -86,6 +96,7 @@ export function headersFor(rules, url) {
     ? { hostname: null, pathname: url }
     : new URL(url);
   const headers = new Map();
+  const removed = new Set();
   for (const rule of rules) {
     if (rule.host && (hostname === null || !rule.host.test(hostname))) continue;
     if (!rule.path.test(pathname)) continue;
@@ -94,6 +105,8 @@ export function headersFor(rules, url) {
       const previous = headers.get(key);
       headers.set(key, previous === undefined ? value : `${previous}, ${value}`);
     }
+    for (const name of rule.removed) removed.add(name);
   }
+  for (const name of removed) headers.delete(name);
   return headers;
 }

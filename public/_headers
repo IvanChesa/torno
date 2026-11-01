@@ -59,3 +59,8 @@ https://:project.pages.dev/*
 
 /img/*
   Cache-Control: public, max-age=86400
+
+# La imagen Open Graph (D18, fase 7), sin CORP: la cargan directamente las webs y las apps que
+# enseñan la vista previa de un enlace (revisión de la fase 4, #10).
+/img/og.jpg
+  ! Cross-Origin-Resource-Policy
