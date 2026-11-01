@@ -14,20 +14,24 @@ import { SPEC_SHEET_CONTENT } from './spec-sheet.content';
       <h2 id="ficha">{{ text.title }}</h2>
       <p>{{ text.intro }}</p>
     </div>
-    <table>
-      <thead>
-        <tr>
-          <th scope="col">{{ text.headers.name }}</th>
-          <th scope="col">{{ text.headers.value }}</th>
-          <th scope="col">{{ text.headers.how }}</th>
+    <!--
+      Los roles, explícitos: en el móvil cada fila pasa a display: grid, y algunos lectores de
+      pantalla dejan entonces de anunciarla como tabla (revisión de la fase 7, #16).
+    -->
+    <table role="table">
+      <thead role="rowgroup">
+        <tr role="row">
+          <th scope="col" role="columnheader">{{ text.headers.name }}</th>
+          <th scope="col" role="columnheader">{{ text.headers.value }}</th>
+          <th scope="col" role="columnheader">{{ text.headers.how }}</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody role="rowgroup">
         @for (row of text.rows; track row.name) {
-          <tr>
-            <th scope="row">{{ row.name }}</th>
-            <td class="value">{{ row.value }}</td>
-            <td class="how">
+          <tr role="row">
+            <th scope="row" role="rowheader">{{ row.name }}</th>
+            <td class="value" role="cell">{{ row.value }}</td>
+            <td class="how" role="cell">
               {{ row.how }}
               <a [href]="reportUrl(row.phase)">{{ text.report(row.phase) }}</a>
             </td>

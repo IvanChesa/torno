@@ -16,7 +16,7 @@ export const FAQ_CONTENT = {
     {
       question: '¿Funciona en el móvil?',
       answer:
-        'Sí. Los controles miden 44 píxeles como poco, el aparato se encuadra para la pantalla pequeña y la página se desplaza por encima de él con el dedo. En un iPhone todavía no se ha probado a fondo.',
+        'Sí. Los controles miden 44\u00a0píxeles como poco, el aparato se encuadra para la pantalla pequeña y la página se desplaza por encima de él con el dedo. En un iPhone todavía no se ha probado a fondo.',
     },
     {
       question: '¿Y sin 3D, o con un lector de pantalla?',
@@ -26,12 +26,12 @@ export const FAQ_CONTENT = {
     {
       question: '¿Puedo guardar lo que hago?',
       answer:
-        'Sí. La sesión se guarda sola en este navegador, y en el menú SESIÓN puedes guardarla en un archivo .torno, exportar la mezcla en WAV de 24 bits o una pista por capa.',
+        'Sí. La sesión se guarda sola en este navegador, y en el menú SESIÓN puedes guardarla en un archivo .torno, exportar la mezcla en WAV de 24\u00a0bits o una pista por capa.',
     },
     {
       question: '¿De dónde salen los sonidos?',
       answer:
-        'Del propio código: los doce bucles se sintetizan en tu navegador, siempre igual, en re menor y a 90 BPM. No hay muestras de nadie ni audio generado por inteligencia artificial.',
+        'Del propio código: los doce bucles se sintetizan en tu navegador, siempre igual, en re menor y a 90\u00a0BPM. No hay muestras de nadie ni audio generado por inteligencia artificial.',
     },
     {
       question: '¿Por qué cambia el tono al cambiar el tempo?',

@@ -64,7 +64,7 @@ export const GUIDE_CONTENT = {
     },
     {
       title: 'Tempo',
-      text: 'Gira el dial principal, el grande de detrás: de 40 a 240 BPM. Velocidad y tono cambian juntos, como en un tocadiscos.',
+      text: 'Gira el dial principal, el grande de detrás: de 40 a 240\u00a0BPM. Velocidad y tono cambian juntos, como en un tocadiscos.',
       keys: [
         { keys: ['↑', '↓'], text: 'de uno en uno' },
         { keys: ['Mayús'], text: 'con la flecha, de diez en diez' },
@@ -85,7 +85,7 @@ export const GUIDE_CONTENT = {
     },
     {
       title: 'Ajustes del bucle',
-      text: 'Pulsa el dial principal y entra en BUCLE: la duración de la toma (libre o de 1, 2 o 4 compases), la cuenta previa, el metrónomo, el reverso y el panorama de la capa, y marcar el tempo con pulsaciones.',
+      text: 'Pulsa el dial principal y entra en BUCLE: la duración de la toma (libre o de 1, 2 o 4\u00a0compases), la cuenta previa, el metrónomo, el reverso y el panorama de la capa, y marcar el tempo con pulsaciones.',
       keys: [
         { keys: ['Intro'], text: 'en el dial, entra' },
         { keys: ['Esc'], text: 'vuelve atrás' },

@@ -5,19 +5,19 @@
 export const ABOUT_CONTENT = {
   reviewed: false,
   title: 'Sobre el proyecto',
-  lead: 'Torno es una pieza de portfolio: un instrumento de audio en tiempo real hecho desde cero, con el sonido, el 3D y la web escritos a mano.',
+  lead: 'Torno es una pieza de portafolio: un instrumento de audio en tiempo real hecho desde cero, con el sonido, el 3D y la web escritos a mano.',
   intro: [
     'El reto era que se tocara como un objeto: sin cortes en el audio, sin retrasos al tocar y sin que la página pese más de lo que vale. Debajo hay tres piezas que no se conocen entre sí: un núcleo de audio en TypeScript, un motor 3D con Three.js y una web en Angular que los une.',
   ],
   architecture: {
-    title: 'Tres hilos y un solo reloj',
+    title: 'Cuatro hilos y un solo reloj',
     text: [
       'El sonido no se hace en la página, sino en el hilo de audio del navegador (un AudioWorklet). Allí vive el núcleo, que guarda las cuatro capas, cuenta las muestras y mezcla. Es la única fuente de verdad: el disco del 3D, la pantalla y los medidores leen su reloj, nunca al revés.',
-      'La página le manda órdenes con mensajes tipados y recibe su estado agrupado, como mucho 30 veces por segundo. Los sonidos de la biblioteca se sintetizan en un worker aparte, y la exportación a WAV usa otra copia del mismo núcleo, así que lo que se exporta es lo que suena.',
+      'La página le manda órdenes con mensajes tipados y recibe su estado agrupado, como mucho 30\u00a0veces por segundo. Los sonidos de la biblioteca se sintetizan en un hilo aparte (un worker), y la exportación a WAV usa otra copia del mismo núcleo, así que lo que se exporta es lo que suena.',
       'El núcleo es TypeScript puro: sin navegador, sin Angular y sin reservar memoria mientras suena. Por eso se prueba en Node, muestra a muestra.',
     ],
     diagram:
-      'Diagrama de hilos. El hilo principal lleva la web en Angular, el motor 3D y el motor de audio. Envía órdenes por un canal de mensajes al hilo de audio, donde el núcleo mezcla las capas y las manda a los altavoces, y recibe su estado. El micrófono entra al hilo de audio. Aparte, un worker sintetiza los sonidos y otro exporta los WAV con el mismo núcleo.',
+      'Diagrama de hilos. El hilo principal lleva la web en Angular, el motor 3D y el motor de audio. Envía órdenes por un canal de mensajes al hilo de audio, donde el núcleo mezcla las capas y las manda a los altavoces, y recibe su estado. El micrófono entra al hilo de audio. Aparte, un hilo sintetiza los sonidos y otro exporta los WAV con el mismo núcleo.',
     labels: {
       main: 'Hilo principal',
       mainItems: ['Web en Angular (signals)', 'Motor 3D (Three.js)', 'Motor de audio'],
@@ -25,8 +25,8 @@ export const ABOUT_CONTENT = {
       audioItems: ['AudioWorklet', 'Núcleo: capas, reloj, mezcla'],
       commands: 'órdenes',
       status: 'estado ≤ 30/s',
-      synth: 'Worker de síntesis',
-      export: 'Worker de exportación',
+      synth: 'Hilo de síntesis',
+      export: 'Hilo de exportación',
       mic: 'Micrófono',
       out: 'Altavoces',
     },
@@ -36,7 +36,7 @@ export const ABOUT_CONTENT = {
     items: [
       {
         title: 'Audio propio, sin librerías',
-        text: 'Web Audio y un AudioWorklet con el procesado escrito a mano: filtro de variables de estado, interpolación cúbica al cambiar de tempo y un limitador que no deja pasar de −0,3 dBFS.',
+        text: 'Web Audio y un AudioWorklet con el procesado escrito a mano: filtro de variables de estado, interpolación cúbica al cambiar de tempo y un limitador que no deja pasar de −0,3\u00a0dBFS.',
       },
       {
         title: 'Los controles son la página',
@@ -77,7 +77,7 @@ export const ABOUT_CONTENT = {
   author: {
     title: 'Autor',
     text: (name: string, role: string) =>
-      `${name}, ${role}. Torno es una pieza de su portfolio: el diseño, el audio, el 3D y la web.`,
+      `${name}, ${role}. Torno es una pieza de su portafolio: el diseño, el audio, el 3D y la web.`,
     web: 'Su web',
     contact: 'Contacto',
     code: 'El código, en GitHub',

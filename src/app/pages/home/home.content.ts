@@ -7,7 +7,7 @@ export const HOME_CONTENT = {
   guide: 'Cómo se toca',
   /** La nota de debajo: nada suena solo, y el teclado. Las teclas van en `kbd`. */
   note: {
-    before: 'Nada suena hasta que tocas. Con el teclado,',
+    before: 'Nada suena hasta que tocas. Con el foco en el instrumento,',
     play: 'Espacio',
     middle: 'reproduce y',
     help: '?',

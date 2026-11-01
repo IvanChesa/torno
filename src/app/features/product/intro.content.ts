@@ -7,11 +7,11 @@ export const INTRO_CONTENT = {
   facts: [
     {
       term: 'Doce bucles propios',
-      text: 'Sintetizados con código, en re menor y a 90 BPM. Sin muestras de nadie.',
+      text: 'Sintetizados con código, en re menor y a 90\u00a0BPM. Sin muestras de nadie.',
     },
     {
       term: 'Graba encima',
-      text: 'Tomas libres o de 1, 2 o 4 compases, con cuenta previa, metrónomo y sobregrabación.',
+      text: 'Tomas libres o de 1, 2 o 4\u00a0compases, con cuenta previa, metrónomo y sobregrabación.',
     },
     {
       term: 'Nada sale de aquí',
