@@ -104,7 +104,7 @@ Cualquier otro paquete → **preguntar a Iván antes de instalarlo**.
 
 - **Producción:** `@angular/*` 22.x · `three` `^0.186.0` · las dos familias tipográficas de `DISENO.md` (`@fontsource/*` o `@fontsource-variable/*`; candidatas: Fraunces y Geist Mono, ambas OFL 1.1)
 - **Desarrollo:** lo que genera `ng new` (incluidos Vitest y jsdom) · `@types/three` · `esbuild` (fijado a la versión que usa `@angular/build`) · `wrangler` (fijado a la misma versión que el despliegue, para `wrangler pages dev` en los e2e de las cabeceras) · `angular-eslint`, `eslint`, `@eslint/js` y `typescript-eslint` · `prettier` · `@playwright/test` · `@axe-core/playwright` · `sharp` (póster e imagen Open Graph) · `@vitest/coverage-v8`
-- **Propuesta pendiente de Iván** (se pide en su fase): `@lhci/cli` (Lighthouse en el CI, fase 8).
+- **Aprobada por Iván (01-11):** `@lhci/cli` (Lighthouse en el CI, fase 8), como dependencia de desarrollo.
 - **Recursos de three que no son dependencias nuevas:** `three/addons/*` (`RoomEnvironment`, `RoundedBoxGeometry`, `OrbitControls`).
 
 ---
@@ -276,7 +276,7 @@ scripts/              build-worklet, make-fake-mic, render-poster, demo-sounds, 
 | Chunk 3D (three + escena) | Aviso > 800 kB en bruto; tamaño en cada informe |
 | Motor de audio · worklet · workers | ≤ 60 kB cada uno, en bruto (el worklet y el worker de exportación llevan el núcleo entero) |
 | Fuentes | ≤ 150 kB en total, con subconjunto latino |
-| Peso de la primera visita | ≤ 600 kB sin el 3D · ≤ 1,5 MB con el 3D (no hay texturas que descargar) |
+| Peso de la primera visita | **En bruto** (como el JS): ≤ 650 kB sin el 3D (decisión de Iván del 01-11; antes, 600) · ≤ 1,5 MB con el 3D. Sin contar la precarga del audio, que se anota aparte. Por la red, con brotli, es más o menos la mitad |
 | Arranque del 3D | Generación del modelo y texturas ≤ 150 ms en escritorio; sin tareas largas > 200 ms |
 | VRAM estimada | ≤ 96 MB (alto) · ≤ 48 MB (bajo) |
 | FPS | ≥ 55 en escritorio (alto) · ≥ 30 en móvil de gama media (bajo), tocando |
@@ -553,7 +553,7 @@ Tareas:
 4. **Rendimiento:** tabla de todos los presupuestos de §5 medidos por nivel de calidad.
 5. **iOS Safari en un iPhone real** (Iván): audio, micrófono, segundo plano, memoria y gestos.
 6. **Regresión visual** con `toHaveScreenshot` y `?captura=1`, con referencias generadas en el CI (Linux).
-7. **Lighthouse en el CI** si Iván aprueba `@lhci/cli`.
+7. **Lighthouse en el CI** con `@lhci/cli` (aprobado por Iván el 01-11): móvil, `/` y `/sobre-el-proyecto`, con los umbrales de §5 y el informe como artefacto. Si el CI lo hace inestable (WebGL por software), se mide contra la vista previa tras desplegar y se anota.
 8. **Revisión final de diseño** con `impeccable` y `web-design-guidelines`, con capturas antes/después.
 
 Criterios de aceptación:

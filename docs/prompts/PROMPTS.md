@@ -10,7 +10,7 @@ El ciclo, las paradas y las decisiones ya tomadas están en `CLAUDE.md`: los pro
 | B | 3 (`fase-3-sonidos`) y 4 (`fase-4-staging`) | `/effort max` | Secrets de Cloudflare (`CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`) e iPhone (si no, la fase 4 se aplaza) |
 | C | 5 (`fase-5-modelo-3d`) y 6 (`fase-6-interaccion`) | `/effort max` | Nada para empezar (30-10); las pruebas del móvil, antes de la 5.b |
 | D | 7 (`fase-7-web-producto`) | `/effort high` | — |
-| E | 8 (`fase-8-pulido`) | `/effort max` | iPhone; decisión sobre `@lhci/cli` |
+| E | 8 (`fase-8-pulido`) | `/effort max` | Nada para empezar (`@lhci/cli` aprobado el 01-11); tus pruebas en el móvil y el iPhone, al final |
 | F | 9 (`fase-9-lanzamiento`) | `/effort high` | `torno.ivanchesa.com` como dominio personalizado en Pages, y la licencia |
 
 ## Empezar el proyecto
