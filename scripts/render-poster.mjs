@@ -138,15 +138,15 @@ ${tokens}
 @font-face { font-family: 'Fraunces Variable'; font-weight: 100 900; src: url(${fraunces}) format('woff2-variations'); }
 * { margin: 0; box-sizing: border-box; }
 body {
-  display: grid; grid-template-columns: 470px 1fr; align-items: center;
+  display: grid; grid-template-columns: 430px 1fr; align-items: center;
   inline-size: ${SHARE.width}px; block-size: ${SHARE.height}px; overflow: hidden;
-  padding-inline-start: 72px; background: var(--color-bg); color: var(--color-ink);
+  padding-inline: 64px 24px; background: var(--color-bg); color: var(--color-ink);
   font-family: var(--font-text);
 }
 h1 { font-size: 132px; line-height: 0.9; letter-spacing: -0.03em; font-weight: 640;
   font-variation-settings: 'SOFT' 100; }
 p { margin-block-start: 28px; font-size: 34px; line-height: 1.25; }
-img { inline-size: 100%; block-size: ${SHARE.height}px; object-fit: cover; object-position: 50% 45%; }
+img { inline-size: 100%; block-size: ${SHARE.height}px; object-fit: contain; }
 </style></head><body>
 <div><h1>Torno</h1><p>Un instrumento de bucles que se toca en el navegador.</p></div>
 <img src="data:image/png;base64,${posterPng.toString('base64')}" alt="">
