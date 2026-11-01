@@ -7,7 +7,10 @@ import { HtmlInstrument } from '../../features/html-instrument/html-instrument';
 import { InstrumentStage } from '../../features/instrument-stage/instrument-stage';
 import { StagePlaceholder } from '../../features/instrument-stage/stage-placeholder';
 import { InstrumentSpotlight } from '../../features/instrument-common/spotlight';
+import { Details } from '../../features/product/details';
 import { Guide, INSTRUMENT_ANCHOR } from '../../features/product/guide';
+import { LoopAnatomy } from '../../features/product/loop-anatomy';
+import { LOOP_ANATOMY_CONTENT } from '../../features/product/loop-anatomy.content';
 import { ProductIntro } from '../../features/product/intro';
 import { HOME_CONTENT } from './home.content';
 
@@ -33,10 +36,12 @@ import { HOME_CONTENT } from './home.content';
 @Component({
   selector: 'trn-home-page',
   imports: [
+    Details,
     DiagnosticsPanel,
     Guide,
     HtmlInstrument,
     InstrumentStage,
+    LoopAnatomy,
     ProductIntro,
     StagePlaceholder,
   ],
@@ -105,6 +110,25 @@ import { HOME_CONTENT } from './home.content';
     <section class="block" id="guia" aria-labelledby="guia-titulo">
       <trn-guide />
     </section>
+
+    <section class="field" aria-labelledby="detalles">
+      <trn-details class="block" [explodable]="!htmlOnly() && !noWebgl()" />
+    </section>
+
+    <!--
+      La anatomía (su JS y las formas de onda), al acercarse: no entra en el peso de la primera
+      visita. Mientras, su título y su entradilla, ya en el HTML prerenderizado.
+    -->
+    <section class="block" aria-labelledby="anatomia">
+      @defer (on viewport; on idle) {
+        <trn-loop-anatomy />
+      } @placeholder {
+        <div class="placeholder">
+          <h2 id="anatomia">{{ anatomy.title }}</h2>
+          <p>{{ anatomy.intro }}</p>
+        </div>
+      }
+    </section>
   `,
   styles: `
     :host {
@@ -118,6 +142,22 @@ import { HOME_CONTENT } from './home.content';
       inline-size: min(var(--max-width), 100% - 2 * var(--page-margin));
       margin-inline: auto;
       scroll-margin-block-start: var(--space-6);
+    }
+
+    /* El marcador de la anatomía: lo que ocupa (la figura, de 34 rem como mucho), sin saltos. */
+    .placeholder {
+      display: grid;
+      align-content: center;
+      gap: var(--space-5);
+      min-block-size: min(34rem, 100vw);
+      max-inline-size: var(--measure);
+      margin-inline-start: auto;
+    }
+
+    /* Un campo de color entero: el escalón de tono de la superficie, de borde a borde. */
+    .field {
+      padding-block: var(--space-9);
+      background: var(--color-surface);
     }
 
     /* El titular a la izquierda y el instrumento a la derecha, en la primera pantalla. */
@@ -170,6 +210,7 @@ import { HOME_CONTENT } from './home.content';
 })
 export class HomePage {
   protected readonly text = HOME_CONTENT;
+  protected readonly anatomy = LOOP_ANATOMY_CONTENT;
   protected readonly anchorId = INSTRUMENT_ANCHOR;
   protected readonly anchor = `#${INSTRUMENT_ANCHOR}`;
   private readonly spotlight = inject(InstrumentSpotlight);
