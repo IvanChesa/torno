@@ -78,6 +78,8 @@ test.describe('build estático', () => {
   }) => {
     await page.goto('/?sin3d=1');
     await scrollThrough(page);
+    // La anatomía llega al verse: al bajar deprisa puede no haberse visto (revisión de la fase 7, #2).
+    await page.locator('section[aria-labelledby="anatomia"]').scrollIntoViewIfNeeded();
     await expect(page.getByRole('button', { name: 'Escuchar las cuatro' })).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])

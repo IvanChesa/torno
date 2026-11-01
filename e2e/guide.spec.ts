@@ -41,7 +41,11 @@ test.describe('la guía', () => {
   }) => {
     await instrumentAudio(page);
     await page.goto('/?sin3d=1');
+    // La guía se hidrata al verse: un Intro en pleno cambio se podía perder (revisión de la fase 7,
+    // #2). Con el ratón, el clic espera solo; con el teclado, se espera a que esté hidratada.
     const tempo = page.getByRole('button', { name: 'Ver en el instrumento: tempo' });
+    await tempo.scrollIntoViewIfNeeded();
+    await expect(page.locator('trn-guide[data-lista]')).toBeAttached();
     await tempo.focus();
     await page.keyboard.press('Enter');
     const main = page.locator('[data-control="main"]');

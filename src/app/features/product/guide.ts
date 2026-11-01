@@ -1,4 +1,4 @@
-import { Component, DOCUMENT, inject } from '@angular/core';
+import { afterNextRender, Component, DOCUMENT, inject, signal } from '@angular/core';
 import { MotionPreference } from '../../core/motion';
 import { InstrumentSpotlight } from '../instrument-common/spotlight';
 import { GUIDE_CONTENT, type GuideEntry } from './guide.content';
@@ -16,6 +16,8 @@ export const INSTRUMENT_ANCHOR = 'instrumento';
  */
 @Component({
   selector: 'trn-guide',
+  // `data-lista`: ya hidratada en el navegador (los e2e esperan a ella antes de usar el teclado).
+  host: { '[attr.data-lista]': 'ready() ? "" : null' },
   template: `
     <div class="heading">
       <h2 id="guia-titulo">{{ text.title }}</h2>
@@ -121,6 +123,11 @@ export class Guide {
   private readonly spotlight = inject(InstrumentSpotlight);
   private readonly motion = inject(MotionPreference);
   private readonly document = inject(DOCUMENT);
+  protected readonly ready = signal(false);
+
+  constructor() {
+    afterNextRender(() => this.ready.set(true));
+  }
 
   protected show(entry: GuideEntry): void {
     this.spotlight.show(entry.control, entry.shot ?? null);
