@@ -71,3 +71,6 @@ AGENTS.md
 
 # Temporales de `wrangler pages dev` (scripts/serve-pages.mjs)
 /.wrangler/
+
+# Configuración local de la vista previa del escritorio de Claude Code (revisión del bloque C, #3)
+.claude/launch.json
