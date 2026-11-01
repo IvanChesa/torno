@@ -86,12 +86,13 @@ export function createMaterials({ grainSize }: MaterialOptions): InstrumentMater
       // habitación por todo el disco y lavaba el oliva (nota de la sesión de plan). El brillo del
       // vidriado es el de la capa de encima, lisa: refleja las luces donde tocan y deja ver el color
       // en el resto. La base apenas brilla. Desde el encuadre del móvil (64°), con la capa entera
-      // (1) el centro del disco aún salía casi blanco: a 0,45, y el entorno a 0,6, se lee oliva con
-      // un brillo suave, también desde delante.
-      specularIntensity: 0.2,
-      clearcoat: 0.45,
+      // (1) el centro del disco aún salía casi blanco; a 0,45 seguía lavado en el «Completo» del
+      // móvil (revisión del bloque C, #2). A 0,25, con la base a 0,06 y el entorno a 0,5, se lee
+      // oliva desde arriba y conserva el brillo del vidriado de frente.
+      specularIntensity: 0.06,
+      clearcoat: 0.25,
       clearcoatRoughness: 0.06,
-      envMapIntensity: 0.6,
+      envMapIntensity: 0.5,
     }),
     brass: new MeshPhysicalMaterial({
       name: 'latón',

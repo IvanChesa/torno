@@ -1,6 +1,6 @@
 // La forma de onda de una capa para la pantalla (PLAN §0.2): un pico por tramo, normalizado.
 import { describe, expect, it } from 'vitest';
-import { waveformPeaks } from './waveform';
+import { mixPeak, waveformPeaks } from './waveform';
 
 describe('la forma de onda de una capa', () => {
   it('da el pico de cada tramo, normalizado al de la capa', () => {
@@ -18,5 +18,13 @@ describe('la forma de onda de una capa', () => {
     expect(short).toHaveLength(8);
     expect(Math.max(...short)).toBe(1);
     expect(Array.from(waveformPeaks(new Float32Array(0), 4))).toEqual([0, 0, 0, 0]);
+  });
+
+  it('el pico de la suma de varios bucles (la escucha de la anatomía)', () => {
+    const a = new Float32Array([0.5, -0.25, 0.1]);
+    const b = new Float32Array([0.4, -0.7]);
+    expect(mixPeak([a, b])).toBeCloseTo(0.95, 6);
+    expect(mixPeak([new Float32Array(4)])).toBe(1);
+    expect(mixPeak([])).toBe(1);
   });
 });

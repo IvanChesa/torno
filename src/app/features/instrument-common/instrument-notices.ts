@@ -87,7 +87,7 @@ import { INSTRUMENT_COMMON_CONTENT } from './instrument-common.content';
     }
     @if (store.state().help) {
       <section class="panel" aria-labelledby="trn-atajos">
-        <h3 id="trn-atajos">{{ text.help.title }}</h3>
+        <h2 id="trn-atajos">{{ text.help.title }}</h2>
         <p>{{ text.help.intro }}</p>
         <dl>
           @for (item of shortcuts; track item[0]) {
@@ -112,6 +112,11 @@ import { INSTRUMENT_COMMON_CONTENT } from './instrument-common.content';
     </p>
   `,
   styles: `
+    /* La chuleta va bajo el h1 de la portada (fase 7): un h2 con el tamaño de un h3. */
+    #trn-atajos {
+      font-size: var(--text-l);
+    }
+
     :host {
       display: grid;
       gap: var(--space-3);

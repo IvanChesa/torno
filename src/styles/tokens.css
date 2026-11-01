@@ -99,9 +99,19 @@
    * huecos y su relleno. Lo usan el espejo y el marcador de la portada (sin saltos al cargar).
    */
   --instrument-mirror-height: 7.25rem;
+  /* En el escritorio, el espejo es una lectura en la esquina de la caja del 3D (fase 7). */
+  --instrument-reading-width: 15rem;
+  /* La barra del 3D: dos filas de botones en el escritorio y cuatro en el móvil (fase 7). */
+  --stage-toolbar-height: calc(2 * var(--target-min) + var(--space-2));
 
   /* --- Movimiento (todo se anula con prefers-reduced-motion y en ?captura=1) --- */
   --duration-fast: 120ms;
   --duration: 220ms;
   --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (max-width: 47.99rem) {
+  :root {
+    --stage-toolbar-height: calc(4 * var(--target-min) + 3 * var(--space-1));
+  }
 }

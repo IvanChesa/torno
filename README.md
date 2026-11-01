@@ -2,7 +2,7 @@
 
 Instrumento de bucles de cuatro capas, en 3D, que se toca en el navegador. Biblioteca de sonidos sintetizada, grabación con el micrófono, un disco para arrastrar el tiempo y un brazo que filtra el sonido. Todo el audio es propio (Web Audio API y AudioWorklet) y nunca sale del dispositivo.
 
-Proyecto en desarrollo, de [Iván Chesa Lapena](https://ivanchesa.es). El plan está en [`docs/PLAN.md`](docs/PLAN.md) y el diseño, en [`docs/DISENO.md`](docs/DISENO.md).
+Proyecto en desarrollo, de [Iván Chesa Lapena](https://ivanchesa.com). El plan está en [`docs/PLAN.md`](docs/PLAN.md) y el diseño, en [`docs/DISENO.md`](docs/DISENO.md).
 
 ## Comandos
 
@@ -14,10 +14,13 @@ Proyecto en desarrollo, de [Iván Chesa Lapena](https://ivanchesa.es). El plan e
 - `npm run e2e`: Playwright (Chromium y WebKit) contra `ng serve` y contra el build servido como en Pages (`npm run build` antes).
 - `npm run check`: lint, tests, build, presupuestos de tamaño y límites de Pages. Obligatorio antes de cerrar una fase.
 - `npm run capturas -- --fase=N`: capturas deterministas (`?captura=1`) en `docs/informes/img/fase-N/` (`npm run build` antes).
+- `node scripts/render-poster.mjs`: las imágenes de la web renderizadas con el propio motor (los pósteres del 3D, los renders de las secciones y la imagen Open Graph) en `public/img/` (`npm run build` antes y después).
+- `node scripts/loop-anatomy.mjs`: las formas de onda de «Anatomía de un bucle», con la misma síntesis (si cambia un sonido).
+- `node scripts/capture-maqueta.mjs`: las capturas de la maqueta de la portada (`docs/maqueta/`).
 - `node scripts/verify-pages.mjs <URL> [--build dist/torno/browser]`: comprueba un despliegue como con `curl` (rutas, redirecciones, 404, cabeceras, caché y que sirve ese build).
 
 Requisitos: Node 22.22.3 o superior (o 24.15+). Para el e2e, `npx playwright install chromium webkit` la primera vez.
 
 ## Despliegue
 
-Cloudflare Pages, proyecto `torno`. Cada *push* a `main` con el CI en verde publica el build que ha probado el CI en la vista previa [`staging.torno.pages.dev`](https://staging.torno.pages.dev) (`.github/workflows/deploy.yml`) y la comprueba. Un *push* a una rama de fase (`fase-*`) va a su propia vista previa, `https://<rama>.torno.pages.dev`, para probarla en el móvil antes de fusionar. La producción, `torno.ivanchesa.es`, llega con el lanzamiento.
+Cloudflare Pages, proyecto `torno`. Cada *push* a `main` con el CI en verde publica el build que ha probado el CI en la vista previa [`staging.torno.pages.dev`](https://staging.torno.pages.dev) (`.github/workflows/deploy.yml`) y la comprueba. Un *push* a una rama de fase (`fase-*`) va a su propia vista previa, `https://<rama>.torno.pages.dev`, para probarla en el móvil antes de fusionar. La producción, `torno.ivanchesa.com`, llega con el lanzamiento.

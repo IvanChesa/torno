@@ -4,7 +4,7 @@ Elegida por Iván el 24-10-2026 (`docs/PLAN.md` §10, D23). Este documento la de
 
 - **Fuente única:** `src/styles/tokens.css`. Ningún componente escribe a mano un color, un tamaño de letra, un peso, un interlineado, un espaciado o una duración: usa un token. Las medidas propias de un componente (el ancho de una columna, el tamaño de una muestra de color) sí pueden ir en el componente.
 - **Comprobado por tests:** el contraste de cada combinación (`scripts/contrast.spec.ts`), el color de la barra del navegador frente al fondo (`site.config.spec.ts`) y la ausencia de violaciones de axe (`e2e/static.spec.ts`).
-- **Muestrario:** la portada de la fase 0 enseña los tokens (`features/design-sample`, temporal hasta la fase 7). Capturas en `docs/informes/img/fase-0/`.
+- **Muestrario:** la portada de las fases 0 a 6 enseñaba los tokens (`features/design-sample`, quitado en la fase 7, cuando llegó la web de producto). Sus capturas siguen en `docs/informes/img/fase-0/`.
 
 ---
 
@@ -207,7 +207,7 @@ Valores **definitivos** (fase 5.b), con la variante **Terracota**, la que eligi�
 | Pieza | Material | Color base (sRGB) | `metalness` | `roughness` | Otros parámetros (`MeshPhysicalMaterial`) |
 |---|---|---|---|---|---|
 | **Cuerpo, cubierta y bandeja** | Terracota mate: barro cocido sin esmaltar | `--instrument-body` `#aa5c40` | 0 | 0,85 ± 0,08 | Texturas procedurales en mosaico de 80 mm, sin juntas (`procedural.ts`): grano en el color (±4 %) y en la rugosidad, y poros hundidos en un mapa normal suave. Sin `clearcoat`. Biseles de 4, 10 y 30 mm en los cantos. |
-| **Disco** | Cerámica vidriada (esmalte oliva) | `--instrument-glaze` `#626838` | 0 | 0,3 | `clearcoat` 1, `clearcoatRoughness` 0,06; el brillo de la base, casi nada (`specularIntensity` 0,2), y el entorno al 0,85: así, desde arriba, la capa refleja las luces donde tocan y deja ver el oliva en el resto. Se oscurece un 20 % hacia el borde (colores por vértice). Anillo y cubo de latón. |
+| **Disco** | Cerámica vidriada (esmalte oliva) | `--instrument-glaze` `#626838` | 0 | 0,3 | `clearcoat` 0,25, `clearcoatRoughness` 0,06; el brillo de la base, casi nada (`specularIntensity` 0,06), y el entorno al 0,5: así, desde arriba (también desde los 64° del móvil), la capa refleja las luces donde tocan y deja ver el oliva en el resto (fase 7, revisión del bloque C, #2). Se oscurece un 20 % hacia el borde (colores por vértice). Anillo y cubo de latón. |
 | **Anillo del disco, cubo, tapas de los diales y tornillos** | Latón envejecido | `--instrument-brass` `#c4a269` | 1 | 0,38 | `anisotropy` 0,4: cepillado en círculo (sale de las coordenadas de textura del torneado). Pátina: el hombro de los diales, más oscuro (colores por vértice). |
 | **Faldón de los diales y canto de la rueda** | Latón moleteado | `--instrument-brass` | 1 | 0,44 | Mapa normal de estrías en V (una cada 1,6 mm). |
 | **Brazo** | Latón liso | `--instrument-brass` | 1 | 0,38 | El eje lleva un tornillo con su ranura. |

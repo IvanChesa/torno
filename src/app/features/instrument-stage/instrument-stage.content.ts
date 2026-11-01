@@ -8,6 +8,8 @@ export const INSTRUMENT_STAGE_CONTENT = {
   play: 'Tocar',
   shots: { completo: 'Completo', capas: 'Capas', controles: 'Controles' },
   inspect: 'Inspeccionar',
+  /** La vista despiezada (fase 7): las piezas suben por niveles; los controles no se tocan. */
+  explode: 'Despiezar',
   orbit: {
     name: 'Girar el aparato',
     hint: 'Arrastra, o usa las flechas: izquierda y derecha lo giran; arriba y abajo lo miran desde más arriba o más abajo. Inicio lo pone de frente.',

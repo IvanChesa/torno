@@ -15,14 +15,17 @@ describe('SITE_CONFIG', () => {
 
   it('está en español y enlaza con la web del autor y sus páginas legales en HTTPS', () => {
     expect(SITE_CONFIG.lang).toBe('es');
-    expect(SITE_CONFIG.author.url).toBe('https://ivanchesa.es');
+    expect(SITE_CONFIG.baseUrl).toBe('https://torno.ivanchesa.com');
+    expect(SITE_CONFIG.author.url).toBe('https://ivanchesa.com');
+    expect(SITE_CONFIG.author.contactUrl).toBe('https://ivanchesa.com/contacto/');
+    expect(SITE_CONFIG.author.role).toBe('desarrollador de software');
     expect(SITE_CONFIG.legal.map((link) => link.label)).toEqual([
       'Aviso legal',
       'Privacidad',
       'Cookies',
     ]);
     for (const link of SITE_CONFIG.legal) {
-      expect(new URL(link.url).origin).toBe('https://ivanchesa.es');
+      expect(new URL(link.url).origin).toBe('https://ivanchesa.com');
     }
   });
 

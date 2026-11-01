@@ -24,3 +24,16 @@ export function waveformPeaks(pcm: Float32Array, bins: number): Float32Array {
   if (max > 1e-6) for (let bin = 0; bin < bins; bin++) peaks[bin]! /= max;
   return peaks;
 }
+
+/** El pico de la suma de varios bucles (la escucha de la anatomía de un bucle, PLAN fase 7, no pasa
+ * por el limitador del núcleo): para bajarla lo justo. */
+export function mixPeak(loops: readonly Float32Array[]): number {
+  const length = Math.max(0, ...loops.map((loop) => loop.length));
+  let peak = 0;
+  for (let i = 0; i < length; i++) {
+    let sum = 0;
+    for (const loop of loops) sum += loop[i] ?? 0;
+    peak = Math.max(peak, Math.abs(sum));
+  }
+  return peak || 1;
+}

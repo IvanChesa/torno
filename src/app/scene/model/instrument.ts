@@ -87,7 +87,24 @@ export interface InstrumentModel {
   readonly screen: Mesh;
   readonly print: Mesh;
   readonly labels: ReadonlyMap<LabelIcon, Mesh>;
+  /**
+   * Las piezas en niveles, de abajo arriba, para la vista despiezada (PLAN fase 7): cada nivel sube
+   * su `lift` (en metros) cuando está despiezado del todo.
+   */
+  readonly levels: readonly ExplodeLevel[];
 }
+
+export interface ExplodeLevel {
+  readonly group: Group;
+  readonly lift: number;
+}
+
+/**
+ * Lo que sube cada nivel en la vista despiezada, en mm: el cuerpo se queda; la cubierta con lo
+ * impreso, el hueco del disco y los pilotos; la bandeja con la pantalla; el disco; y, arriba del
+ * todo, el latón y la cerámica que se tocan (diales, teclas, rueda, reposo y brazo).
+ */
+export const EXPLODE_LIFT_MM = [0, 34, 62, 84, 118] as const;
 
 /** El mosaico de la cerámica: una vez cada 80 mm. */
 export const CERAMIC_TILE_MM = 80;
@@ -129,7 +146,16 @@ export function buildInstrument(
   root.name = 'torno';
   const controls = new Map<ControlId, Object3D>();
 
-  root.add(body(materials, options), deck(materials, options), feet(materials, options));
+  const [base, cover, tray3d, platter, top] = EXPLODE_LIFT_MM.map(() => new Group()) as [
+    Group,
+    Group,
+    Group,
+    Group,
+    Group,
+  ];
+  root.add(base, cover, tray3d, platter, top);
+  base.add(body(materials, options), feet(materials, options));
+  cover.add(deck(materials, options));
   const disc = discGroup(materials, options);
   controls.set('disc', disc);
   const print = mesh(
@@ -139,30 +165,31 @@ export function buildInstrument(
   );
   print.rotation.x = -Math.PI / 2;
   print.position.y = (DECK_HEIGHT + 0.05) * MM;
-  root.add(disc, discWell(materials, options), print);
+  platter.add(disc);
+  cover.add(discWell(materials, options), print);
 
   const tray = trayGroup(materials, options);
-  root.add(tray.group);
+  tray3d.add(tray.group);
 
   const labels = new Map<LabelIcon, Mesh>();
   for (const id of ['play', 'record', 'undo'] as const) {
     const key = keyGroup(materials, id);
     controls.set(id, key.group);
     labels.set(id, key.label);
-    root.add(key.group);
+    top.add(key.group);
   }
   const standby = standbyGroup(materials, options);
   controls.set('standby', standby.group);
   labels.set('standby', standby.label);
-  root.add(standby.group);
+  top.add(standby.group);
 
   for (const id of [...LAYER_CONTROLS, 'main'] as PlacedControl[]) {
     const dial = dialGroup(materials, options, id);
     controls.set(id, dial);
-    root.add(dial);
+    top.add(dial);
   }
   const lights = pilots(materials, options);
-  root.add(...lights.pilots, lights.recordLed);
+  cover.add(...lights.pilots, lights.recordLed);
 
   const selection = mesh(
     new TorusGeometry((LAYER_DIAL_SIZE / 2 + 2.6) * MM, 0.55 * MM, 8, options.smallSegments * 2),
@@ -171,15 +198,15 @@ export function buildInstrument(
   );
   selection.rotation.x = -Math.PI / 2;
   selection.position.y = (DECK_HEIGHT + 0.4) * MM;
-  root.add(selection);
+  cover.add(selection);
 
   const wheel = wheelGroup(materials, options);
   controls.set('volume', wheel.group);
-  root.add(wheel.group);
+  top.add(wheel.group);
 
   const arm = armGroup(materials, options);
   controls.set('arm', arm);
-  root.add(arm);
+  top.add(arm);
 
   return {
     root,
@@ -191,6 +218,10 @@ export function buildInstrument(
     screen: tray.screen,
     print,
     labels,
+    levels: [base, cover, tray3d, platter, top].map((group, i) => ({
+      group,
+      lift: (EXPLODE_LIFT_MM[i] ?? 0) * MM,
+    })),
   };
 }
 

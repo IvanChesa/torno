@@ -27,7 +27,7 @@ import { STAGE_POSTER } from './stage-poster';
           [width]="poster.width"
           [height]="poster.height"
           [alt]="alt()"
-          loading="lazy"
+          fetchpriority="high"
           decoding="async"
         />
       </picture>
@@ -53,16 +53,26 @@ import { STAGE_POSTER } from './stage-poster';
       aspect-ratio: 5 / 4;
     }
 
-    /* La barra: una fila de botones; en el móvil, tres (como StageToolbar). */
+    /* En el escritorio, el espejo va dentro de la caja, como en el escenario (no ocupa fila). */
+    @media (min-width: 48rem) {
+      :host {
+        position: relative;
+      }
+
+      .mirror {
+        position: absolute;
+        inset-block-start: 0;
+        inset-inline-start: calc((100% - min(100%, (100svh - 13rem) * 1.25)) / 2);
+        inline-size: var(--instrument-reading-width);
+      }
+    }
+
+    /* La barra: lo que reserva StageToolbar (dos filas en el escritorio y cuatro en el móvil). */
     .bar {
-      block-size: var(--target-min);
+      block-size: var(--stage-toolbar-height);
     }
 
     @media (max-width: 47.99rem) {
-      .bar {
-        block-size: calc(3 * var(--target-min) + 2 * var(--space-1));
-      }
-
       .box {
         inline-size: calc(100% + 2 * var(--page-margin));
         margin-inline: calc(-1 * var(--page-margin));

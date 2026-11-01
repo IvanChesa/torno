@@ -24,7 +24,7 @@
   Cross-Origin-Resource-Policy: same-origin
   Strict-Transport-Security: max-age=31536000
 
-# torno.pages.dev, fuera de los buscadores: la dirección canónica será torno.ivanchesa.es (fase 9).
+# torno.pages.dev, fuera de los buscadores: la dirección canónica será torno.ivanchesa.com (fase 9).
 # Las vistas previas (staging.torno.pages.dev y las de cada despliegue) ya llevan noindex de Pages.
 https://:project.pages.dev/*
   X-Robots-Tag: noindex
@@ -59,3 +59,8 @@ https://:project.pages.dev/*
 
 /img/*
   Cache-Control: public, max-age=86400
+
+# La imagen Open Graph (D18, fase 7), sin CORP: la cargan directamente las webs y las apps que
+# enseñan la vista previa de un enlace (revisión de la fase 4, #10).
+/img/og.jpg
+  ! Cross-Origin-Resource-Policy

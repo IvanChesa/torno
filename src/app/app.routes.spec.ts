@@ -26,15 +26,22 @@ describe('rutas y SEO', () => {
     expect(TestBed.inject(Title).getTitle()).toBe('Torno');
     expect(meta('description')).toBe(SITE_CONFIG.description);
     expect(meta('robots')).toBe('noindex');
-    expect(canonical()).toBe('https://torno.ivanchesa.es/');
+    expect(canonical()).toBe('https://torno.ivanchesa.com/');
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent?.trim()).toBe('Torno');
+    // Para compartir (D18): Open Graph con la imagen absoluta y la tarjeta grande.
+    const og = (property: string) => TestBed.inject(Meta).getTag(`property="${property}"`)?.content;
+    expect(og('og:title')).toBe('Torno');
+    expect(og('og:url')).toBe('https://torno.ivanchesa.com/');
+    expect(og('og:image')).toBe('https://torno.ivanchesa.com/img/og.jpg');
+    expect(og('og:locale')).toBe('es_ES');
+    expect(meta('twitter:card')).toBe('summary_large_image');
   });
 
   it('/sobre-el-proyecto: su título y su descripción', async () => {
     await harness.navigateByUrl('/sobre-el-proyecto');
     expect(TestBed.inject(Title).getTitle()).toBe('Sobre el proyecto · Torno');
     expect(meta('description')).toContain('Cómo está hecho Torno');
-    expect(canonical()).toBe('https://torno.ivanchesa.es/sobre-el-proyecto');
+    expect(canonical()).toBe('https://torno.ivanchesa.com/sobre-el-proyecto');
   });
 
   it.each(['/404', '/una-ruta-que-no-existe'])(

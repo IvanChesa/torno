@@ -35,6 +35,7 @@ import {
 import { SessionStore } from '../../state';
 import { InstrumentScreen } from '../instrument-common/instrument-screen';
 import { InstrumentShell } from '../instrument-common/instrument-shell';
+import { focusControl, InstrumentSpotlight } from '../instrument-common/spotlight';
 import { INSTRUMENT_STAGE_CONTENT } from './instrument-stage.content';
 import { StageControls } from './stage-controls';
 import { StageDev } from './stage-dev';
@@ -155,6 +156,7 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
           [fullscreenAvailable]="fullscreenAvailable"
           (shotChange)="setShot($event)"
           (inspect)="inspect()"
+          (explode)="toggleExplode()"
           (fullscreenChange)="toggleFullscreen()"
         />
       </div>
@@ -188,13 +190,38 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
     }
 
     /*
+     * En el escritorio, la pantalla del 3D se lee (10 px de cuerpo): el espejo pasa a ser una
+     * lectura pequeña en la esquina de arriba a la izquierda de la caja, que el aparato, redondo,
+     * deja libre (propuesta 2 de la fase 6, decidida en la maqueta de la fase 7). Deja pasar el
+     * puntero: debajo puede haber un control en los encuadres de cerca. En el móvil, encima.
+     */
+    @media (min-width: 48rem) {
+      .frame {
+        position: relative;
+      }
+
+      .mirror {
+        position: absolute;
+        z-index: 1;
+        inset-block-start: 0;
+        inset-inline-start: calc((100% - var(--stage-width)) / 2);
+        inline-size: var(--instrument-reading-width);
+        pointer-events: none;
+      }
+    }
+
+    /*
      * La caja del póster, del lienzo y de los controles: la misma que la del marcador de la
      * portada. En el escritorio, 5:4 y nunca más alta que la pantalla (con el espejo y la barra);
      * en el móvil, cuadrada y de borde a borde (su encuadre, con las zonas de 44 px).
      */
+    .frame {
+      --stage-width: min(100%, (100svh - 13rem) * 1.25);
+    }
+
     .stage3d {
       position: relative;
-      inline-size: min(100%, (100svh - 13rem) * 1.25);
+      inline-size: var(--stage-width);
       aspect-ratio: 5 / 4;
     }
 
@@ -212,8 +239,11 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
       background: var(--color-bg);
     }
 
+    .frame:fullscreen {
+      --stage-width: min(100%, (100dvh - 14rem) * 1.25);
+    }
+
     .frame:fullscreen .stage3d {
-      inline-size: min(100%, (100dvh - 14rem) * 1.25);
       margin-inline: 0;
     }
 
@@ -292,6 +322,9 @@ export class InstrumentStage {
 
   protected readonly store = inject(SessionStore);
   private readonly motion = inject(MotionPreference);
+  private readonly spotlight = inject(InstrumentSpotlight);
+  /** La última petición de la guía que se ha atendido. */
+  private spotlightSerial = 0;
   private readonly box = viewChild<ElementRef<HTMLElement>>('box');
   private readonly frameRef = viewChild<ElementRef<HTMLElement>>('frame');
   private readonly canvas = viewChild<ElementRef<HTMLCanvasElement>>('canvas');
@@ -314,7 +347,18 @@ export class InstrumentStage {
   protected readonly inspecting = computed(() => this.camera().kind === 'orbit');
   protected readonly cameraName = computed(() => {
     const camera = this.camera();
-    return camera.kind === 'shot' ? camera.shot : camera.kind === 'orbit' ? 'inspeccionar' : null;
+    switch (camera.kind) {
+      case 'shot':
+        return camera.shot;
+      case 'orbit':
+        return 'inspeccionar';
+      case 'control':
+        return `cerca-${camera.id}`;
+      case 'exploded':
+        return 'despiezado';
+      default:
+        return null;
+    }
   });
   /**
    * La órbita, para la superficie de «Inspeccionar». Al arrastrar cambia a cada movimiento: va al
@@ -410,6 +454,7 @@ export class InstrumentStage {
         pose: this.pose(),
         capture,
         camera: view ? { kind: 'view', view } : this.camera(),
+        exploded: this.camera().kind === 'exploded',
         quality: capture
           ? (pick<QualityLevel>(params.get('calidad'), QUALITY_LEVELS) ?? 'high')
           : undefined,
@@ -469,6 +514,37 @@ export class InstrumentStage {
       if (!engine || this.capture || !this.motion.still() || !state.discHeld) return;
       untracked(() => this.rest(engine, state.discTurns));
     });
+    // «Ver en el instrumento» (la guía): la cámara viaja hasta el control y él recibe el foco. Si la
+    // petición llegó antes que el motor, se atiende al tenerlo.
+    effect(() => {
+      const request = this.spotlight.request();
+      const engine = this.engine();
+      if (!request || !engine || request.serial === this.spotlightSerial) return;
+      this.spotlightSerial = request.serial;
+      untracked(() => {
+        this.setCamera(
+          request.shot ? { kind: 'shot', shot: request.shot } : { kind: 'control', id: request.id },
+          true,
+        );
+        this.placeControls(engine);
+        const box = this.box()?.nativeElement;
+        if (box) focusControl(box, request.id);
+      });
+    });
+    // «Despiezar» desde la sección de los detalles: como el botón de la barra, pero solo despieza
+    // (también si se pidió antes de tener el motor).
+    let explodeRequests = 0;
+    effect(() => {
+      const requests = this.spotlight.explodeRequests();
+      if (!this.engine() || requests === explodeRequests) return;
+      explodeRequests = requests;
+      untracked(() => {
+        if (this.camera().kind !== 'exploded') this.toggleExplode();
+        // El foco, al botón de la barra: quien usa el teclado sigue en el instrumento y lo monta
+        // desde ahí (revisión de la fase 7, #9).
+        this.toolbar()?.focusExplode();
+      });
+    });
     // Las formas de onda: solo cuando cambia el sonido de una capa (o su reverso).
     effect(() => {
       const waveforms = this.shownWaveforms();
@@ -504,8 +580,25 @@ export class InstrumentStage {
     this.setCamera({ kind: 'orbit', orbit: this.orbit }, true);
   }
 
+  /**
+   * La vista despiezada (PLAN fase 7): las piezas suben y la cámara se aleja para verlas; otra vez,
+   * se monta y vuelve al aparato entero. Mientras, no hay controles (el foco se queda en el botón).
+   */
+  protected toggleExplode(): void {
+    if (this.camera().kind === 'exploded') {
+      this.setShot('completo');
+      return;
+    }
+    this.engine()?.setExploded(true, !this.motion.still());
+    this.setCamera({ kind: 'exploded' }, true);
+  }
+
   /** Con `?captura=1&encuadre=`: el encuadre de la captura, también en la barra. */
   private captureCamera(name: string | null): void {
+    if (name === 'despiezado') {
+      this.camera.set({ kind: 'exploded' });
+      return;
+    }
     const shot = pick<Shot>(name, SHOTS);
     if (shot) this.camera.set({ kind: 'shot', shot });
     if (name !== 'inspeccionar') return;
@@ -514,8 +607,11 @@ export class InstrumentStage {
     this.camera.set({ kind: 'orbit', orbit: CAPTURE_ORBIT });
   }
 
-  /** Con la pausa de movimiento, la cámara corta; si no, viaja. */
+  /** Con la pausa de movimiento, la cámara corta; si no, viaja. Fuera del despiece, se monta. */
   private setCamera(goal: CameraGoal, travel: boolean): void {
+    if (goal.kind !== 'exploded' && this.engine()?.exploded) {
+      this.engine()?.setExploded(false, travel && !this.motion.still());
+    }
     this.camera.set(goal);
     this.engine()?.setCamera(goal, travel && !this.motion.still());
   }

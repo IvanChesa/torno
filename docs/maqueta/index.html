@@ -1,0 +1,725 @@
+<!doctype html>
+<!--
+  Maqueta de alta fidelidad de la portada (PLAN fase 7, tarea 2). HTML estático con los tokens, la
+  base y las fuentes del proyecto, y renders del propio motor (capturas de las fases 5 y 6). No se
+  publica: sirve para decidir la composición antes de implementarla, y sus capturas van al informe
+  (docs/informes/img/fase-7/maqueta-*). Con ?espejo=a o ?espejo=b, las dos opciones del espejo de la
+  pantalla (propuesta 2 de la fase 6). Sus capturas: node scripts/capture-maqueta.mjs.
+-->
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Torno · maqueta de la portada</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="stylesheet" href="../../src/styles/tokens.css" />
+    <link rel="stylesheet" href="../../src/styles/base.css" />
+    <style>
+      @font-face {
+        font-family: 'Fraunces Variable';
+        font-weight: 100 900;
+        src: url('../../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-full-normal.woff2')
+          format('woff2-variations');
+      }
+      @font-face {
+        font-family: 'Geist Mono Variable';
+        font-weight: 100 900;
+        src: url('../../node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2')
+          format('woff2-variations');
+      }
+
+      .wrap {
+        inline-size: min(var(--max-width), 100% - 2 * var(--page-margin));
+        margin-inline: auto;
+      }
+
+      .site-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-block-size: 5rem;
+      }
+      .site-header ul {
+        display: flex;
+        gap: var(--space-5);
+        padding: 0;
+        list-style: none;
+      }
+      .site-header a {
+        text-decoration: none;
+      }
+      .wordmark {
+        font-size: var(--text-l);
+        font-weight: var(--weight-brand);
+        font-variation-settings: 'SOFT' var(--soft-display);
+      }
+
+      main {
+        display: grid;
+        gap: var(--section-gap);
+        padding-block: var(--space-6) var(--section-gap);
+      }
+
+      /* --- Portada --- */
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+        gap: var(--space-7);
+        align-items: center;
+      }
+      .hero__text {
+        display: grid;
+        gap: var(--space-5);
+        align-content: center;
+      }
+      .hero__lead {
+        font-size: var(--text-l);
+        line-height: var(--leading-lead);
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        min-block-size: var(--target-min);
+        padding-inline: var(--space-5);
+        border-radius: var(--radius-pill);
+        background: var(--color-accent);
+        color: var(--color-on-accent);
+        font-weight: var(--weight-strong);
+        text-decoration: none;
+      }
+      .button--secondary {
+        background: var(--color-surface-2);
+        color: var(--color-ink);
+      }
+      .hero__note {
+        color: var(--color-ink-muted);
+        font-size: var(--text-s);
+      }
+      .stage {
+        display: grid;
+        justify-items: center;
+        gap: var(--space-4);
+      }
+      .stage__box {
+        position: relative;
+        inline-size: 100%;
+        aspect-ratio: 5 / 4;
+      }
+      .stage__box img {
+        inline-size: 100%;
+        block-size: 100%;
+        object-fit: contain;
+      }
+      .mirror {
+        display: grid;
+        gap: var(--space-1);
+        inline-size: min(100%, 38rem);
+        min-block-size: 7.25rem;
+        padding: var(--space-4) var(--space-5);
+        border-radius: var(--radius-s);
+        background: var(--color-screen);
+        color: var(--color-phosphor);
+        font-family: var(--font-mono);
+        font-size: var(--text-s);
+        text-transform: uppercase;
+      }
+      /* Opción A: encima del 3D, como ahora. Opción B: en el escritorio, una lectura pequeña en la
+         esquina libre de la caja (el aparato es redondo); en el móvil, encima. */
+      [data-espejo='a'] .mirror--b,
+      [data-espejo='b'] .mirror--a {
+        display: none;
+      }
+      .mirror--b {
+        position: absolute;
+        inset-block-start: 4%;
+        inset-inline-start: 0;
+        inline-size: 13.5rem;
+        min-block-size: 0;
+        padding: var(--space-3) var(--space-4);
+        font-size: var(--text-xs);
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--space-2);
+      }
+      .toolbar span {
+        padding: var(--space-2) var(--space-3);
+        border: 1.5px solid var(--color-ink-faint);
+        border-radius: var(--radius-s);
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        text-transform: uppercase;
+      }
+      .toolbar span:first-child {
+        background: var(--color-ink);
+        color: var(--color-bg);
+      }
+
+      /* --- Qué es --- */
+      .intro {
+        display: grid;
+        grid-template-columns: minmax(0, 6fr) minmax(0, 6fr);
+        gap: var(--space-8);
+        align-items: center;
+      }
+      .intro__text {
+        display: grid;
+        gap: var(--space-6);
+      }
+      .statement {
+        font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2.25rem);
+        line-height: 1.2;
+        font-variation-settings: 'SOFT' var(--soft-display);
+      }
+      .facts {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--space-5);
+      }
+      .facts dt {
+        font-weight: var(--weight-strong);
+      }
+      .facts dd {
+        color: var(--color-ink-muted);
+      }
+      .intro img {
+        inline-size: 100%;
+        aspect-ratio: 4 / 3;
+        object-fit: cover;
+        object-position: 30% 62%;
+        border-radius: var(--radius-panel);
+      }
+
+      /* --- Guía --- */
+      .heading {
+        display: grid;
+        gap: var(--space-4);
+        max-inline-size: var(--measure);
+        margin-block-end: var(--space-7);
+      }
+      .guide {
+        display: grid;
+        gap: var(--space-2);
+        padding: 0;
+        list-style: none;
+      }
+      .guide li {
+        display: grid;
+        grid-template-columns: minmax(0, 3fr) minmax(0, 6fr) minmax(0, 3fr);
+        gap: var(--space-6);
+        align-items: start;
+        padding: var(--space-5) var(--space-6);
+        border-radius: var(--radius-panel);
+      }
+      .guide li:nth-child(odd) {
+        background: var(--color-surface);
+      }
+      .guide h3 {
+        font-size: var(--text-l);
+      }
+      .guide p + p {
+        margin-block-start: var(--space-2);
+        color: var(--color-ink-muted);
+      }
+      .guide .button {
+        justify-self: end;
+      }
+
+      /* --- Detalles --- */
+      .details {
+        padding-block: var(--space-9);
+        background: var(--color-surface);
+      }
+      .details__grid {
+        display: grid;
+        grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+        gap: var(--space-8);
+        align-items: center;
+      }
+      .details img {
+        inline-size: 100%;
+      }
+      .materials {
+        display: grid;
+        gap: var(--space-5);
+        padding: 0;
+        margin-block: var(--space-6);
+        list-style: none;
+      }
+      .materials li {
+        display: grid;
+        grid-template-columns: 2.5rem 1fr;
+        gap: var(--space-4);
+        align-items: start;
+      }
+      .swatch {
+        inline-size: 2.5rem;
+        aspect-ratio: 1;
+        border-radius: 50%;
+      }
+      .materials strong {
+        display: block;
+      }
+      .materials span {
+        color: var(--color-ink-muted);
+      }
+
+      /* --- Anatomía --- */
+      .anatomy {
+        display: grid;
+        grid-template-columns: minmax(0, 6fr) minmax(0, 6fr);
+        gap: var(--space-8);
+        align-items: center;
+      }
+      .anatomy svg {
+        inline-size: 100%;
+        max-inline-size: 34rem;
+      }
+      .layers {
+        display: grid;
+        gap: var(--space-3);
+        padding: 0;
+        margin-block: var(--space-6);
+        list-style: none;
+      }
+      .layers li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-4);
+      }
+      .layers small {
+        display: block;
+        color: var(--color-ink-muted);
+        font-size: var(--text-s);
+      }
+
+      /* --- Ficha técnica --- */
+      table {
+        inline-size: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: var(--space-4) var(--space-5);
+        text-align: start;
+        vertical-align: top;
+      }
+      thead th {
+        color: var(--color-ink-muted);
+        font-weight: var(--weight-text);
+        font-size: var(--text-s);
+      }
+      tbody tr:nth-child(odd) {
+        background: var(--color-surface);
+      }
+      tbody th {
+        font-weight: var(--weight-strong);
+      }
+      td.value {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+        color: var(--color-accent-text);
+        white-space: nowrap;
+      }
+      td.how {
+        color: var(--color-ink-muted);
+      }
+
+      /* --- Preguntas --- */
+      .faq {
+        display: grid;
+        grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+        gap: var(--space-8);
+      }
+      details {
+        border-radius: var(--radius-panel);
+        background: var(--color-surface);
+        margin-block-end: var(--space-2);
+      }
+      summary {
+        padding: var(--space-4) var(--space-5);
+        font-weight: var(--weight-strong);
+        cursor: pointer;
+      }
+      details p {
+        padding: 0 var(--space-5) var(--space-5);
+      }
+
+      /* --- Cierre --- */
+      .closing {
+        display: grid;
+        grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+        gap: var(--space-8);
+        align-items: end;
+      }
+      .closing h2 {
+        font-size: var(--text-display);
+        line-height: var(--leading-display);
+      }
+      .closing ul {
+        display: grid;
+        gap: var(--space-3);
+        padding: 0;
+        list-style: none;
+      }
+
+      .site-footer {
+        padding-block: var(--space-8);
+      }
+      .site-footer .site-footer__name {
+        font-size: var(--text-colossal);
+        line-height: var(--leading-colossal);
+        letter-spacing: var(--tracking-colossal);
+        color: var(--color-ink-faint);
+        font-weight: var(--weight-brand);
+        font-variation-settings: 'SOFT' var(--soft-display);
+      }
+      .site-footer p {
+        color: var(--color-ink-muted);
+        font-size: var(--text-s);
+      }
+
+      @media (max-width: 47.99rem) {
+        .hero,
+        .intro,
+        .details__grid,
+        .anatomy,
+        .faq,
+        .closing {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .hero {
+          gap: var(--space-6);
+        }
+        .stage__box {
+          inline-size: calc(100% + 2 * var(--page-margin));
+          aspect-ratio: 1;
+        }
+        [data-espejo] .mirror--a {
+          display: grid;
+          inline-size: 100%;
+        }
+        [data-espejo] .mirror--b {
+          display: none;
+        }
+        .facts {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .guide li {
+          grid-template-columns: minmax(0, 1fr);
+          gap: var(--space-3);
+          padding: var(--space-5);
+        }
+        .guide .button {
+          justify-self: start;
+        }
+        thead {
+          display: none;
+        }
+        tbody tr {
+          display: grid;
+          padding: var(--space-4);
+        }
+        th,
+        td {
+          padding: var(--space-1) 0;
+        }
+        .site-header ul {
+          gap: var(--space-4);
+        }
+      }
+    </style>
+  </head>
+  <body data-espejo="b">
+    <header class="site-header wrap">
+      <a class="wordmark" href="#">Torno</a>
+      <nav aria-label="Principal">
+        <ul>
+          <li><a href="#guia">Cómo se toca</a></li>
+          <li><a href="#">Sobre el proyecto</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero wrap" aria-labelledby="titulo">
+        <div class="hero__text">
+          <h1 id="titulo">Torno</h1>
+          <p class="hero__lead">
+            Un instrumento de bucles de cuatro capas, de barro y latón, que se toca en el navegador.
+          </p>
+          <p class="actions">
+            <a class="button" href="#">Tocar</a>
+            <a class="button button--secondary" href="#guia">Cómo se toca</a>
+          </p>
+          <p class="hero__note">
+            Nada suena hasta que tocas. Con el teclado: <kbd>Espacio</kbd> reproduce y
+            <kbd>?</kbd> enseña los atajos.
+          </p>
+        </div>
+        <div class="stage">
+          <div class="mirror mirror--a" aria-hidden="true">
+            <span>90 BPM · PAUSA</span><span>CAPA 1 · VACÍA</span><span>TOMA LIBRE</span>
+          </div>
+          <div class="stage__box">
+            <img
+              src="../../public/img/escenario.webp"
+              alt="Torno, el instrumento, visto de frente."
+            />
+            <div class="mirror mirror--b" aria-hidden="true">
+              <span>90 BPM · PAUSA</span><span>CAPA 1 · VACÍA</span><span>TOMA LIBRE</span>
+            </div>
+          </div>
+          <div class="toolbar" aria-hidden="true">
+            <span>Completo</span><span>Capas</span><span>Controles</span><span>Inspeccionar</span
+            ><span>Pantalla completa</span><span>Pausar movimiento</span><span>Atajos</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="intro wrap" aria-labelledby="que-es">
+        <div class="intro__text">
+          <h2 id="que-es">Cuatro capas, un solo reloj</h2>
+          <p class="statement">
+            Cada capa repite un sonido: una batería, un bajo, unos acordes, una textura o lo que
+            grabes con el micrófono. Las mezclas con sus diales y arrastras el tiempo con el disco.
+          </p>
+          <dl class="facts">
+            <div>
+              <dt>Doce bucles propios</dt>
+              <dd>Sintetizados con código, en re menor y a 90 BPM. Sin muestras de nadie.</dd>
+            </div>
+            <div>
+              <dt>Graba encima</dt>
+              <dd>Tomas libres o de 1, 2 o 4 compases, con cuenta previa y sobregrabación.</dd>
+            </div>
+            <div>
+              <dt>Nada sale de aquí</dt>
+              <dd>Tu audio no sale del navegador. Sin cookies y sin analítica.</dd>
+            </div>
+          </dl>
+        </div>
+        <img
+          src="../informes/img/fase-6/instrumento3d-capas-escritorio.jpg"
+          alt="Los cuatro diales de las capas, de cerca, con sus pilotos."
+        />
+      </section>
+
+      <section class="wrap" id="guia" aria-labelledby="guia-titulo">
+        <div class="heading">
+          <h2 id="guia-titulo">Conoce tu instrumento</h2>
+          <p>
+            Nueve cosas y ya lo tocas. «Ver en el instrumento» te lleva a cada control: la cámara
+            viaja hasta él y lo señala, sin que suene nada.
+          </p>
+        </div>
+        <ul class="guide">
+          <li>
+            <h3>Reproducir y pausar</h3>
+            <div>
+              <p>
+                Pulsa para que suenen las capas y otra vez para pausar. Mantén pulsado para parar y
+                volver al principio. La primera vez, la capa 1 arranca con una batería.
+              </p>
+              <p><kbd>Espacio</kbd> · mantener: <kbd>Mayús</kbd> + <kbd>Intro</kbd></p>
+            </div>
+            <a class="button button--secondary" href="#">Ver en el instrumento</a>
+          </li>
+          <li>
+            <h3>Grabar</h3>
+            <div>
+              <p>
+                Pulsa para grabar con el micrófono en la capa elegida y otra vez para cerrar la
+                toma. Si la capa ya suena, lo que grabes se suma. Deshacer quita la toma; mantenlo
+                para rehacer.
+              </p>
+              <p><kbd>R</kbd> graba · <kbd>Z</kbd> deshace</p>
+            </div>
+            <a class="button button--secondary" href="#">Ver en el instrumento</a>
+          </li>
+          <li>
+            <h3>Mezclar las capas</h3>
+            <div>
+              <p>
+                Cada capa tiene su dial: gíralo para el nivel, púlsalo para elegirla y mantenlo para
+                silenciarla.
+              </p>
+              <p><kbd>1</kbd>–<kbd>4</kbd> eligen · flechas en el dial</p>
+            </div>
+            <a class="button button--secondary" href="#">Ver en el instrumento</a>
+          </li>
+          <li>
+            <h3>Tempo</h3>
+            <div>
+              <p>
+                Gira el dial principal: de 40 a 240 BPM. Velocidad y tono cambian juntos, como en un
+                tocadiscos.
+              </p>
+              <p>Flechas · <kbd>Mayús</kbd> + flecha, de 10 en 10</p>
+            </div>
+            <a class="button button--secondary" href="#">Ver en el instrumento</a>
+          </li>
+        </ul>
+      </section>
+
+      <section class="details" aria-labelledby="detalles">
+        <div class="details__grid wrap">
+          <img
+            src="../informes/img/fase-6/escenario-tres-cuartos-escritorio.jpg"
+            alt="Torno despiezado (en la maqueta, de tres cuartos: el render despiezado llega en la 7.c)."
+          />
+          <div>
+            <h2 id="detalles">Barro, latón y fósforo</h2>
+            <ul class="materials">
+              <li>
+                <span class="swatch" style="background: var(--instrument-body)"></span>
+                <p><strong>Barro cocido</strong><span>El cuerpo, mate y con su grano.</span></p>
+              </li>
+              <li>
+                <span class="swatch" style="background: var(--instrument-brass)"></span>
+                <p>
+                  <strong>Latón envejecido</strong><span>Diales, brazo y anillo del disco.</span>
+                </p>
+              </li>
+              <li>
+                <span class="swatch" style="background: var(--instrument-glaze)"></span>
+                <p><strong>Esmalte oliva</strong><span>El disco, vidriado como un plato.</span></p>
+              </li>
+              <li>
+                <span class="swatch" style="background: var(--instrument-key)"></span>
+                <p>
+                  <strong>Cerámica crema</strong><span>Las teclas, que se hunden al tocar.</span>
+                </p>
+              </li>
+              <li>
+                <span class="swatch" style="background: var(--color-phosphor)"></span>
+                <p><strong>Fósforo verde</strong><span>La pantalla y los pilotos.</span></p>
+              </li>
+            </ul>
+            <a class="button button--secondary" href="#">Despiezar el instrumento</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="anatomy wrap" aria-labelledby="anatomia">
+        <svg viewBox="-110 -110 220 220" role="img" aria-label="Las cuatro capas como anillos">
+          <circle r="104" fill="var(--color-surface)" />
+          <circle r="92" fill="none" stroke="var(--instrument-body)" stroke-width="12" />
+          <circle r="74" fill="none" stroke="var(--instrument-brass)" stroke-width="12" />
+          <circle r="56" fill="none" stroke="var(--instrument-glaze)" stroke-width="12" />
+          <circle r="38" fill="none" stroke="var(--instrument-key)" stroke-width="12" />
+          <line x1="0" y1="0" x2="0" y2="-100" stroke="var(--color-ink)" stroke-width="1.5" />
+          <circle r="6" fill="var(--instrument-brass)" />
+        </svg>
+        <div>
+          <h2 id="anatomia">Anatomía de un bucle</h2>
+          <p>
+            Las cuatro capas giran sobre el mismo reloj, como anillos de un mismo disco: una vuelta,
+            dos compases. Escúchalas una a una o juntas.
+          </p>
+          <ul class="layers">
+            <li>
+              <p>Batería · Alfar<small>Bombo, caja y platos de barro</small></p>
+              <a class="button button--secondary" href="#">Escuchar</a>
+            </li>
+            <li>
+              <p>Bajo · Raíz<small>Re menor, redondo y bajo</small></p>
+              <a class="button button--secondary" href="#">Escuchar</a>
+            </li>
+            <li>
+              <p>Acordes · Olivo<small>Cuatro acordes que respiran</small></p>
+              <a class="button button--secondary" href="#">Escuchar</a>
+            </li>
+            <li>
+              <p>Textura · Cierzo<small>El viento del valle</small></p>
+              <a class="button button--secondary" href="#">Escuchar</a>
+            </li>
+          </ul>
+          <a class="button" href="#">Escuchar las cuatro</a>
+        </div>
+      </section>
+
+      <section class="wrap" aria-labelledby="ficha">
+        <div class="heading">
+          <h2 id="ficha">Ficha técnica</h2>
+          <p>Cifras medidas, con cómo se midió cada una. Nada de objetivos.</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Qué</th>
+              <th scope="col">Medido</th>
+              <th scope="col">Cómo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Del gesto al audio</th>
+              <td class="value">0,4–4,3 ms</td>
+              <td class="how">
+                En Chromium, del evento del control al cambio en el hilo de audio.
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">CPU del audio</th>
+              <td class="value">230–243×</td>
+              <td class="how">
+                El núcleo con 4 capas, filtros y limitador, frente al tiempo real.
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Peso de la primera visita</th>
+              <td class="value">596 kB</td>
+              <td class="how">Sin el 3D; con él, 1,33 MB. Todo lo descargado, en bruto.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="faq wrap" aria-labelledby="preguntas">
+        <h2 id="preguntas">Preguntas frecuentes</h2>
+        <div>
+          <details open>
+            <summary>¿Se sube mi audio a algún sitio?</summary>
+            <p>No. Todo pasa en tu navegador: ni el micrófono ni lo que grabas salen de él.</p>
+          </details>
+          <details><summary>¿Necesito auriculares?</summary></details>
+          <details><summary>¿Funciona en el móvil?</summary></details>
+        </div>
+      </section>
+
+      <section class="closing wrap" aria-labelledby="cierre">
+        <h2 id="cierre">Ahora, tócalo</h2>
+        <div>
+          <p class="actions"><a class="button" href="#">Tocar</a></p>
+          <ul>
+            <li><a href="#">Cómo está hecho</a></li>
+            <li><a href="#">Escribe a Iván</a></li>
+            <li><a href="#">El código, en GitHub</a></li>
+            <li><a href="#">Compartir</a></li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer wrap">
+      <p class="site-footer__name" aria-hidden="true">Torno</p>
+      <p>Un proyecto de Iván Chesa Lapena, desarrollador de software.</p>
+      <p>
+        Sin cookies, sin analítica y sin peticiones a terceros. Tu audio no sale de tu navegador.
+      </p>
+    </footer>
+    <script>
+      const option = new URLSearchParams(location.search).get('espejo');
+      if (option === 'a' || option === 'b') document.body.dataset.espejo = option;
+    </script>
+  </body>
+</html>

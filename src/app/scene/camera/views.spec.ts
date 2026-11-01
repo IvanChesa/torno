@@ -3,7 +3,18 @@
 import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { SHOTS } from '../options';
-import { blend, ease, fit, FOV, orbitPlacement, place, SHOT_ANGLES, shotAngles } from './views';
+import { CONTROLS } from '../../instrument';
+import {
+  blend,
+  controlAngles,
+  ease,
+  fit,
+  FOV,
+  orbitPlacement,
+  place,
+  SHOT_ANGLES,
+  shotAngles,
+} from './views';
 
 const camera = (aspect: number) => new PerspectiveCamera(FOV, aspect, 0.01, 10);
 
@@ -75,5 +86,18 @@ describe('la cámara', () => {
       last = ease(t);
     }
     expect(ease(0.2) + ease(0.8)).toBeCloseTo(1, 10);
+  });
+
+  it('el encuadre de cerca de un control (la guía) lo mira desde su lado, nunca desde detrás', () => {
+    for (const { id } of CONTROLS) {
+      const wide = controlAngles(id, 1.25);
+      const square = controlAngles(id, 1);
+      expect(Math.abs(wide.azimuth)).toBeLessThanOrEqual(36);
+      expect(square.elevation).toBeGreaterThan(wide.elevation);
+    }
+    // Las capas, a la izquierda; el brazo, a la derecha; el disco, de frente.
+    expect(controlAngles('layer-0', 1.25).azimuth).toBeLessThan(0);
+    expect(controlAngles('arm', 1.25).azimuth).toBeGreaterThan(0);
+    expect(controlAngles('disc', 1.25).azimuth).toBe(0);
   });
 });

@@ -6,6 +6,7 @@ import {
   effect,
   ElementRef,
   inject,
+  Injector,
   viewChild,
   viewChildren,
 } from '@angular/core';
@@ -24,6 +25,7 @@ import { SessionStore } from '../../state';
 import { ControlDirective } from '../instrument-common/control.directive';
 import { InstrumentScreen } from '../instrument-common/instrument-screen';
 import { controlHintId, InstrumentShell } from '../instrument-common/instrument-shell';
+import { focusControl, InstrumentSpotlight } from '../instrument-common/spotlight';
 import { InstrumentTools } from '../instrument-common/instrument-tools';
 import { HTML_INSTRUMENT_CONTENT } from './html-instrument.content';
 import { InstrumentTracks } from './instrument-tracks';
@@ -70,6 +72,9 @@ export class HtmlInstrument {
   );
 
   private readonly motion = inject(MotionPreference);
+  private readonly spotlight = inject(InstrumentSpotlight);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   private readonly meters = viewChildren<ElementRef<HTMLElement>>('meter');
   private readonly disc = viewChild.required<ElementRef<HTMLElement>>('disc');
 
@@ -104,6 +109,17 @@ export class HtmlInstrument {
       this.store.audio();
       const held = this.store.state().discHeld;
       if (this.rendered && held && this.motion.still()) this.paint();
+    });
+    // «Ver en el instrumento» (la guía): el foco, al control. Sin cámara que mover.
+    let spotlightSerial = 0;
+    effect(() => {
+      const request = this.spotlight.request();
+      if (!request || request.serial === spotlightSerial) return;
+      spotlightSerial = request.serial;
+      const scroll = this.motion.still() ? 'auto' : 'smooth';
+      afterNextRender(() => focusControl(this.host.nativeElement, request.id, scroll), {
+        injector: this.injector,
+      });
     });
     destroyRef.onDestroy(() => cancelAnimationFrame(this.frame));
   }

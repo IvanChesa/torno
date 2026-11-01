@@ -23,8 +23,34 @@ export function canonicalUrl(routerUrl: string): string {
 }
 
 /**
- * SEO sencillo (PLAN D18): título, descripción, robots y canonical en cada navegación, también al
- * prerenderizar. Hace de `TitleStrategy` del router porque es lo que se ejecuta con cada ruta.
+ * Las etiquetas para compartir (D18, fase 7): Open Graph y la tarjeta grande de X, con la misma
+ * imagen en todas las páginas. Con `property` las de Open Graph y con `name` las de X.
+ */
+export function shareTags(
+  title: string,
+  description: string,
+  url: string,
+): { readonly key: 'property' | 'name'; readonly id: string; readonly content: string }[] {
+  const image = SITE_CONFIG.shareImage;
+  const og = (id: string, content: string) => ({ key: 'property' as const, id, content });
+  return [
+    og('og:type', 'website'),
+    og('og:site_name', SITE_CONFIG.name),
+    og('og:locale', SITE_CONFIG.locale.replace('-', '_')),
+    og('og:title', title),
+    og('og:description', description),
+    og('og:url', url),
+    og('og:image', `${SITE_CONFIG.baseUrl}${image.path}`),
+    og('og:image:width', String(image.width)),
+    og('og:image:height', String(image.height)),
+    og('og:image:alt', image.alt),
+    { key: 'name', id: 'twitter:card', content: 'summary_large_image' },
+  ];
+}
+
+/**
+ * SEO sencillo (PLAN D18): título, descripción, robots, canonical y las etiquetas para compartir en
+ * cada navegación, también al prerenderizar. Hace de `TitleStrategy` del router porque es lo que se ejecuta con cada ruta.
  */
 @Injectable()
 export class SeoService extends TitleStrategy {
@@ -37,11 +63,13 @@ export class SeoService extends TitleStrategy {
     while (route.firstChild) route = route.firstChild;
     const data = route.data as SeoRouteData;
 
-    this.title.setTitle(formatPageTitle(this.buildTitle(snapshot)));
-    this.meta.updateTag({
-      name: 'description',
-      content: data.description ?? SITE_CONFIG.description,
-    });
+    const title = formatPageTitle(this.buildTitle(snapshot));
+    const description = data.description ?? SITE_CONFIG.description;
+    this.title.setTitle(title);
+    this.meta.updateTag({ name: 'description', content: description });
+    for (const tag of shareTags(title, description, canonicalUrl(snapshot.url))) {
+      this.meta.updateTag({ [tag.key]: tag.id, content: tag.content }, `${tag.key}="${tag.id}"`);
+    }
     const indexable = SITE_CONFIG.indexable && !data.noindex;
     this.meta.updateTag({ name: 'robots', content: indexable ? 'index, follow' : 'noindex' });
     this.setCanonical(data.noindex ? undefined : canonicalUrl(snapshot.url));

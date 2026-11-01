@@ -54,7 +54,7 @@ export function skipLinkHref(routerUrl: string): string {
       <div class="site-footer__body">
         <p>
           {{ text.authorPrefix }} <a [href]="site.author.url">{{ site.author.name }}</a
-          >.
+          >, {{ site.author.role }}.
         </p>
         <p>{{ text.privacy }}</p>
         <nav class="site-footer__legal" [attr.aria-label]="text.legalLabel">

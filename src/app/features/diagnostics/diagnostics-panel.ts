@@ -18,7 +18,7 @@ const REFRESH_MS = 1000;
   selector: 'trn-diagnostics-panel',
   template: `
     <section class="panel" aria-labelledby="trn-diagnostico">
-      <h3 id="trn-diagnostico">{{ text.title }}</h3>
+      <h2 id="trn-diagnostico">{{ text.title }}</h2>
       <p class="intro">{{ text.intro }}</p>
       <dl>
         @for (row of rows(); track row.label) {
@@ -46,8 +46,10 @@ const REFRESH_MS = 1000;
       background: var(--color-surface);
     }
 
-    h3 {
+    /* Un h2 (la portada solo tiene el h1 encima: fase 7) con el tamaño de un h3. */
+    h2 {
       margin: 0;
+      font-size: var(--text-l);
     }
 
     .intro,

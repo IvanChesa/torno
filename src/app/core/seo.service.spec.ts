@@ -7,9 +7,9 @@ describe('SeoService', () => {
   });
 
   it('da la URL canónica sin consulta ni fragmento', () => {
-    expect(canonicalUrl('/')).toBe('https://torno.ivanchesa.es/');
+    expect(canonicalUrl('/')).toBe('https://torno.ivanchesa.com/');
     expect(canonicalUrl('/sobre-el-proyecto?captura=1#arriba')).toBe(
-      'https://torno.ivanchesa.es/sobre-el-proyecto',
+      'https://torno.ivanchesa.com/sobre-el-proyecto',
     );
   });
 });
