@@ -54,10 +54,12 @@ import {
   place,
   SHOT_MARGIN,
   shotPlacement,
+  SQUARE_ASPECT,
   VIEW_ANGLES,
   type CameraPlacement,
 } from './camera/views';
 import { disposeObject } from './dispose';
+import { applyExplode, explodedSilhouette } from './model/exploded';
 import {
   createMaterials,
   materialList,
@@ -105,6 +107,8 @@ export interface SceneOptions {
   readonly quality?: QualityLevel;
   /** Lo que encuadra la cámara al empezar; si no, el aparato entero («Tocar», completo). */
   readonly camera?: CameraGoal;
+  /** Empieza despiezado (las capturas de la vista despiezada, `?despiece=1`). */
+  readonly exploded?: boolean;
   /** `?captura=1`: todo fijo, en calidad alta y sin bajada automática. */
   readonly capture: boolean;
   readonly onEvent?: (event: SceneEvent) => void;
@@ -160,6 +164,13 @@ export interface FrameStats {
 const MAX_ANISOTROPY = 8;
 /** Lo que dura el viaje de la cámara de un encuadre a otro. */
 const CAMERA_TRAVEL_MS = 650;
+/** Lo que tarda en despiezarse o montarse el aparato (las piezas suben o bajan a la vez). */
+const EXPLODE_MS = 900;
+/** Desde dónde se mira el aparato despiezado: de tres cuartos y bajo, para ver los niveles. */
+const EXPLODED_ANGLES = {
+  wide: { azimuth: 32, elevation: 22 },
+  square: { azimuth: 28, elevation: 30 },
+};
 /** Cada cuánto, como mucho, se mira qué controles tapa otra pieza (al girar en «Inspeccionar»). */
 const OCCLUSION_MS = 100;
 /** Los pilotos laten con el nivel: a nivel 0, esta fracción de su luz; a nivel 1, toda. */
@@ -184,6 +195,8 @@ interface Build {
   readonly shots: Readonly<Record<Shot | 'aparato', readonly Vector3[]>>;
   /** La esfera que envuelve el aparato con su sombra (la órbita de «Inspeccionar»). */
   readonly sphere: Sphere;
+  /** La silueta del aparato despiezado del todo (lo que encuadra su cámara). */
+  readonly exploded: readonly Vector3[];
 }
 
 /** Lo que se usa de dentro de `PMREMGenerator` (three 0.186) para compilar sus *shaders* antes. */
@@ -258,6 +271,9 @@ export class SceneEngine {
   /** Pintar seguido (una medida o, desde la fase 6, algo que se mueve) hasta este momento. */
   #continuousUntil = 0;
   #benchmark: { times: number[]; last: number } | null = null;
+  /** Cuánto está despiezado (de 0, montado, a 1) y el viaje hacia lo pedido (si lo hay). */
+  #explode = 0;
+  #explodeTravel: { from: number; to: number; start: number } | null = null;
 
   /** Crea el motor cuando la fuente de la pantalla está lista. Falla si no hay WebGL. */
   static async create(options: SceneOptions): Promise<SceneEngine> {
@@ -279,6 +295,7 @@ export class SceneEngine {
     this.#capture = options.capture;
     this.#pose = options.pose;
     this.#goal = options.camera ?? { kind: 'shot', shot: 'completo' };
+    this.#explode = options.exploded ? 1 : 0;
     const hints = deviceHints();
     // En las capturas, alta salvo que pidan otra (`?calidad=`), para medir cada nivel.
     this.#level = options.quality ?? (options.capture ? 'high' : initialQuality(hints));
@@ -367,6 +384,17 @@ export class SceneEngine {
     // Mientras se gira, mirar qué tapa qué es lo caro (un rayo por control): 10 veces por segundo.
     const occlusionDue = orbit && !this.#travel && now - this.#occlusionAt >= OCCLUSION_MS;
     if (this.#boxes && !occlusionDue) return this.#boxes;
+    // Despiezado (o a medias), las piezas no están donde se tocan: ningún control.
+    if (this.#explode > 0) {
+      this.#boxes = projectControls(
+        build.shapes,
+        this.#camera,
+        this.#width,
+        this.#height,
+        null,
+      ).map((box) => ({ ...box, visible: false }));
+      return this.#boxes;
+    }
     let boxes = projectControls(
       build.shapes,
       this.#camera,
@@ -384,6 +412,39 @@ export class SceneEngine {
     }
     this.#boxes = boxes;
     return boxes;
+  }
+
+  /**
+   * La vista despiezada (PLAN fase 7): las piezas suben por niveles (`true`) o vuelven a su sitio.
+   * Con `travel`, poco a poco (quien llama lo pide solo sin la pausa de movimiento). La cámara la
+   * pone quien llama (`{ kind: 'exploded' }`). Mientras no está montado, no hay controles.
+   */
+  setExploded(exploded: boolean, travel = false): void {
+    const to = exploded ? 1 : 0;
+    if (travel && !this.#capture && this.#build) {
+      this.#explodeTravel = { from: this.#explode, to, start: performance.now() };
+      this.#continuousUntil = Math.max(this.#continuousUntil, performance.now() + EXPLODE_MS);
+    } else {
+      this.#explodeTravel = null;
+      this.#setExplode(to);
+    }
+    this.#invalidate();
+  }
+
+  /** Si está despiezado o despiezándose (lo pedido, no por dónde va). */
+  get exploded(): boolean {
+    return (this.#explodeTravel?.to ?? this.#explode) > 0;
+  }
+
+  #setExplode(amount: number): void {
+    if (amount === this.#explode) return;
+    this.#explode = amount;
+    const build = this.#build;
+    if (build) applyExplode(build.model, amount);
+    // El aro de luz es de la cubierta montada: despiezado, ninguno (los controles se ocultan).
+    if (amount > 0) this.#highlight?.set(null, 0);
+    this.#boxes = null;
+    this.#onEvent?.({ type: 'camera' });
   }
 
   /** El anillo de luz en el control enfocado o bajo el puntero (o ninguno). */
@@ -574,6 +635,7 @@ export class SceneEngine {
       shapes,
       shots: shotPoints(model, shapes, outline),
       sphere,
+      exploded: explodedSilhouette(model),
     };
     this.#applyPose(build);
     const anisotropy = Math.min(MAX_ANISOTROPY, this.#renderer.capabilities.getMaxAnisotropy());
@@ -605,6 +667,7 @@ export class SceneEngine {
 
     // La pose de ahora (pudo cambiar mientras se construía) y, a la vez, el aparato y el entorno.
     this.#applyPose(build);
+    applyExplode(build.model, this.#explode);
     const old = this.#build;
     this.#build = build;
     this.#scene.add(model.root, shadow);
@@ -827,6 +890,13 @@ export class SceneEngine {
         return fit(scratch, VIEW_ANGLES[goal.view], build.shots.completo);
       case 'shot':
         return shotPlacement(scratch, goal.shot, build.shots);
+      case 'exploded':
+        return fit(
+          scratch,
+          scratch.aspect < SQUARE_ASPECT ? EXPLODED_ANGLES.square : EXPLODED_ANGLES.wide,
+          build.exploded,
+          SHOT_MARGIN.wide,
+        );
       case 'control':
         return fit(
           scratch,
@@ -890,6 +960,12 @@ export class SceneEngine {
       if (t >= 1) this.#travel = null;
       this.#applyPlacement(t >= 1 ? travel.to : blend(travel.from, travel.to, ease(t)));
     }
+    const explode = this.#explodeTravel;
+    if (explode) {
+      const t = (performance.now() - explode.start) / EXPLODE_MS;
+      if (t >= 1) this.#explodeTravel = null;
+      this.#setExplode(t >= 1 ? explode.to : explode.from + (explode.to - explode.from) * ease(t));
+    }
     if (this.#motionSource) {
       this.#motion = this.#motionSource(time);
       this.#motionTime = time;
@@ -908,7 +984,8 @@ export class SceneEngine {
       this.#ready = true;
       this.#onEvent?.({ type: 'ready' });
     }
-    const moving = this.#motionSource !== null || this.#travel !== null;
+    const moving =
+      this.#motionSource !== null || this.#travel !== null || this.#explodeTravel !== null;
     if (moving || performance.now() < this.#continuousUntil) {
       if (!benchmark && !this.#capture) {
         const lower = this.#monitor.frame(time);
