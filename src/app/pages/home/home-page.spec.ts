@@ -12,10 +12,13 @@ describe('HomePage', () => {
     const h1 = root.querySelectorAll('h1');
     expect(h1).toHaveLength(1);
     expect(h1[0]?.textContent?.trim()).toBe(HOME_CONTENT.title);
-    for (const section of root.querySelectorAll('section[aria-labelledby]')) {
+    // La portada lleva el h1; cada sección de debajo, su h2.
+    const sections = [...root.querySelectorAll('section[aria-labelledby]')];
+    expect(sections.length).toBeGreaterThanOrEqual(3);
+    sections.forEach((section, i) => {
       const id = section.getAttribute('aria-labelledby') ?? '';
-      expect(root.querySelector(`#${id}`)?.tagName).toBe('H2');
-    }
+      expect(root.querySelector(`#${id}`)?.tagName).toBe(i === 0 ? 'H1' : 'H2');
+    });
   });
 
   it('sus textos están pendientes de revisión', () => {

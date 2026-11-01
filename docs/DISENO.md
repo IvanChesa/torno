@@ -4,7 +4,7 @@ Elegida por Iván el 24-10-2026 (`docs/PLAN.md` §10, D23). Este documento la de
 
 - **Fuente única:** `src/styles/tokens.css`. Ningún componente escribe a mano un color, un tamaño de letra, un peso, un interlineado, un espaciado o una duración: usa un token. Las medidas propias de un componente (el ancho de una columna, el tamaño de una muestra de color) sí pueden ir en el componente.
 - **Comprobado por tests:** el contraste de cada combinación (`scripts/contrast.spec.ts`), el color de la barra del navegador frente al fondo (`site.config.spec.ts`) y la ausencia de violaciones de axe (`e2e/static.spec.ts`).
-- **Muestrario:** la portada de la fase 0 enseña los tokens (`features/design-sample`, temporal hasta la fase 7). Capturas en `docs/informes/img/fase-0/`.
+- **Muestrario:** la portada de las fases 0 a 6 enseñaba los tokens (`features/design-sample`, quitado en la fase 7, cuando llegó la web de producto). Sus capturas siguen en `docs/informes/img/fase-0/`.
 
 ---
 

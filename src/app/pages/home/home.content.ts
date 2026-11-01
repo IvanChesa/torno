@@ -1,23 +1,24 @@
-/** Textos de la portada (página base). Pendientes de revisión de Iván (fase 7). */
+/** Textos de la portada (fase 7). Pendientes de revisión de Iván (docs/ESTILO.md). */
 export const HOME_CONTENT = {
   reviewed: false,
   title: 'Torno',
-  lead: 'Instrumento de bucles de cuatro capas, en 3D, que se toca en el navegador.',
-  status:
-    'Esto es la página base. El instrumento se construye por fases: primero el audio, luego el aparato en 3D y al final la web que lo presenta.',
+  lead: 'Un instrumento de bucles de cuatro capas, de barro y latón, que se toca en el navegador.',
   play: 'Tocar',
+  guide: 'Cómo se toca',
+  /** La nota de debajo: nada suena solo, y el teclado. Las teclas van en `kbd`. */
+  note: {
+    before: 'Nada suena hasta que tocas. Con el teclado,',
+    play: 'Espacio',
+    middle: 'reproduce y',
+    help: '?',
+    after: 'enseña los atajos.',
+  },
   instrument: {
-    title: 'Tócalo',
-    intro:
-      'Cuatro capas en bucle: elige un sonido en el menú del dial principal o graba con el micrófono. Nada suena hasta que tocas, y tu audio nunca sale del navegador. Con el teclado: Espacio reproduce, R graba, Z deshace y ? enseña los atajos.',
+    /** El nombre de la región del instrumento (no se ve: el titular está al lado). */
+    label: 'El instrumento',
     poster: 'Torno, el instrumento, visto de frente.',
     /** Sin WebGL, el plato HTML en su lugar (el aviso cuidado, en la fase 8). */
     noWebgl:
       'Este navegador no puede mostrar el 3D: aquí tienes el instrumento sin él, con los mismos controles.',
-  },
-  sample: {
-    title: 'Muestrario del diseño',
-    intro:
-      'La dirección «Barro»: fondo de olivar, tinta de hueso, acento de terracota y tipografías con la forma suave del barro.',
   },
 } as const;
