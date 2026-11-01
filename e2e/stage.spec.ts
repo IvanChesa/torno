@@ -73,6 +73,27 @@ test.describe('escenario 3D', () => {
     expect(await streamCount(page)).toBe(0);
   });
 
+  test('«Despiezar»: las piezas se separan sin controles, y «Completo» lo monta otra vez', async ({
+    page,
+  }) => {
+    await openStage(page);
+    const visibleControls = page.locator('.stage3d [data-control]:visible');
+    await expect(visibleControls).toHaveCount(12);
+    await page.getByRole('button', { name: 'Despiezar', exact: true }).click();
+    await expect(stage(page)).toHaveAttribute('data-camara', 'despiezado');
+    await expect(page.getByRole('button', { name: 'Despiezar', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(visibleControls).toHaveCount(0);
+    await page.getByRole('button', { name: 'Completo' }).click();
+    await expect(stage(page)).toHaveAttribute('data-camara', 'completo');
+    await expect(visibleControls).toHaveCount(12);
+    // Desde la sección de los detalles, también.
+    await page.getByRole('button', { name: 'Despiezar el instrumento' }).click();
+    await expect(stage(page)).toHaveAttribute('data-camara', 'despiezado');
+  });
+
   test('con ?sin3d=1 no hay escenario ni lienzo: solo el instrumento HTML', async ({ page }) => {
     const driver = new InstrumentDriver(page);
     await driver.open('/');

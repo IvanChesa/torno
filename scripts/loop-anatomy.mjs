@@ -54,4 +54,6 @@ ${ANATOMY_SOUNDS.map((id, i) => `  ${id}: [${waves[i].join(', ')}],`).join('\n')
 `;
 const options = (await resolveConfig(OUT)) ?? {};
 await writeFile(OUT, await format(source, { ...options, filepath: OUT }));
-console.log(`✔ ${path.relative(root, OUT)} (${ANATOMY_SOUNDS.length} sonidos × ${ANATOMY_BINS} tramos)`);
+console.log(
+  `✔ ${path.relative(root, OUT)} (${ANATOMY_SOUNDS.length} sonidos × ${ANATOMY_BINS} tramos)`,
+);
