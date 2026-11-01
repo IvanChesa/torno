@@ -12,7 +12,8 @@ export interface SpotlightRequest {
 }
 
 /**
- * «Ver en el instrumento» (PLAN fase 7, la guía): la guía pide señalar un control y el instrumento
+ * «Ver en el instrumento» (PLAN fase 7, la guía) y «Despiezar» (los detalles): la web pide al
+ * instrumento señalar un control o despiezarse. La guía pide señalar un control y el instrumento
  * que haya lo atiende cuando está listo (la guía no espera a que se cargue). El 3D viaja hasta él
  * y le pasa el foco, que enciende su anillo de luz; el plato HTML le pasa el foco.
  *
@@ -22,13 +23,23 @@ export interface SpotlightRequest {
 @Service()
 export class InstrumentSpotlight {
   readonly #request = signal<SpotlightRequest | null>(null);
+  readonly #explode = signal(0);
   #serial = 0;
 
   /** La última petición (la atiende el instrumento si aún no lo ha hecho). */
   readonly request = this.#request.asReadonly();
+  /**
+   * Cuántas veces se ha pedido la vista despiezada (la sección de los detalles). La atiende el 3D;
+   * el plato HTML no tiene piezas que separar.
+   */
+  readonly explodeRequests = this.#explode.asReadonly();
 
   show(id: ControlId, shot: Shot | null = null): void {
     this.#request.set({ id, shot, serial: ++this.#serial });
+  }
+
+  explode(): void {
+    this.#explode.update((count) => count + 1);
   }
 }
 

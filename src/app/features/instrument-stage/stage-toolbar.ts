@@ -38,6 +38,14 @@ import { INSTRUMENT_STAGE_CONTENT } from './instrument-stage.content';
       >
         {{ text.inspect }}
       </button>
+      <button
+        type="button"
+        class="toggle"
+        [attr.aria-pressed]="camera().kind === 'exploded'"
+        (click)="explode.emit()"
+      >
+        {{ text.explode }}
+      </button>
       @if (fullscreenAvailable()) {
         <button
           type="button"
@@ -97,6 +105,7 @@ export class StageToolbar {
   readonly fullscreenAvailable = input(false);
   readonly shotChange = output<Shot>();
   readonly inspect = output<void>();
+  readonly explode = output<void>();
   readonly fullscreenChange = output<void>();
 
   protected readonly text = INSTRUMENT_STAGE_CONTENT;

@@ -156,6 +156,7 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
           [fullscreenAvailable]="fullscreenAvailable"
           (shotChange)="setShot($event)"
           (inspect)="inspect()"
+          (explode)="toggleExplode()"
           (fullscreenChange)="toggleFullscreen()"
         />
       </div>
@@ -353,6 +354,8 @@ export class InstrumentStage {
         return 'inspeccionar';
       case 'control':
         return `cerca-${camera.id}`;
+      case 'exploded':
+        return 'despiezado';
       default:
         return null;
     }
@@ -451,6 +454,7 @@ export class InstrumentStage {
         pose: this.pose(),
         capture,
         camera: view ? { kind: 'view', view } : this.camera(),
+        exploded: this.camera().kind === 'exploded',
         quality: capture
           ? (pick<QualityLevel>(params.get('calidad'), QUALITY_LEVELS) ?? 'high')
           : undefined,
@@ -527,6 +531,17 @@ export class InstrumentStage {
         if (box) focusControl(box, request.id);
       });
     });
+    // «Despiezar» desde la sección de los detalles: como el botón de la barra, pero solo despieza
+    // (también si se pidió antes de tener el motor).
+    let explodeRequests = 0;
+    effect(() => {
+      const requests = this.spotlight.explodeRequests();
+      if (!this.engine() || requests === explodeRequests) return;
+      explodeRequests = requests;
+      untracked(() => {
+        if (this.camera().kind !== 'exploded') this.toggleExplode();
+      });
+    });
     // Las formas de onda: solo cuando cambia el sonido de una capa (o su reverso).
     effect(() => {
       const waveforms = this.shownWaveforms();
@@ -562,8 +577,25 @@ export class InstrumentStage {
     this.setCamera({ kind: 'orbit', orbit: this.orbit }, true);
   }
 
+  /**
+   * La vista despiezada (PLAN fase 7): las piezas suben y la cámara se aleja para verlas; otra vez,
+   * se monta y vuelve al aparato entero. Mientras, no hay controles (el foco se queda en el botón).
+   */
+  protected toggleExplode(): void {
+    if (this.camera().kind === 'exploded') {
+      this.setShot('completo');
+      return;
+    }
+    this.engine()?.setExploded(true, !this.motion.still());
+    this.setCamera({ kind: 'exploded' }, true);
+  }
+
   /** Con `?captura=1&encuadre=`: el encuadre de la captura, también en la barra. */
   private captureCamera(name: string | null): void {
+    if (name === 'despiezado') {
+      this.camera.set({ kind: 'exploded' });
+      return;
+    }
     const shot = pick<Shot>(name, SHOTS);
     if (shot) this.camera.set({ kind: 'shot', shot });
     if (name !== 'inspeccionar') return;
@@ -572,8 +604,11 @@ export class InstrumentStage {
     this.camera.set({ kind: 'orbit', orbit: CAPTURE_ORBIT });
   }
 
-  /** Con la pausa de movimiento, la cámara corta; si no, viaja. */
+  /** Con la pausa de movimiento, la cámara corta; si no, viaja. Fuera del despiece, se monta. */
   private setCamera(goal: CameraGoal, travel: boolean): void {
+    if (goal.kind !== 'exploded' && this.engine()?.exploded) {
+      this.engine()?.setExploded(false, travel && !this.motion.still());
+    }
     this.camera.set(goal);
     this.engine()?.setCamera(goal, travel && !this.motion.still());
   }
