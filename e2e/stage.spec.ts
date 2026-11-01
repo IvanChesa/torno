@@ -86,7 +86,7 @@ test.describe('escenario 3D', () => {
       'true',
     );
     await expect(visibleControls).toHaveCount(0);
-    await page.getByRole('button', { name: 'Completo' }).click();
+    await page.getByRole('button', { name: 'Completo', exact: true }).click();
     await expect(stage(page)).toHaveAttribute('data-camara', 'completo');
     await expect(visibleControls).toHaveCount(12);
     // Desde la sección de los detalles, también.
@@ -530,16 +530,16 @@ test.describe('el instrumento 3D: ratón y teclado', () => {
       ['Inspeccionar', 'inspeccionar'],
       ['Completo', 'completo'],
     ] as const) {
-      await page.getByRole('button', { name }).click();
+      await page.getByRole('button', { name, exact: true }).click();
       await expect(stage(page)).toHaveAttribute('data-camara', camera);
       await expect.poll(() => overflowX(page)).toBe(0);
     }
-    await page.getByRole('button', { name: 'Capas' }).click();
+    await page.getByRole('button', { name: 'Capas', exact: true }).click();
     await expect(stage(page)).toHaveAttribute('data-camara', 'capas');
     await expect.poll(() => overflowX(page)).toBe(0);
     // De cerca, los diales de las capas se ven (y se tocan) más grandes.
     await expect.poll(layer).toBeGreaterThan(before * 1.3);
-    await page.getByRole('button', { name: 'Inspeccionar' }).click();
+    await page.getByRole('button', { name: 'Inspeccionar', exact: true }).click();
     await expect(stage(page)).toHaveAttribute('data-camara', 'inspeccionar');
     const orbit = page.getByRole('slider', { name: 'Girar el aparato' });
     await orbit.focus();
@@ -555,7 +555,7 @@ test.describe('el instrumento 3D: ratón y teclado', () => {
     await orbit.press('Home');
     await expect(orbit).toHaveAttribute('aria-valuetext', /De frente/);
     await expect(zone(page, 'standby')).toBeVisible();
-    await page.getByRole('button', { name: 'Completo' }).click();
+    await page.getByRole('button', { name: 'Completo', exact: true }).click();
     await expect(stage(page)).toHaveAttribute('data-camara', 'completo');
   });
 
@@ -715,7 +715,7 @@ test.describe('el instrumento 3D en el móvil', () => {
       ['Inspeccionar', 'inspeccionar'],
       ['Completo', 'completo'],
     ] as const) {
-      await page.getByRole('button', { name }).click();
+      await page.getByRole('button', { name, exact: true }).click();
       await expect(stage(page)).toHaveAttribute('data-camara', camera);
       await expect.poll(() => overflowX(page)).toBe(0);
     }
