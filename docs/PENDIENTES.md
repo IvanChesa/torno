@@ -21,7 +21,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 - [ ] Conseguir un iPhone para probar (aunque sea prestado) y tener a mano unos auriculares, mejor con cable.
 
 ## Decisiones
-- [ ] **Subdominio definitivo.** Propuesto: `torno.ivanchesa.es`. Si cambia, se edita solo `src/app/core/site.config.ts`.
+- [x] **Subdominio definitivo:** `torno.ivanchesa.com` (31-10: la web de Iván pasa a ivanchesa.com y el .es se deja caducar). El código lo cambia la fase 7 en `src/app/core/site.config.ts`.
 - [x] **Autoguardado local** (D16): activado por defecto, visible y borrable (sin cambios de Iván antes del bloque A).
 - [ ] **Licencia del código propio** cuando el repo pase a público (MIT u otra).
 - [ ] `@lhci/cli` en el CI (fase 8).
@@ -60,8 +60,4 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
   - `TODO(ivan)`: los **FPS del 3D** en el móvil, con el panel «Escena 3D» de `?diagnostico=1` y su botón «Medir 5 s» (prueba 15). PLAN §5 pide 30 o más en un móvil de gama media, en calidad baja y tocando (revisión de la fase 5, #5).
 
 ## Fase 9 (manual)
-- [ ] **`torno.ivanchesa.es`:**
-  1. En Pages → `torno` → *Custom domains*, añadir `torno.ivanchesa.es`.
-  2. Un **CNAME** `torno` → `torno.pages.dev` en el DNS de ivanchesa.es: hoy en el *Zone Editor* del cPanel de Banahosting y, si ivanchesa.es ya ha pasado a Cloudflare, en su DNS.
-
-  Pages emite el certificado solo. Ya no hacen falta subdominio en cPanel, FTP ni secrets de producción.
+- [ ] **`torno.ivanchesa.com`:** en Pages → `torno` → *Custom domains*, añadir `torno.ivanchesa.com`. La zona de ivanchesa.com está en la misma cuenta de Cloudflare, así que el CNAME y el certificado salen solos. Antes, `torno` tiene que tener una versión en producción (la etiqueta `v*` de la fase 9).

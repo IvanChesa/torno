@@ -12,9 +12,9 @@
 
 Se inspira en **TAPE** (`ethanplusai/tape`, tape.ethanplus.ai) y tiene **todas sus funcionalidades** y **mejoras propias**. No se copia nada de él (ni código, ni textos, ni diseño, ni nombres de sonidos): se escribe desde cero.
 
-**Objetivo:** pieza de portfolio de Iván Chesa Lapena (desarrollador web freelance, ivanchesa.es). Tiene que demostrar Angular moderno, **audio en tiempo real de calidad profesional** (AudioWorklet, DSP propio), 3D web, interacción accesible y rendimiento. Complementa a tierra-luna-sol: allí manda el rigor científico; aquí, el audio, la interacción y el diseño de producto. **El SEO es secundario.**
+**Objetivo:** pieza de portfolio de Iván Chesa Lapena (desarrollador de software, ivanchesa.com). Tiene que demostrar Angular moderno, **audio en tiempo real de calidad profesional** (AudioWorklet, DSP propio), 3D web, interacción accesible y rendimiento. Complementa a tierra-luna-sol: allí manda el rigor científico; aquí, el audio, la interacción y el diseño de producto. **El SEO es secundario.**
 
-**Dónde vive:** **Cloudflare Pages** (plan gratuito, proyecto `torno`, la misma cuenta que tierra-luna-sol; decisión de Iván del 27-10, D19). En producción, `torno.ivanchesa.es`, conectado al lanzar con un CNAME; el staging es la vista previa `staging.torno.pages.dev`. Proyecto y repositorio independientes.
+**Dónde vive:** **Cloudflare Pages** (plan gratuito, proyecto `torno`, la misma cuenta que tierra-luna-sol; decisión de Iván del 27-10, D19). En producción, **`torno.ivanchesa.com`** (decisión de Iván del 31-10: su web pasa a ivanchesa.com y el .es se deja caducar), conectado al lanzar como dominio personalizado de Pages; el staging es la vista previa `staging.torno.pages.dev`. Proyecto y repositorio independientes.
 
 ### 0.1 Paridad con el original (todo esto entra en la v1)
 
@@ -92,7 +92,7 @@ Se inspira en **TAPE** (`ethanplusai/tape`, tape.ethanplus.ai) y tiene **todas s
 | D15 | **Formato de proyecto propio `.torno`** (cabecera JSON versionada + PCM float32 por capa), validado entero antes de tocar nada | Guardar y cargar sin perder calidad y sin riesgos. |
 | D16 | **Autoguardado local en IndexedDB**, visible y borrable desde la web y desde el menú | Mejora clara sobre el original sin salir del dispositivo. |
 | D17 | **Privacidad:** 0 cookies, 0 analítica, 0 peticiones a terceros; el audio nunca sale del navegador | Cumplimiento sin banner y garantía visible de calidad. |
-| D18 | **SEO secundario:** title y description simples, una imagen Open Graph global y `robots.txt` básico | Es una pieza de portfolio dentro de ivanchesa.es. |
+| D18 | **SEO secundario:** title y description simples, una imagen Open Graph global y `robots.txt` básico | Es una pieza de portfolio dentro de ivanchesa.com. |
 | D19 | **Hosting en Cloudflare Pages** (decisión de Iván, 27-10; sustituye a Banahosting por FTPS). GitHub Actions sube **el build que ya ha probado el CI** con `cloudflare/wrangler-action` fijado por SHA. Un push a `main` con el CI en verde va a la vista previa `staging.torno.pages.dev` (`--branch=staging`) y una etiqueta `v*`, a producción (`--branch=main`). `_headers` y `_redirects` en lugar de `.htaccess`. Secrets: `CLOUDFLARE_API_TOKEN` (solo «Cloudflare Pages: Edit») y `CLOUDFLARE_ACCOUNT_ID`. Sin Cloudflare Web Analytics | Sin cPanel, sin FTP ni Imunify360; la misma cuenta que tierra-luna-sol. |
 | D20 | **Tests:** Vitest (núcleo, síntesis, archivos y modelo) + Playwright (Chromium con micrófono sintético y AudioWorklet real; WebKit de escritorio) + axe + regresión visual | — |
 | D21 | **Solo español en la v1** | — |
@@ -257,7 +257,7 @@ scripts/              build-worklet, make-fake-mic, render-poster, demo-sounds, 
 ### 4.8 Archivos y persistencia
 - **`.torno`:** firma, versión, cabecera JSON (tempo, frecuencia de muestreo, ajustes, por capa: duración, tempo nativo, origen, nivel, silencio, panorama, reverso, filtro) y PCM float32 LE por capa. **Validación completa antes de cambiar nada** (tamaños, límites, `NaN`/`Infinity`, versión). Si la frecuencia difiere, `audio/engine/` remuestrea con `OfflineAudioContext`. No se guarda el historial de deshacer.
 - **WAV:** mezcla estéreo de 24 bits con N repeticiones (1–8) y fundido final opcional, renderizada por `export.worker` con el mismo núcleo; **pistas por separado**: un WAV mono de 24 bits por capa. Sin metrónomo.
-- **Autoguardado:** IndexedDB, tras cada edición confirmada (no durante una toma), con antirrebote. Al volver: «Recuperar la sesión anterior» o «Empezar de cero». Errores de cuota controlados. **Dos huecos** (decisión de Iván, 26-10): mientras el panel de recuperar sigue sin contestar, lo nuevo se autoguarda en un segundo hueco y la sesión anterior se conserva intacta. «Recuperar» pide confirmación si ya se ha tocado algo, y «Empezar de cero» borra la anterior. Al contestar, queda un solo hueco.
+- **Autoguardado:** IndexedDB, tras cada edición confirmada (no durante una toma), con antirrebote. Al volver: «Recuperar la sesión anterior» o «Empezar de cero». Errores de cuota controlados. **Dos huecos** (decisión de Iván, 26-10): mientras el panel de recuperar sigue sin contestar, lo nuevo se autoguarda en un segundo hueco y la sesión anterior se conserva intacta. «Recuperar» pide confirmación si ya se ha tocado algo, y «Empezar de cero» borra la anterior. Al contestar, queda un solo hueco. Con los dos huecos ya ofrecidos (tras otra recarga), lo que se toca espera a que se conteste el panel; si se cierra la pestaña sin contestar, eso se pierde, así que el panel tiene que verse siempre (revisión del bloque C).
 
 ### 4.9 Prerenderizado y carga
 - `/` se prerenderiza con el texto y un **póster** del instrumento (render del propio motor, fase 7). El LCP es el H1 o el póster, **nunca el canvas**.
@@ -521,15 +521,21 @@ Tareas:
    - **anatomía de un bucle**: diagrama interactivo de las 4 capas (escuchar solo tras pulsar);
    - **ficha técnica con valores medidos** (frecuencia de muestreo, capas, latencia, CPU del audio, FPS, peso) y cómo se midió cada uno;
    - preguntas frecuentes (acordeón accesible);
-   - cierre: tocar, caso de estudio, contacto en ivanchesa.es y el código en GitHub (cuando sea público).
+   - cierre: tocar, caso de estudio, contacto en ivanchesa.com y el código en GitHub (cuando sea público).
 4. **`/sobre-el-proyecto`:** caso de estudio (arquitectura y diagrama de hilos, decisiones, mediciones, accesibilidad y autor), con un apartado de **créditos**:
    - **sonidos:** síntesis propia en código, sin muestras ni audio de terceros ni generado por IA (no hay nada que atribuir; se explica cómo se hacen);
    - **tipografías:** Fraunces y Geist Mono, con enlace a sus licencias OFL (`licencias/`);
    - **librerías:** Angular, RxJS, tslib y three.js, con enlace a `licencias/terceros.txt`;
    - **inspiración:** «Inspirado en TAPE, de Ethan», con enlace. Es cortesía, no obligación: no se ha copiado nada.
 5. **Póster e imagen Open Graph** renderizados con el propio motor (`scripts/render-poster.mjs`: Playwright + `?captura=1` + sharp).
-6. **Compartir (D18)**, pie con los enlaces legales de ivanchesa.es y la nota «Sin cookies, sin analítica y sin peticiones a terceros. Tu audio no sale de tu navegador.»
+6. **Compartir (D18)**, pie con los enlaces legales de ivanchesa.com y la nota «Sin cookies, sin analítica y sin peticiones a terceros. Tu audio no sale de tu navegador.»
 7. Lista de textos para la revisión de Iván.
+8. **El dominio, a ivanchesa.com** (decisión de Iván del 31-10), en `site.config.ts`:
+   - `baseUrl: 'https://torno.ivanchesa.com'`;
+   - el autor, «desarrollador de software», con la web en `https://ivanchesa.com` y el contacto en `https://ivanchesa.com/contacto/`;
+   - los enlaces legales en `https://ivanchesa.com/aviso-legal/`, `/privacidad/` y `/cookies/`.
+
+   Busca cualquier `ivanchesa.es` que quede en `src/`, `public/`, `scripts/` y los tests. Los enlaces se comprueban con `curl` cuando ivanchesa.com responda.
 
 Criterios de aceptación:
 - [ ] Capturas de la maqueta y de la implementación coherentes.
@@ -558,15 +564,15 @@ Criterios de aceptación:
 ### Fase 9: Lanzamiento
 
 **Iván (manual):**
-- **`torno.ivanchesa.es`**: en Pages → `torno` → *Custom domains*, añadir `torno.ivanchesa.es`. Después, un **CNAME** `torno` → `torno.pages.dev` en la zona DNS de ivanchesa.es: en el cPanel de Banahosting o, si ivanchesa.es ya ha pasado a Cloudflare, en su DNS. Pages emite el certificado solo.
+- **`torno.ivanchesa.com`**: en Pages → `torno` → *Custom domains*, añadir `torno.ivanchesa.com`. La zona de ivanchesa.com está en la misma cuenta de Cloudflare, así que el CNAME y el certificado salen solos.
 - La licencia del código.
 
 **Claude Code:**
-1. **Producción:** una etiqueta `v*` (o el lanzamiento manual del flujo) despliega el build verificado con `--branch=main`, la rama de producción de `torno`. Va a `torno.pages.dev` y a `torno.ivanchesa.es`; se quita el `noindex` de `torno.pages.dev` solo si Iván lo pide (la canónica es `torno.ivanchesa.es`).
+1. **Producción:** una etiqueta `v*` (o el lanzamiento manual del flujo) despliega el build verificado con `--branch=main`, la rama de producción de `torno`. Va a `torno.pages.dev` y a `torno.ivanchesa.com`; el `noindex` de `torno.pages.dev` se mantiene (la canónica es `torno.ivanchesa.com`).
 2. Verificación en producción con `curl` y Lighthouse.
 3. **README de portfolio** (capturas, vídeo o GIF corto, stack, arquitectura, mediciones), **LICENSE**, **CHANGELOG** y etiqueta **`v1.0.0`**. El repo pasa a público.
-4. **Indexación:** `indexable: true` en `site.config.ts` (hasta aquí todo lleva `noindex`) y comprobar que solo la 404 lo conserva. Comprobar también que los enlaces legales de ivanchesa.es siguen existiendo tras su rediseño.
-5. Lista para Iván: ficha del proyecto en ivanchesa.es (en su propio repo) y difusión.
+4. **Indexación:** `indexable: true` en `site.config.ts` (hasta aquí todo lleva `noindex`) y comprobar que solo la 404 lo conserva. Comprobar también que los enlaces legales de ivanchesa.com responden.
+5. Lista para Iván: la ficha del proyecto en ivanchesa.com, que enlaza a `torno.ivanchesa.com` en cuanto responde (en su propio repo), y la difusión.
 
 Criterios de aceptación:
 - [ ] `v1.0.0` en producción con HTTPS, desplegada por etiqueta.
@@ -616,7 +622,7 @@ Reglas:
 3. Estiramiento de tiempo sin cambio de tono.
 4. Más colecciones de sonidos y edición de patrones.
 5. PWA / funcionamiento sin conexión.
-6. Ficha del proyecto en ivanchesa.es (en su propio repo).
+6. Ficha del proyecto en ivanchesa.com (en su propio repo).
 
 ---
 

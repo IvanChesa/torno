@@ -1,8 +1,8 @@
 # Torno
 
 Instrumento de bucles de cuatro capas **en 3D que se toca en el navegador**, en español: biblioteca de sonidos propia sintetizada, grabación con micrófono, disco para arrastrar el tiempo, brazo de expresión para filtrar y una web de producto alrededor. La versión 1 tiene **todas las funcionalidades del proyecto que lo inspira (TAPE, `ethanplusai/tape`) y además mejoras propias**, sin copiar nada de él.
-Es una pieza del portfolio de Iván Chesa Lapena (desarrollador web freelance, https://ivanchesa.es) y se publica en un subdominio de ivanchesa.es. **El SEO es secundario**; importan la calidad del audio, el 3D, el rendimiento y la accesibilidad.
-Es un proyecto **independiente** del repo de ivanchesa.es: sus reglas (Astro, cero JS…) **no aplican aquí**.
+Es una pieza del portfolio de Iván Chesa Lapena (desarrollador de software, https://ivanchesa.com) y se publica en un subdominio de ivanchesa.com (`torno.ivanchesa.com`; el .es se deja caducar, decisión de Iván del 31-10). **El SEO es secundario**; importan la calidad del audio, el 3D, el rendimiento y la accesibilidad.
+Es un proyecto **independiente** del repo de ivanchesa.com (carpeta `../ivan-chesa.es`): sus reglas (Astro, cero JS…) **no aplican aquí**.
 
 **Plan maestro: `docs/PLAN.md`.** Al empezar cada sesión, lee §0–§5, §7 y la sección de tu fase (el resto, si lo necesitas). Trabaja por fases, en orden, y solo en la fase actual.
 Buenas prácticas oficiales de Angular: @docs/angular-buenas-practicas.md
@@ -101,8 +101,8 @@ Buenas prácticas oficiales de Angular: @docs/angular-buenas-practicas.md
   - se sube con `cloudflare/wrangler-action` fijado por SHA el build que ya probó el CI;
   - `_headers` (y `_redirects` si hace falta) en lugar de `.htaccess`. Sin COOP/COEP mientras no se use `SharedArrayBuffer`;
   - 25 MiB como máximo por archivo y sin Cloudflare Web Analytics;
-  - los secrets `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` los pone Iván, y también el CNAME de `torno.ivanchesa.es` al lanzar.
-- **No toques** el repo de ivanchesa.es (`../ivan-chesa.es`) ni el de tierra-luna-sol (`../tierra-luna-sol`, solo lectura como referencia de configuración), ni DNS, ni cPanel, ni el WordPress de producción.
+  - los secrets `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` los pone Iván, y también el dominio personalizado `torno.ivanchesa.com` al lanzar (la zona de ivanchesa.com está en la misma cuenta de Cloudflare: el CNAME y el certificado salen solos).
+- **No toques** el repo de ivanchesa.com (la carpeta `../ivan-chesa.es`) ni el de tierra-luna-sol (`../tierra-luna-sol`, solo lectura como referencia de configuración), ni DNS, ni cPanel, ni el WordPress de producción.
 
 ## Skills disponibles (`.claude/skills/`, copiadas en la fase 0)
 Úsalas como referencia cuando toque, sin encadenarlas todas. Las reglas de este archivo mandan sobre cualquier skill.
