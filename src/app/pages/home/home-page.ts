@@ -7,17 +7,20 @@ import { HtmlInstrument } from '../../features/html-instrument/html-instrument';
 import { InstrumentStage } from '../../features/instrument-stage/instrument-stage';
 import { StagePlaceholder } from '../../features/instrument-stage/stage-placeholder';
 import { InstrumentSpotlight } from '../../features/instrument-common/spotlight';
+import { Closing } from '../../features/product/closing';
 import { Details } from '../../features/product/details';
+import { Faq } from '../../features/product/faq';
 import { Guide, INSTRUMENT_ANCHOR } from '../../features/product/guide';
 import { LoopAnatomy } from '../../features/product/loop-anatomy';
 import { LOOP_ANATOMY_CONTENT } from '../../features/product/loop-anatomy.content';
 import { ProductIntro } from '../../features/product/intro';
+import { SpecSheet } from '../../features/product/spec-sheet';
 import { HOME_CONTENT } from './home.content';
 
 /**
- * La portada (PLAN fase 7): el titular junto al instrumento y, debajo, la web de producto («Qué es»
- * y la guía de los 9 controles; los detalles, la anatomía de un bucle, la ficha técnica, las
- * preguntas y el cierre llegan en las entregas siguientes).
+ * La portada (PLAN fase 7): el titular junto al instrumento y, debajo, la web de producto: «Qué
+ * es», la guía de los 9 controles, los materiales con la vista despiezada, la anatomía de un bucle,
+ * la ficha técnica, las preguntas frecuentes y el cierre.
  *
  * El instrumento es el aparato en 3D (PLAN §4.6 y fase 6), en `@defer`, al acercarse o en reposo:
  * mientras, su póster con el sitio del espejo de la pantalla y de la barra (sin mover nada al
@@ -36,13 +39,16 @@ import { HOME_CONTENT } from './home.content';
 @Component({
   selector: 'trn-home-page',
   imports: [
+    Closing,
     Details,
     DiagnosticsPanel,
+    Faq,
     Guide,
     HtmlInstrument,
     InstrumentStage,
     LoopAnatomy,
     ProductIntro,
+    SpecSheet,
     StagePlaceholder,
   ],
   host: { '(click)': 'tap($event)' },
@@ -104,15 +110,21 @@ import { HOME_CONTENT } from './home.content';
     </section>
 
     <section class="block" aria-labelledby="que-es">
-      <trn-product-intro />
+      @defer (hydrate on viewport) {
+        <trn-product-intro />
+      }
     </section>
 
     <section class="block" id="guia" aria-labelledby="guia-titulo">
-      <trn-guide />
+      @defer (hydrate on viewport) {
+        <trn-guide />
+      }
     </section>
 
     <section class="field" aria-labelledby="detalles">
-      <trn-details class="block" [explodable]="!htmlOnly() && !noWebgl()" />
+      @defer (hydrate on viewport) {
+        <trn-details class="block" [explodable]="!htmlOnly() && !noWebgl()" />
+      }
     </section>
 
     <!--
@@ -127,6 +139,24 @@ import { HOME_CONTENT } from './home.content';
           <h2 id="anatomia">{{ anatomy.title }}</h2>
           <p>{{ anatomy.intro }}</p>
         </div>
+      }
+    </section>
+
+    <section class="block" id="ficha-tecnica" aria-labelledby="ficha">
+      @defer (hydrate on viewport) {
+        <trn-spec-sheet />
+      }
+    </section>
+
+    <section class="block" aria-labelledby="preguntas">
+      @defer (hydrate on viewport) {
+        <trn-faq />
+      }
+    </section>
+
+    <section class="block" aria-labelledby="cierre">
+      @defer (hydrate on viewport) {
+        <trn-closing (playRequest)="play()" />
       }
     </section>
   `,
