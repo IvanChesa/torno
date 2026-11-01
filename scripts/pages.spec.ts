@@ -72,7 +72,7 @@ describe('public/_headers', () => {
     expect(header('https://torno.pages.dev/sobre-el-proyecto', 'x-robots-tag')).toBe('noindex');
     // `:project` no casa con «staging.torno»: el noindex de la vista previa lo pone Pages.
     expect(header('https://staging.torno.pages.dev/', 'x-robots-tag')).toBeUndefined();
-    expect(header('https://torno.ivanchesa.es/', 'x-robots-tag')).toBeUndefined();
+    expect(header('https://torno.ivanchesa.com/', 'x-robots-tag')).toBeUndefined();
     expect(header('/', 'x-robots-tag')).toBeUndefined();
   });
 

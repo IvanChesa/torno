@@ -2,5 +2,6 @@
 export const SITE_CONTENT = {
   reviewed: false,
   description: 'Instrumento de bucles de cuatro capas, en 3D, que se toca en el navegador.',
+  authorRole: 'desarrollador de software',
   legal: { notice: 'Aviso legal', privacy: 'Privacidad', cookies: 'Cookies' },
 } as const;

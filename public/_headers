@@ -24,7 +24,7 @@
   Cross-Origin-Resource-Policy: same-origin
   Strict-Transport-Security: max-age=31536000
 
-# torno.pages.dev, fuera de los buscadores: la dirección canónica será torno.ivanchesa.es (fase 9).
+# torno.pages.dev, fuera de los buscadores: la dirección canónica será torno.ivanchesa.com (fase 9).
 # Las vistas previas (staging.torno.pages.dev y las de cada despliegue) ya llevan noindex de Pages.
 https://:project.pages.dev/*
   X-Robots-Tag: noindex

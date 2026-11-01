@@ -16,11 +16,15 @@ export interface SiteConfig {
   readonly themeColor: string;
   readonly author: {
     readonly name: string;
+    /** A qué se dedica, en minúsculas (el pie y el caso de estudio). */
+    readonly role: string;
     readonly url: string;
     readonly contactUrl: string;
   };
-  /** Páginas legales de ivanchesa.es, que también cubren este subdominio. */
+  /** Páginas legales de ivanchesa.com, que también cubren este subdominio. */
   readonly legal: readonly { readonly label: string; readonly url: string }[];
+  /** El código fuente, en GitHub (público desde el 24-10). */
+  readonly repoUrl: string;
   /** Mientras sea `false`, todas las páginas llevan `noindex` (hasta el lanzamiento, fase 9). */
   readonly indexable: boolean;
 }
@@ -28,20 +32,22 @@ export interface SiteConfig {
 export const SITE_CONFIG: SiteConfig = {
   name: 'Torno',
   description: SITE_CONTENT.description,
-  // Provisional (docs/PENDIENTES.md: «Subdominio definitivo»). Si cambia, solo se edita aquí.
-  baseUrl: 'https://torno.ivanchesa.es',
+  // Decisión de Iván del 31-10 (PLAN §0): su web pasa a ivanchesa.com. Si cambia, solo se edita aquí.
+  baseUrl: 'https://torno.ivanchesa.com',
   lang: 'es',
   locale: 'es-ES',
   themeColor: '#252712',
   author: {
     name: 'Iván Chesa Lapena',
-    url: 'https://ivanchesa.es',
-    contactUrl: 'https://ivanchesa.es/contacto/',
+    role: SITE_CONTENT.authorRole,
+    url: 'https://ivanchesa.com',
+    contactUrl: 'https://ivanchesa.com/contacto/',
   },
   legal: [
-    { label: SITE_CONTENT.legal.notice, url: 'https://ivanchesa.es/aviso-legal/' },
-    { label: SITE_CONTENT.legal.privacy, url: 'https://ivanchesa.es/privacidad/' },
-    { label: SITE_CONTENT.legal.cookies, url: 'https://ivanchesa.es/cookies/' },
+    { label: SITE_CONTENT.legal.notice, url: 'https://ivanchesa.com/aviso-legal/' },
+    { label: SITE_CONTENT.legal.privacy, url: 'https://ivanchesa.com/privacidad/' },
+    { label: SITE_CONTENT.legal.cookies, url: 'https://ivanchesa.com/cookies/' },
   ],
+  repoUrl: 'https://github.com/IvanChesa/torno',
   indexable: false,
 };

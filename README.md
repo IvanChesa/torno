@@ -2,7 +2,7 @@
 
 Instrumento de bucles de cuatro capas, en 3D, que se toca en el navegador. Biblioteca de sonidos sintetizada, grabación con el micrófono, un disco para arrastrar el tiempo y un brazo que filtra el sonido. Todo el audio es propio (Web Audio API y AudioWorklet) y nunca sale del dispositivo.
 
-Proyecto en desarrollo, de [Iván Chesa Lapena](https://ivanchesa.es). El plan está en [`docs/PLAN.md`](docs/PLAN.md) y el diseño, en [`docs/DISENO.md`](docs/DISENO.md).
+Proyecto en desarrollo, de [Iván Chesa Lapena](https://ivanchesa.com). El plan está en [`docs/PLAN.md`](docs/PLAN.md) y el diseño, en [`docs/DISENO.md`](docs/DISENO.md).
 
 ## Comandos
 
@@ -20,4 +20,4 @@ Requisitos: Node 22.22.3 o superior (o 24.15+). Para el e2e, `npx playwright ins
 
 ## Despliegue
 
-Cloudflare Pages, proyecto `torno`. Cada *push* a `main` con el CI en verde publica el build que ha probado el CI en la vista previa [`staging.torno.pages.dev`](https://staging.torno.pages.dev) (`.github/workflows/deploy.yml`) y la comprueba. Un *push* a una rama de fase (`fase-*`) va a su propia vista previa, `https://<rama>.torno.pages.dev`, para probarla en el móvil antes de fusionar. La producción, `torno.ivanchesa.es`, llega con el lanzamiento.
+Cloudflare Pages, proyecto `torno`. Cada *push* a `main` con el CI en verde publica el build que ha probado el CI en la vista previa [`staging.torno.pages.dev`](https://staging.torno.pages.dev) (`.github/workflows/deploy.yml`) y la comprueba. Un *push* a una rama de fase (`fase-*`) va a su propia vista previa, `https://<rama>.torno.pages.dev`, para probarla en el móvil antes de fusionar. La producción, `torno.ivanchesa.com`, llega con el lanzamiento.
