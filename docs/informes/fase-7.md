@@ -60,3 +60,13 @@ La idea (paso 4 de `taste-skill`): **el disco del torno**, una vuelta por compá
 
 ### Skills consultadas
 `taste-skill` (el argumento, la idea y las reglas de composición; manda `DISENO.md`: Geist Mono sigue para lo que es dato), `threejs-scene` y `threejs-animation` (despiece y viajes), `accessible-animation` (movimiento reducido en la anatomía).
+
+## 1. Resumen
+En curso.
+
+### Progreso por entregas
+- **7.a (hecha).**
+  - El dominio, a `torno.ivanchesa.com` (tarea 8): `site.config.ts` con la URL base, el autor («desarrollador de software»), su web, el contacto y las páginas legales en ivanchesa.com, y el repositorio; los tests, `_headers` (comentario) y el README. Ya no queda `ivanchesa.es` en `src/`, `public/`, `scripts/` ni los tests. **Los enlaces no se han podido comprobar con `curl`:** el 01-11, `ivanchesa.com` todavía no resuelve en el DNS (`Could not resolve host`). Se vuelve a probar al cerrar la fase.
+  - `docs/ESTILO.md` (tarea 1).
+  - La maqueta de alta fidelidad (tarea 2) en `docs/maqueta/index.html`, con sus capturas (`node scripts/capture-maqueta.mjs` → `docs/informes/img/fase-7/maqueta-espejo-{a,b}-{escritorio,movil}.png`).
+  - **El espejo de la pantalla (propuesta 2 de la fase 6): opción B.** En el escritorio, la pantalla del 3D ya se lee (10 px de cuerpo) y el recuadro grande encima le quitaba protagonismo al aparato: el espejo pasa a una lectura pequeña en la esquina de arriba a la izquierda de la caja 5:4, que el aparato, redondo, deja libre. En el móvil (la pantalla del 3D no se lee, 4,2 px) sigue encima, a todo el ancho. En los dos, el espejo sigue siendo la región `aria-live` del instrumento. Se puede volver a la A cambiando solo el CSS del escenario; queda para que Iván lo confirme (`PENDIENTES.md`).
