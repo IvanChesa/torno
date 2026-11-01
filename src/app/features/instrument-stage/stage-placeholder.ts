@@ -67,16 +67,12 @@ import { STAGE_POSTER } from './stage-poster';
       }
     }
 
-    /* La barra: una fila de botones; en el móvil, tres (como StageToolbar). */
+    /* La barra: lo que reserva StageToolbar (dos filas en el escritorio y cuatro en el móvil). */
     .bar {
-      block-size: var(--target-min);
+      block-size: var(--stage-toolbar-height);
     }
 
     @media (max-width: 47.99rem) {
-      .bar {
-        block-size: calc(3 * var(--target-min) + 2 * var(--space-1));
-      }
-
       .box {
         inline-size: calc(100% + 2 * var(--page-margin));
         margin-inline: calc(-1 * var(--page-margin));

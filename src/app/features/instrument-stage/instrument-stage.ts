@@ -540,6 +540,9 @@ export class InstrumentStage {
       explodeRequests = requests;
       untracked(() => {
         if (this.camera().kind !== 'exploded') this.toggleExplode();
+        // El foco, al botón de la barra: quien usa el teclado sigue en el instrumento y lo monta
+        // desde ahí (revisión de la fase 7, #9).
+        this.toolbar()?.focusExplode();
       });
     });
     // Las formas de onda: solo cuando cambia el sonido de una capa (o su reverso).
