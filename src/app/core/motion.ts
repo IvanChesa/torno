@@ -48,9 +48,11 @@ export class MotionPreference {
   constructor() {
     if (!isPlatformBrowser(inject(PLATFORM_ID))) return;
     this.#paused.set(load());
-    const query = matchMedia('(prefers-reduced-motion: reduce)');
-    this.#reduced.set(query.matches);
-    query.addEventListener('change', (event) => this.#reduced.set(event.matches));
+    // Sin `matchMedia` (jsdom, en los tests de los componentes que la usan), sin preferencia.
+    const query =
+      typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+    this.#reduced.set(query?.matches ?? false);
+    query?.addEventListener('change', (event) => this.#reduced.set(event.matches));
     this.#mark();
   }
 
