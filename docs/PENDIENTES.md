@@ -35,6 +35,8 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
   - Opción 1: por debajo de 360 px, encoger esa pareja (WCAG 2.2 pide 24 px).
   - Opción 2: dejarlo así, con el criterio en el encuadre del móvil desde 360 px.
   - Se decide en la fase 8, con tu móvil.
+- [ ] `TODO(ivan)`: **Lighthouse en la fase 7** (criterio de aceptación). ¿Vale `npx lighthouse` en local, sin añadirlo al proyecto, o PageSpeed Insights contra la vista previa? Mientras, LCP y CLS medidos con el navegador (informe de la fase 7, §2): `/` 600–992 ms y 0,003; `/sobre-el-proyecto` 272–464 ms y 0,003.
+- [ ] `TODO(ivan)`: **el peso de la primera visita sin el 3D**: 625 kB (§5: ≤ 600), por el contenido de la web en el HTML. Subir el presupuesto a 650 kB (propuesta) o, en la fase 8, el plan B de las fuentes (−54 kB, sin el eje `SOFT` de los títulos). Informe de la fase 7, §10.
 - [ ] `TODO(ivan)`: **confirmar el espejo de la pantalla (opción B)** (informe de la fase 6, §10, propuesta 2; decidido con la maqueta de la fase 7). En el escritorio, una lectura pequeña en la esquina de la caja del 3D; en el móvil, encima, como antes. Capturas de las dos opciones: `docs/informes/img/fase-7/maqueta-espejo-{a,b}-*.png`. Volver a la A es cambiar solo el CSS del escenario.
 
 ## Revisiones y pruebas de Iván

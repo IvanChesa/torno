@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-7-web-producto`
 - **Fecha:** 2026-11-01
-- **Estado:** en curso
+- **Estado:** listo para revisión (el criterio de Lighthouse, pendiente de la herramienta: §2 y §9)
 
 ## 0. Plan de la fase
 
@@ -62,7 +62,7 @@ La idea (paso 4 de `taste-skill`): **el disco del torno**, una vuelta por compá
 `taste-skill` (el argumento, la idea y las reglas de composición; manda `DISENO.md`: Geist Mono sigue para lo que es dato), `threejs-scene` y `threejs-animation` (despiece y viajes), `accessible-animation` (movimiento reducido en la anatomía).
 
 ## 1. Resumen
-En curso.
+La portada es ya la web de producto: el titular junto al instrumento, «Qué es», la guía de los 9 controles con «Ver en el instrumento» (viaje de cámara y foco, sin sonar nunca), los materiales con la vista despiezada en el 3D, la anatomía de un bucle (cuatro anillos con la forma de onda real de cada sonido, que se escuchan solo tras pulsar), la ficha técnica con cifras medidas, las preguntas frecuentes y el cierre con compartir. `/sobre-el-proyecto` es el caso de estudio, con el diagrama de hilos y los créditos. El dominio pasa a `torno.ivanchesa.com`, hay imagen Open Graph renderizada con el motor, el espejo de la pantalla es una lectura en la esquina del 3D en el escritorio y el disco ya no se lava en el móvil. Antes de la fase, el CI se reparte en jobs paralelos: 9,5 min en lugar de 18.
 
 ### Progreso por entregas
 - **7.a (hecha).**
@@ -95,7 +95,119 @@ En curso.
   - **Compartir (D18):** Open Graph (`og:*`, con la imagen absoluta y su texto alternativo) y la tarjeta grande de X en cada página (`SeoService`), con test.
   - **La imagen Open Graph sin CORP** (revisión de la fase 4, #10): `! Cross-Origin-Resource-Policy` en su regla de `_headers`; el analizador (`pages-headers.mjs`) entiende ahora quitar cabeceras, como Pages, con tests.
   - **La chuleta y el diagnóstico**, con `h2` (bajo el `h1` de la portada, un `h3` saltaba un nivel: axe, `heading-order`).
-- **7.e (en curso).**
+- **7.e (hecha).**
   - **`scripts/render-poster.mjs`** (tarea 5): los dos pósteres, los renders de «Qué es» y de los detalles, y la imagen Open Graph de 1200×630 en JPEG (el aparato con su nombre al lado, con Fraunces y los colores de `tokens.css`; 60 kB). Sale de `capture.mjs`.
   - **El disco lavado en el «Completo» del móvil** (revisión del bloque C, #2): el vidriado a 0,25 (era 0,45), la base a 0,06 (0,2) y el entorno a 0,5 (0,6). Desde los 64° del móvil se lee oliva y de frente conserva el brillo. Capturas: `docs/informes/img/fase-7/disco-movil-{antes,despues}.jpg`.
   - **e2e:** privacidad en las tres rutas recorridas enteras (0 cookies, 0 peticiones a terceros y nada en `localStorage` que no sea de Torno), axe en la portada con todas sus secciones hidratadas y las etiquetas para compartir en el HTML (con la imagen sin CORP servida por `wrangler pages dev`).
+  - **Las imágenes de las secciones y la anatomía, al verse.** Chromium carga las imágenes `loading="lazy"` que quedan a menos de unos 1250 px, y las dos de las secciones se bajaban en la primera visita (71 kB): ahora van en un `@defer (on viewport)` con su hueco reservado (sin saltos). La anatomía ya no llega en reposo.
+  - **Medidas** (§6): `scripts/measure-web.mjs` (LCP y CLS en el móvil con 4G lento y CPU ×4) y `npm run capturas -- --medir` con la GPU.
+  - **Capturas** de la implementación y del 3D (§7); `capture.mjs` recorre ahora la página antes de fotografiarla.
+
+## 2. Criterios de aceptación
+
+| Criterio | ✅/❌ | Evidencia |
+|---|---|---|
+| Capturas de la maqueta y de la implementación coherentes | ✅ | Maqueta: `img/fase-7/maqueta-espejo-{a,b}-{escritorio,movil}.png`. Implementación: `img/fase-7/inicio-{escritorio,movil}.png` y `sobre-el-proyecto-*.png`. La misma retícula y el mismo orden: el titular a la izquierda del 3D, «Qué es» con su render a la derecha, la guía en filas sobre un escalón de tono, los materiales en un campo de color, la anatomía como disco a la izquierda, la ficha en tabla, las preguntas en dos columnas y el cierre con el titular grande. Diferencias, a propósito: la guía tiene los 9 controles (la maqueta, 4), la anatomía dibuja la forma de onda real de cada sonido alrededor de su anillo (la maqueta, anillos lisos) y la ficha tiene 9 filas con enlace a su informe. |
+| Lighthouse móvil según §5 en `/` y `/sobre-el-proyecto` | ⏳ | **Pendiente:** Lighthouse es una herramienta fuera de la lista cerrada (`CLAUDE.md`: se pregunta antes). Se ha preguntado a la sesión de plan si vale `npx lighthouse` en local o PageSpeed Insights contra la vista previa; sin respuesta al cerrar la fase (§9). Mientras, las métricas de §5 que pesan en él, medidas con las API del navegador en las mismas condiciones que Lighthouse en el móvil (Pixel 7, 4G lento, CPU ×4, en frío, 3 visitas; `node scripts/measure-web.mjs`): **`/`: LCP 600–992 ms (el póster) y CLS 0,003; `/sobre-el-proyecto`: LCP 272–464 ms (un párrafo) y CLS 0,003** (§5: ≤ 2,5 s y ≤ 0,05). axe: 0 violaciones en las tres rutas, también con la portada recorrida e hidratada entera. |
+| e2e de privacidad en todas las rutas | ✅ | `e2e/static.spec.ts`: `/`, `/sobre-el-proyecto` y `/404` recorridas enteras (lo de abajo llega al acercarse): 0 peticiones fuera de `localhost`, 0 cookies y nada en `localStorage` que no sea de Torno. Siguen los de la fase 2 (0 peticiones al grabar, guardar y exportar, `files.spec.ts`). |
+| La guía nunca inicia el audio ni pide el micrófono (e2e) | ✅ | `e2e/guide.spec.ts` (plato HTML: los 9 botones con el ratón y uno con el teclado) y `stage.spec.ts` (3D): el foco llega a su control, la cámara a su encuadre, y no hay ni un `AudioContext`, ni un `resume`, ni una pista del micrófono (`audioCalls` vacío, `streamCount` 0). |
+| Ficha técnica: cada cifra tiene su medición documentada en un informe, y `/sobre-el-proyecto` explica cómo se midió | ✅ | Cada fila de `spec-sheet.content.ts` lleva cómo se midió y un enlace a su informe: fases 1 (memoria), 2 (primer sonido y toma alineada), 6 (del gesto al audio) y 7 (frecuencia, latencia de salida, CPU, FPS y peso: §6 de este informe). `/sobre-el-proyecto`, «Cómo se ha medido». |
+
+## 3. Tareas del plan
+| Tarea | Estado | Notas |
+|---|---|---|
+| 7.1 `docs/ESTILO.md` | hecha | Voz, vocabulario, formato, cifras con `Intl` `es-ES`, mediciones y accesibilidad de los textos. |
+| 7.2 Maqueta de alta fidelidad | hecha | `docs/maqueta/index.html` con `taste-skill` (el argumento, la idea y las reglas; manda `DISENO.md`). Con las dos opciones del espejo. |
+| 7.3 Secciones | hecha | Portada, qué es, guía (9), detalles y vista despiezada, anatomía, ficha técnica, preguntas y cierre. |
+| 7.4 `/sobre-el-proyecto` | hecha | Arquitectura y diagrama de hilos, decisiones, mediciones, accesibilidad, autor y créditos. |
+| 7.5 Póster e imagen Open Graph | hecha | `scripts/render-poster.mjs`, sin `sharp` (§4). |
+| 7.6 Compartir y pie | hecha | Open Graph y tarjeta de X; compartir en el cierre; el pie con los enlaces legales de ivanchesa.com y la nota de privacidad. |
+| 7.7 Lista de textos para Iván | hecha | §9. |
+| 7.8 El dominio, a ivanchesa.com | hecha | Los enlaces, sin comprobar con `curl`: ivanchesa.com no resuelve todavía (§9). |
+| Revisión del bloque C: CI en paralelo, `launch.json`, disco del móvil | hecha | En `main` (`eafcacf`) y, el disco, en esta rama. |
+| Propuesta 2 de la fase 6 (el espejo) | hecha | Opción B, para que Iván la confirme. |
+
+## 4. Desviaciones del plan y motivo
+- **Sin `sharp`** (tarea 5): el navegador ya codifica WebP (un lienzo) y JPEG (la captura de una página), y la imagen Open Graph se compone en una página con las fuentes y los tokens del proyecto. Una dependencia menos.
+- **Lighthouse, sin pasar:** pide una herramienta fuera de la lista cerrada (§9). En su lugar, LCP, CLS y axe medidos.
+- **El peso de la primera visita sin el 3D, por encima del presupuesto:** 625 kB (§5: ≤ 600), con el mismo criterio que las fases 5 y 6 (todo lo que se baja sin tocar nada, menos el chunk 3D, el escenario y la precarga del audio). Sube 29 kB sobre la fase 6 (596): el HTML prerenderizado pasa de unos 15 a 48 kB con el contenido de la web (17 kB de estilos de los componentes, 19 de texto y 8,5 de atributos de Angular), más 5,7 kB de la hidratación incremental. Sin diferir las imágenes y la anatomía eran 705 kB. Lo que queda no se puede quitar sin quitar contenido: §10, propuesta 1.
+- **Las secciones se hidratan al verse** (`withIncrementalHydration`): no estaba en el plan; es lo que deja la web entera en el HTML sin pasar el presupuesto de JS.
+- **La anatomía usa la primera combinación de la biblioteca** (Alfar, Raíz, Olivo y Cierzo): son los sonidos con los que se presenta Torno y los que Iván escuchó juntos.
+- **«Despiezar» también en la barra del 3D** (el plan solo pedía la vista despiezada en «Los detalles»): hace falta un control a la vista para volver a montarlo.
+
+## 5. Decisiones técnicas nuevas
+- **`InstrumentSpotlight`**: la web pide al instrumento señalar un control o despiezarse con un signal, sin importar el instrumento (que va en `@defer`): el que haya lo atiende cuando está listo. Alternativa: un `output` desde la portada, que no llega a un componente diferido.
+- **Encuadre de cerca de un control** (`CameraGoal` `control`): desde su lado (acimut acotado a ±36°), nunca desde detrás, y con la pantalla si es el dial principal (sus menús). Las capas, con el encuadre «Capas» (son cuatro).
+- **Vista despiezada por niveles** en el propio modelo (cinco `Group`), en vez de mover las piezas una a una: la pose (teclas hundidas, diales) no se toca y el despiece es un `position.y` por nivel.
+- **`AudioEngine.preview`**: escuchar sin tocar la sesión, con `AudioBufferSourceNode` por la salida del contexto y la mezcla bajada a −1 dBFS de pico (`mixPeak`), porque no pasa por el limitador del núcleo. Alternativa: cargar los sonidos en las capas, que cambiaría la sesión de quien toca.
+- **Las formas de onda de la anatomía, como datos**: calculadas en Node con la síntesis y comprobadas por un test; así la portada no carga la síntesis para dibujarlas.
+- **Hidratación incremental** (`hydrate on viewport`) para las secciones de la portada.
+- **El aviso del JS inicial de `angular.json`, a 330 kB** (estaba a 300, más estricto que PLAN §5).
+- **`! Nombre` en `_headers`**: la imagen Open Graph sin `Cross-Origin-Resource-Policy`; el analizador lo entiende como Pages (quita la cabecera la den las reglas que la den).
+- **El esmalte del disco**: vidriado 0,25, base 0,06 y entorno 0,5 (`DISENO.md` §7).
+
+## 6. Salida de los checks
+```
+npm run check
+  lint: tipos de cada capa, ESLint y Prettier, sin errores
+  test:node: 44 archivos, 559 tests (98,34 % de sentencias y 94,89 % de ramas en el TS puro)
+  test:ng: 12 archivos, 72 tests
+  build: 3 rutas prerenderizadas; Initial total 307,20 kB, sin avisos
+  check-bundles:
+    ✔ JS inicial de /                  317,9 kB (aviso > 330)
+    ✔ JS inicial de /404               300,5 kB
+    ✔ JS inicial de /sobre-el-proyecto 315,7 kB
+    ✔ Desbloqueo de audio 1,9 kB · motor 25,2 kB · workers 17,4 y 41,9 kB · worklet 41,0 kB
+    ✔ Chunk 3D 653,4 kB (aviso > 800) · fuentes 144,1 kB · 41 archivos en Pages
+```
+e2e: los de esta fase, en verde en local (guía, anatomía, privacidad y axe, compartir, despiece y «Ver en el instrumento» en el 3D). En una pasada entera en local, con `ng serve` y muchos trabajadores a la vez, salen algunos del proyecto `dev` por tiempo (distintos en cada pasada) que pasan solos: la máquina va cargada; el CI, con una máquina por grupo, es el que vale.
+
+Métricas de la fase:
+- **Web** (`node scripts/measure-web.mjs`; Pixel 7, 4G lento, CPU ×4, en frío, 3 visitas): `/` LCP 600–992 ms (el póster) y CLS 0,003; `/sobre-el-proyecto` LCP 272–464 ms y CLS 0,003.
+- **Peso de la primera visita** (`decodedBodySize`, como en las fases 5 y 6): **con el 3D, 1362,4 kB** (≤ 1,5 MB); **sin el 3D, 625,4 kB** (≤ 600: ❌, §4) = 1362,4 − 631,0 (chunk 3D) − 22,4 (escenario) − 83,6 (precarga del audio: motor 25,2, worklet 41,0 y worker 17,4). Con `?sin3d=1`, 722,8 kB (el plato y la precarga). `/sobre-el-proyecto`, 468,8 kB.
+- **3D** (`npm run capturas -- --medir`, RTX 3060, D3D11): primer fotograma a los 2604–2620 ms, tarea más larga de 55 ms, generación de 80–81 ms (≤ 150), VRAM de 56,2 MB en alto; 144 fps en alto, medio y bajo (lienzo de 778×622 px).
+- **Audio:** banco del núcleo, 218, 225, 223 y 232× tiempo real (60 s a 48 kHz en 259–275 ms); a 240 BPM con el filtro contra el aliasing, 63× y 35× en el peor caso. Chromium en el PC de desarrollo: 48 kHz, `baseLatency` 10 ms y `outputLatency` 40 ms.
+- **Pantalla del 3D** (cuerpo de la primera fila): 10 px en el «Completo» del escritorio y 4,8 px en el del móvil (se lee el espejo).
+
+## 7. Capturas
+En `docs/informes/img/fase-7/`:
+- **Maqueta:** `maqueta-espejo-{a,b}-{escritorio,movil}.png`.
+- **Páginas:** `inicio-{escritorio,movil}.png`, `sobre-el-proyecto-{escritorio,movil}.png` y `404-*.png`.
+- **El instrumento HTML** con sus avisos: `instrumento-*-{escritorio,movil}.png`.
+- **El 3D:** `escenario-*.jpg` e `instrumento3d-*.jpg` (encuadres, «Inspeccionar» y sus hojas de contactos).
+- **El disco del móvil, antes y después:** `disco-movil-{antes,despues}.jpg`.
+- **Las imágenes de la web:** `public/img/escenario.webp`, `escenario-movil.webp`, `capas.webp`, `despiezado.webp` y `og.jpg`.
+
+## 8. Dependencias añadidas
+Ninguna (ni `sharp`, §4).
+
+## 9. Pendientes y `TODO(ivan)`
+- `TODO(ivan)`: **Lighthouse.** ¿Vale `npx lighthouse` en local, sin añadirlo al proyecto, o PageSpeed Insights contra la vista previa? Con la respuesta se pasa (en la fase 8 si no llega antes). Relacionado: `@lhci/cli` en el CI, ya pendiente para la fase 8.
+- `TODO(ivan)`: **confirmar el espejo de la pantalla (opción B).**
+- `TODO(ivan)`: **el peso sin el 3D** (§10, propuesta 1).
+- **Los enlaces de ivanchesa.com** (aviso legal, privacidad, cookies, contacto y la web): el 01-11 el dominio no resuelve. Se comprueban con `curl` en cuanto responda (y en la fase 9).
+- `TODO(ivan)`: **revisar los textos** (todos con `reviewed: false`):
+  - la portada: `pages/home/home.content.ts`;
+  - las secciones: `features/product/intro.content.ts` («Qué es»), `guide.content.ts` (la guía), `details.content.ts` (los materiales), `loop-anatomy.content.ts` (la anatomía), `spec-sheet.content.ts` (la ficha técnica), `faq.content.ts` (las preguntas) y `closing.content.ts` (el cierre);
+  - `/sobre-el-proyecto`: `pages/about/about.content.ts`;
+  - el marco y el SEO: `app.content.ts`, `app.routes.content.ts` y `core/site.content.ts` (con el texto alternativo de la imagen Open Graph);
+  - el instrumento: `instrument/instrument.content.ts` (pantalla, menús y sonidos), `features/instrument-common/instrument-common.content.ts`, `features/instrument-stage/instrument-stage.content.ts` (con «Despiezar»), `features/html-instrument/html-instrument.content.ts` y `state/session.content.ts` (los avisos);
+  - el diagnóstico: `features/diagnostics/diagnostics.content.ts` y `features/instrument-stage/stage-dev.content.ts`;
+  - la 404: `pages/not-found/not-found.content.ts`.
+
+## 10. Propuestas de cambio al plan (para la aprobación de Iván)
+1. **El peso de la primera visita sin el 3D** (§5: ≤ 600 kB; medido, 625 kB). La web de producto pone su contenido en el HTML (48 kB) y su hidratación (5,7 kB). Dos caminos:
+   - a. Subir el presupuesto a 650 kB: es el contenido que pide la fase 7.
+   - b. Mantener 600 y, en la fase 8, el plan B de las fuentes de `DISENO.md` §3 (el corte `opsz` de Fraunces, −54 kB, sin el eje `SOFT` de los títulos: cambia la firma de la dirección).
+
+   Propongo la a: el plan B se pensó para el rendimiento, y aquí el LCP (≤ 1 s con 4G lento) y el CLS (0,003) ya están muy por dentro de §5.
+
+## 11. Cómo probarlo
+- En la vista previa de la rama, `https://fase-7-web-producto.torno.pages.dev` (y, tras fusionar, `https://staging.torno.pages.dev`):
+  1. La portada: el titular y el aparato en la primera pantalla. «Cómo se toca» baja a la guía; cada «Ver en el instrumento» lleva al aparato, viaja hasta su control y lo señala (con el teclado, el foco queda en él). No suena nada.
+  2. «Despiezar el instrumento» (o «Despiezar» en la barra): las piezas suben; «Completo» lo monta otra vez.
+  3. La anatomía: «Escuchar» cada capa o las cuatro, y «Parar».
+  4. La ficha técnica: cada cifra, con su informe.
+  5. `/sobre-el-proyecto`.
+  6. En el móvil: el disco ya no sale blanquecino en el «Completo».
+- En local: `npm run build`, `node scripts/serve-pages.mjs` y `http://localhost:4300`. Medidas: `node scripts/measure-web.mjs` y `npm run capturas -- --medir`. Imágenes: `node scripts/render-poster.mjs` (y otro build).

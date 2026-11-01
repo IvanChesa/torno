@@ -51,7 +51,7 @@ const ROWS: readonly SpecRow[] = [
   {
     name: 'CPU del audio',
     value: '218–232×',
-    how: 'El núcleo con 4 capas, filtros y limitador, frente al tiempo real: 60 s de audio a 48 kHz en 259–275 ms (cuatro ejecuciones), en el PC de desarrollo. A 240 BPM con el filtro contra el aliasing, 35× en el peor caso.',
+    how: 'El núcleo con 4 capas, filtros y limitador, frente al tiempo real: 60 s de audio a 48 kHz en 259–275 ms (cuatro ejecuciones), en el PC de desarrollo. A 240 BPM, con el filtro contra el solapamiento de frecuencias, 35× en el peor caso.',
     phase: 7,
   },
   {
