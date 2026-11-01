@@ -39,7 +39,7 @@ La idea (paso 4 de `taste-skill`): **el disco del torno**, una vuelta por compá
   4. La guía de 9 controles con «Ver en el instrumento»: un servicio diminuto (`InstrumentSpotlight`, en el bundle inicial) con la petición; el escenario 3D viaja a un encuadre nuevo de cerca del control (`CameraGoal` `control`) y le pasa el foco (el anillo de luz ya sigue al foco); el plato HTML, el foco y el desplazamiento. Nunca inicia el audio ni pide el micrófono (e2e).
 - **7.c · Los detalles y la anatomía.**
   1. La vista despiezada en el motor (`setExploded`: las piezas en cinco niveles, con viaje y con corte si hay pausa de movimiento; los controles se ocultan mientras).
-  2. La sección de materiales, con el render despiezado del propio motor (`?captura=1&despiece=1`).
+  2. La sección de materiales, con el render despiezado del propio motor (`?captura=1&encuadre=despiezado`).
   3. La anatomía de un bucle: las formas de onda de los 4 sonidos de la demostración, calculadas en Node con la misma síntesis (`scripts/loop-anatomy.mjs` → datos en TS), y `previewSound()` en el motor de audio (un `AudioBufferSourceNode` del contexto, solo tras pulsar, sin tocar la sesión).
 - **7.d · Ficha técnica, preguntas, cierre y caso de estudio.**
   1. La ficha técnica con las cifras de los informes y cómo se midió cada una.

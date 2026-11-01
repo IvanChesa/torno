@@ -107,7 +107,7 @@ export interface SceneOptions {
   readonly quality?: QualityLevel;
   /** Lo que encuadra la cámara al empezar; si no, el aparato entero («Tocar», completo). */
   readonly camera?: CameraGoal;
-  /** Empieza despiezado (las capturas de la vista despiezada, `?despiece=1`). */
+  /** Empieza despiezado (las capturas de la vista despiezada, `?captura=1&encuadre=despiezado`). */
   readonly exploded?: boolean;
   /** `?captura=1`: todo fijo, en calidad alta y sin bajada automática. */
   readonly capture: boolean;
