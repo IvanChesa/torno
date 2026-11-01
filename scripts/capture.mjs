@@ -15,19 +15,14 @@
 //        fase 6, también el instrumento 3D entero en cada encuadre de «Tocar» (completo, capas y
 //        controles) y en «Inspeccionar», con su hoja de contactos.
 //
-//      npm run capturas -- --poster
-//      → los pósteres del escenario: el del escritorio (public/img/escenario.webp, 1200×960, 5:4)
-//        y el del móvil (public/img/escenario-movil.webp, 800×800, su encuadre 1:1). Son capturas
-//        del propio motor, para que el fundido al primer fotograma no mueva nada.
-//
 //      npm run capturas -- --medir
 //      → las cifras de PLAN §5 del escenario 3D con la GPU de verdad (Chromium, modo nuevo sin
 //        interfaz): tres primeras visitas en frío (un navegador nuevo cada vez, sin caché de
 //        shaders) con el primer fotograma, la tarea más larga, la generación del modelo y la VRAM;
 //        el peso de la primera visita con el 3D y sin él (?sin3d=1); y los FPS pintando seguido, con
 //        el panel de la escena (?diagnostico=1). Las de la fase 5 son de un PC con una RTX 3060.
-/* global document, AudioWorklet, Image, PerformanceObserver, window, innerWidth, scrollX, scrollY -- se usan dentro de page.evaluate() y addInitScript(), en la página */
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+/* global document, AudioWorklet, PerformanceObserver, window, innerWidth, scrollX, scrollY -- se usan dentro de page.evaluate() y addInitScript(), en la página */
+import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, devices } from '@playwright/test';
@@ -58,52 +53,12 @@ const STAGE_SHOTS = [
   ['controles', 'Controles'],
   ['inspeccionar', 'Inspeccionar'],
 ];
-/**
- * Los pósteres: el del escritorio, 1200×960 (5:4, como su lienzo), y el del móvil, 800×800 (1:1),
- * cada uno en un tamaño de pantalla en el que la caja tiene esa proporción.
- */
-const POSTERS = [
-  {
-    file: 'public/img/escenario.webp',
-    width: 1200,
-    height: 960,
-    viewport: { width: 1440, height: 1100 },
-    mobile: false,
-  },
-  {
-    file: 'public/img/escenario-movil.webp',
-    width: 800,
-    height: 800,
-    viewport: { width: 400, height: 860 },
-    mobile: true,
-  },
-  // El render de «Qué es» (fase 7): los diales de las capas, con el encuadre «Capas».
-  {
-    file: 'public/img/capas.webp',
-    width: 1000,
-    height: 800,
-    viewport: { width: 1440, height: 1100 },
-    mobile: false,
-    params: { encuadre: 'capas' },
-  },
-  // El de «Los detalles» (fase 7): el aparato despiezado.
-  {
-    file: 'public/img/despiezado.webp',
-    width: 1200,
-    height: 960,
-    viewport: { width: 1440, height: 1100 },
-    mobile: false,
-    params: { encuadre: 'despiezado' },
-  },
-];
-const POSTER_QUALITY = 0.8;
 
 const onlyArg = process.argv.find((arg) => arg.startsWith('--solo='))?.slice('--solo='.length);
-const posterArg = process.argv.includes('--poster');
 const measureArg = process.argv.includes('--medir');
 const phaseArg = process.argv.find((arg) => arg.startsWith('--fase='));
-if (!phaseArg && !posterArg && !measureArg) {
-  console.error('Indica la fase: npm run capturas -- --fase=N (o --poster)');
+if (!phaseArg && !measureArg) {
+  console.error('Indica la fase: npm run capturas -- --fase=N (o --medir)');
   process.exit(1);
 }
 const outDir = path.join(ROOT, 'docs/informes/img', `fase-${phaseArg?.slice('--fase='.length)}`);
@@ -281,54 +236,6 @@ async function captureStagePose(page, base, viewport) {
   console.log(`✔ ${path.relative(ROOT, file)}`);
 }
 
-/**
- * Un póster del escenario: el lienzo en `?captura=1` (con el fondo de la página), llevado a su
- * tamaño y codificado en WebP por el propio navegador (sin dependencias para imágenes).
- */
-async function capturePoster(browser, base, poster) {
-  const page = await browser.newPage({
-    viewport: poster.viewport,
-    deviceScaleFactor: 2,
-    isMobile: poster.mobile,
-    hasTouch: poster.mobile,
-    reducedMotion: 'reduce',
-    colorScheme: 'dark',
-  });
-  const { stage } = await openStage(page, base, poster.params ?? {});
-  // Solo el aparato: en el escritorio, el espejo de la pantalla va encima del lienzo (fase 7).
-  await page.addStyleTag({ content: '.mirror { visibility: hidden; }' });
-  const png = await stage.locator('canvas').screenshot({ type: 'png', animations: 'disabled' });
-  await page.close();
-  // En una página en blanco: la de Torno no deja cargar imágenes `data:` (CSP, `img-src 'self'`).
-  const encoder = await browser.newPage();
-  await encoder.setContent('<!doctype html><title>póster</title>');
-  const webp = await encoder.evaluate(
-    async ({ src, width, height, quality }) => {
-      const image = new Image();
-      image.src = src;
-      await image.decode();
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const context = canvas.getContext('2d');
-      context.imageSmoothingQuality = 'high';
-      context.drawImage(image, 0, 0, width, height);
-      return canvas.toDataURL('image/webp', quality).split(',')[1];
-    },
-    {
-      src: `data:image/png;base64,${png.toString('base64')}`,
-      width: poster.width,
-      height: poster.height,
-      quality: POSTER_QUALITY,
-    },
-  );
-  const file = path.join(ROOT, poster.file);
-  await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, Buffer.from(webp, 'base64'));
-  console.log(`✔ ${poster.file} (${Math.round(Buffer.from(webp, 'base64').length / 1024)} kB)`);
-  await encoder.close();
-}
-
 /** Chromium con la GPU de verdad (el de las capturas pinta por software). */
 function launchWithGpu() {
   return chromium.launch({
@@ -428,9 +335,6 @@ try {
   browser = await chromium.launch();
   if (measureArg) {
     await measureStage(server.url);
-  }
-  if (posterArg) {
-    for (const poster of POSTERS) await capturePoster(browser, server.url, poster);
   }
   for (const viewport of phaseArg ? VIEWPORTS : []) {
     const context = await browser.newContext({
