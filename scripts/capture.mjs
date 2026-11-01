@@ -66,9 +66,17 @@ if (phaseArg) await mkdir(outDir, { recursive: true });
 
 /**
  * Espera a que la página esté quieta: fuentes cargadas y, en la portada, el instrumento y (sin
- * `?sin3d=1`) el primer fotograma del escenario 3D.
+ * `?sin3d=1`) el primer fotograma del escenario 3D. Antes la recorre entera: desde la fase 7, lo de
+ * abajo (secciones, imágenes) llega al acercarse.
  */
 async function settle(page, url) {
+  await page.waitForLoadState('networkidle');
+  const height = await page.evaluate(() => document.documentElement.scrollHeight);
+  for (let y = 0; y <= height; y += 600) {
+    await page.evaluate((top) => window.scrollTo(0, top), y);
+    await page.waitForTimeout(40);
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForLoadState('networkidle');
   const { pathname, searchParams } = new URL(url);
   if (pathname === '/') {
