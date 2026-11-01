@@ -27,9 +27,13 @@ export const ORBIT_LIMITS = {
   elevation: { min: 10, max: 85 },
 } as const;
 
-/** Lo que encuadra la cámara: un encuadre de «Tocar», una órbita o una vista de las capturas. */
+/**
+ * Lo que encuadra la cámara: un encuadre de «Tocar», un control de cerca (lo que enseña la guía,
+ * «Ver en el instrumento»), una órbita o una vista de las capturas.
+ */
 export type CameraGoal =
   | { readonly kind: 'shot'; readonly shot: Shot }
+  | { readonly kind: 'control'; readonly id: ControlId }
   | { readonly kind: 'orbit'; readonly orbit: Orbit }
   | { readonly kind: 'view'; readonly view: View };
 

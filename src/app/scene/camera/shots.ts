@@ -20,6 +20,11 @@ const SHADOW_RING_POINTS = 48;
 const SILHOUETTE_STEP = 5;
 /** Lo que se separan los encuadres de cerca de las piezas que encuadran, en mm. */
 const SHOT_MARGIN_MM = 12;
+/**
+ * Lo que se ve alrededor de un control en su encuadre de cerca (la guía, PLAN fase 7), en mm: lo
+ * bastante para saber dónde está en el aparato (sus rótulos y lo que tiene al lado).
+ */
+const CONTROL_MARGIN_MM = 34;
 
 /** El borde de la sombra de contacto, en la mesa: el encuadre la deja entera dentro del lienzo. */
 export function shadowRing(): Vector3[] {
@@ -71,4 +76,16 @@ export function shotPoints(
     capas: [...around(LAYER_CONTROLS), ...model.pilots.map((pilot) => pilot.position.clone())],
     controles: [...around(['play', 'record', 'undo', 'disc', 'arm']), ...arm],
   };
+}
+
+/**
+ * Lo que encuadra el encuadre de cerca de un control: su pieza con un margen alrededor y, con el
+ * dial principal, la pantalla, donde está su menú (los ajustes, los sonidos y la sesión).
+ */
+export function controlPoints(model: InstrumentModel, id: ControlId): Vector3[] {
+  const margin = new Vector3(CONTROL_MARGIN_MM * MM, 0, CONTROL_MARGIN_MM * MM);
+  const piece = model.controls.get(id);
+  const points = piece ? corners(new Box3().setFromObject(piece).expandByVector(margin)) : [];
+  if (id === 'main') points.push(...corners(new Box3().setFromObject(model.screen)));
+  return points;
 }

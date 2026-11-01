@@ -42,15 +42,17 @@ import {
   type ControlId,
   type InstrumentPose,
 } from '../instrument';
-import { SHADOW_RADIUS, shadowRing, shotPoints, silhouette } from './camera/shots';
+import { controlPoints, SHADOW_RADIUS, shadowRing, shotPoints, silhouette } from './camera/shots';
 import {
   blend,
+  controlAngles,
   ease,
   fit,
   FOV,
   orbitPlacement,
   orbitSphere,
   place,
+  SHOT_MARGIN,
   shotPlacement,
   VIEW_ANGLES,
   type CameraPlacement,
@@ -825,6 +827,13 @@ export class SceneEngine {
         return fit(scratch, VIEW_ANGLES[goal.view], build.shots.completo);
       case 'shot':
         return shotPlacement(scratch, goal.shot, build.shots);
+      case 'control':
+        return fit(
+          scratch,
+          controlAngles(goal.id, scratch.aspect),
+          controlPoints(build.model, goal.id),
+          SHOT_MARGIN.wide,
+        );
       case 'orbit':
         return orbitPlacement(
           scratch,

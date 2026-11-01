@@ -5,6 +5,7 @@
  */
 import { PerspectiveCamera, Sphere, Vector3 } from 'three';
 import { rad } from '../model/geometry';
+import { PLACEMENTS, type ControlId } from '../../instrument';
 import type { Orbit, Shot, View } from '../options';
 
 /** Desde dónde mira la cámara: acimut (0° delante, positivo a la derecha) y elevación, en grados. */
@@ -45,6 +46,17 @@ export const SHOT_MARGIN = { wide: 0.08, square: 0.02 } as const;
 export function shotAngles(shot: Shot, aspect: number): ViewAngles {
   const angles = SHOT_ANGLES[shot];
   return aspect < SQUARE_ASPECT ? angles.square : angles.wide;
+}
+
+/**
+ * Desde dónde se mira un control de cerca: desde su lado del aparato, pero nunca desde detrás (los
+ * de la bandeja se ven desde delante y algo de lado, con la pantalla), y más desde arriba en el
+ * lienzo cuadrado del móvil.
+ */
+export function controlAngles(id: ControlId, aspect: number): ViewAngles {
+  const angle = id === 'disc' ? 0 : id === 'arm' ? 60 : PLACEMENTS[id].angle;
+  const azimuth = Math.max(-45, Math.min(45, angle)) * 0.8;
+  return { azimuth, elevation: aspect < SQUARE_ASPECT ? 62 : 50 };
 }
 
 /** Campo de visión vertical: estrecho, como una foto de producto (poca deformación). */
