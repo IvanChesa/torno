@@ -77,6 +77,15 @@ const POSTERS = [
     viewport: { width: 400, height: 860 },
     mobile: true,
   },
+  // El render de «Qué es» (fase 7): los diales de las capas, con el encuadre «Capas».
+  {
+    file: 'public/img/capas.webp',
+    width: 1000,
+    height: 800,
+    viewport: { width: 1440, height: 1100 },
+    mobile: false,
+    params: { encuadre: 'capas' },
+  },
 ];
 const POSTER_QUALITY = 0.8;
 
@@ -276,7 +285,9 @@ async function capturePoster(browser, base, poster) {
     reducedMotion: 'reduce',
     colorScheme: 'dark',
   });
-  const { stage } = await openStage(page, base, {});
+  const { stage } = await openStage(page, base, poster.params ?? {});
+  // Solo el aparato: en el escritorio, el espejo de la pantalla va encima del lienzo (fase 7).
+  await page.addStyleTag({ content: '.mirror { visibility: hidden; }' });
   const png = await stage.locator('canvas').screenshot({ type: 'png', animations: 'disabled' });
   await page.close();
   // En una página en blanco: la de Torno no deja cargar imágenes `data:` (CSP, `img-src 'self'`).

@@ -1,3 +1,4 @@
+/* global document -- dentro de page.evaluate(), en la página */
 // Capturas de la maqueta de alta fidelidad de la portada (PLAN fase 7, tarea 2): docs/maqueta/
 // abierta desde el disco, en escritorio y en móvil, con las dos opciones del espejo de la pantalla
 // (propuesta 2 de la fase 6). No necesita el build.
