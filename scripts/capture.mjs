@@ -86,6 +86,15 @@ const POSTERS = [
     mobile: false,
     params: { encuadre: 'capas' },
   },
+  // El de «Los detalles» (fase 7): el aparato despiezado.
+  {
+    file: 'public/img/despiezado.webp',
+    width: 1200,
+    height: 960,
+    viewport: { width: 1440, height: 1100 },
+    mobile: false,
+    params: { encuadre: 'despiezado' },
+  },
 ];
 const POSTER_QUALITY = 0.8;
 
