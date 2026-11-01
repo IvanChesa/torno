@@ -25,6 +25,16 @@ export interface SiteConfig {
   readonly legal: readonly { readonly label: string; readonly url: string }[];
   /** El código fuente, en GitHub (público desde el 24-10). */
   readonly repoUrl: string;
+  /**
+   * La imagen Open Graph (D18): la que se ve al compartir un enlace. Renderizada con el propio
+   * motor (`scripts/render-poster.mjs`), en la raíz del sitio y sin CORP (`_headers`).
+   */
+  readonly shareImage: {
+    readonly path: string;
+    readonly width: number;
+    readonly height: number;
+    readonly alt: string;
+  };
   /** Mientras sea `false`, todas las páginas llevan `noindex` (hasta el lanzamiento, fase 9). */
   readonly indexable: boolean;
 }
@@ -49,5 +59,6 @@ export const SITE_CONFIG: SiteConfig = {
     { label: SITE_CONTENT.legal.cookies, url: 'https://ivanchesa.com/cookies/' },
   ],
   repoUrl: 'https://github.com/IvanChesa/torno',
+  shareImage: { path: '/img/og.jpg', width: 1200, height: 630, alt: SITE_CONTENT.shareImageAlt },
   indexable: false,
 };
