@@ -1,7 +1,18 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-// Solo contra el build estático: el HTML prerenderizado y la accesibilidad de las tres rutas.
+// Solo contra el build estático: el HTML prerenderizado, la accesibilidad y la privacidad de las tres
+// rutas.
+
+/** Baja hasta el final de la página poco a poco (lo de abajo llega al acercarse) y espera a la red. */
+async function scrollThrough(page: Page): Promise<void> {
+  const height = await page.evaluate(() => document.documentElement.scrollHeight);
+  for (let y = 0; y <= height; y += 600) {
+    await page.evaluate((top) => window.scrollTo(0, top), y);
+    await page.waitForTimeout(60);
+  }
+  await page.waitForLoadState('networkidle');
+}
 
 const ROUTES = [
   { path: '/', h1: 'Torno', title: 'Torno' },
@@ -41,6 +52,59 @@ test.describe('build estático', () => {
       expect(results.violations.map((v) => v.id)).toEqual([]);
     });
   }
+
+  for (const route of ROUTES) {
+    // Privacidad (PLAN fase 7): recorrida entera (lo de abajo llega al acercarse), sin peticiones a
+    // otros sitios, sin cookies y sin nada en el almacenamiento salvo las preferencias de Torno.
+    test(`${route.path}: 0 cookies y 0 peticiones a terceros, recorrida entera`, async ({
+      page,
+    }) => {
+      const external: string[] = [];
+      page.on('request', (request) => {
+        const url = new URL(request.url());
+        if (url.hostname !== 'localhost') external.push(url.href);
+      });
+      await page.goto(route.path);
+      await scrollThrough(page);
+      expect(external).toEqual([]);
+      expect(await page.context().cookies()).toEqual([]);
+      const keys = await page.evaluate(() => Object.keys(localStorage));
+      expect(keys.filter((key) => !key.startsWith('torno.'))).toEqual([]);
+    });
+  }
+
+  test('la portada, recorrida entera (con sus secciones hidratadas), pasa axe', async ({
+    page,
+  }) => {
+    await page.goto('/?sin3d=1');
+    await scrollThrough(page);
+    await expect(page.getByRole('button', { name: 'Escuchar las cuatro' })).toBeVisible();
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])
+      .analyze();
+    expect(
+      results.violations.map(
+        (v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`,
+      ),
+    ).toEqual([]);
+  });
+
+  test('cada página lleva sus etiquetas para compartir, con la imagen absoluta', async ({
+    request,
+  }) => {
+    for (const path of ['/', '/sobre-el-proyecto']) {
+      const html = await (await request.get(path)).text();
+      expect(html).toContain(
+        'property="og:image" content="https://torno.ivanchesa.com/img/og.jpg"',
+      );
+      expect(html).toContain('name="twitter:card" content="summary_large_image"');
+      expect(html).toContain(`property="og:url" content="https://torno.ivanchesa.com${path}"`);
+    }
+    const image = await request.get('/img/og.jpg');
+    expect(image.status()).toBe(200);
+    expect(image.headers()['content-type']).toBe('image/jpeg');
+    expect(image.headers()['cross-origin-resource-policy']).toBeUndefined();
+  });
 
   test('una URL desconocida devuelve la página 404', async ({ page }) => {
     const response = await page.goto('/no-existe');
