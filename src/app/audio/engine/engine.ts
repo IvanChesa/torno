@@ -34,7 +34,7 @@ import {
   type WorkletRequest,
 } from '../core/protocol';
 import type { SessionState } from '../core/session';
-import { waveformPeaks } from '../core/waveform';
+import { mixPeak, waveformPeaks } from '../core/waveform';
 import {
   isTornoError,
   MAX_TORNO_BYTES,
@@ -136,6 +136,11 @@ const REQUEST_TIMEOUT_MS = 10_000;
 const AUTOSAVE_DELAY_MS = 1500;
 /** Tras pedir el reposo, se espera a que la salida se apague antes de suspender el contexto. */
 const STANDBY_FADE_MS = 150;
+/** La escucha de la anatomía: pico de la mezcla (−1 dBFS), margen al empezar y fundidos, en s. */
+const PREVIEW_PEAK = 10 ** (-1 / 20);
+const PREVIEW_LEAD_S = 0.03;
+const PREVIEW_FADE_S = 0.01;
+const PREVIEW_STOP_S = 0.02;
 
 /** Una carga del módulo por contexto; si falla, el siguiente intento vuelve a cargarlo. */
 const modules = new WeakMap<AudioContext, Promise<void>>();
@@ -180,6 +185,9 @@ export class AudioEngine {
   readonly #sounds = new Map<string, Promise<CachedSound>>();
   /** Ya se ha preparado en silencio (`prepare`). */
   #prepared = false;
+  /** La escucha de la anatomía de un bucle que suena (o `null`), y cuál es la última pedida. */
+  #preview: { gain: GainNode; sources: AudioBufferSourceNode[] } | null = null;
+  #previewToken = 0;
   /** Solo con el diagnóstico (`measureFirstSound`): lee lo que sale del núcleo. */
   #analyser: AnalyserNode | null = null;
   #analyserData: Float32Array<ArrayBuffer> | null = null;
@@ -568,6 +576,7 @@ export class AudioEngine {
     this.send({ type: 'standby' });
     this.#cancelCalibration();
     this.#closeMic();
+    this.stopPreview();
     this.#setState('standby');
     await new Promise((resolve) => setTimeout(resolve, STANDBY_FADE_MS));
     // Si entretanto se ha salido del reposo, el contexto sigue en marcha.
@@ -594,13 +603,83 @@ export class AudioEngine {
 
   #onHidden(): void {
     // Pestaña oculta: la toma (o la cuenta previa, o la calibración) se cancela, el disco se
-    // suelta, se pausa y se suelta el micrófono.
+    // suelta, se pausa y se suelta el micrófono. La escucha de la anatomía, también se para.
+    this.stopPreview();
     if (!this.#node) return;
     this.send({ type: 'cancel-recording' });
     this.send({ type: 'disc-release' });
     this.send({ type: 'pause' });
     this.#cancelCalibration();
     this.#closeMic();
+  }
+
+  // --- Escuchar sin tocar la sesión ------------------------------------------------------------
+
+  /**
+   * Escucha sonidos de la biblioteca sin tocar la sesión (la anatomía de un bucle, PLAN fase 7):
+   * una vuelta de su bucle, todos a la vez, por la salida del contexto, con un fundido corto al
+   * entrar y al salir. Solo tras un gesto: si el contexto no está desbloqueado, no suena y devuelve
+   * `false`. La mezcla se baja lo justo para que su pico no pase de −1 dBFS (sin el limitador del
+   * núcleo). Lo que estuviera sonando de antes se para. `onStart` se llama al programarlo, con lo
+   * que falta para que suene (en ms). Devuelve `true` al terminar de sonar, o `false` si se para
+   * antes.
+   */
+  async preview(ids: readonly string[], onStart?: (delayMs: number) => void): Promise<boolean> {
+    this.stopPreview();
+    const token = ++this.#previewToken;
+    await this.start();
+    const context = this.#context;
+    if (!context || this.#state !== 'ready' || ids.length === 0) return false;
+    let sounds: CachedSound[];
+    try {
+      sounds = await Promise.all(ids.map((id) => this.#cachedSound(id, context.sampleRate)));
+    } catch {
+      this.#emit({ type: 'problem', code: 'sound-failed' });
+      return false;
+    }
+    if (token !== this.#previewToken) return false;
+    const length = Math.max(...sounds.map((sound) => sound.pcm.length));
+    const gain = new GainNode(context, { gain: 0 });
+    gain.connect(context.destination);
+    const level = Math.min(1, PREVIEW_PEAK / mixPeak(sounds.map((sound) => sound.pcm)));
+    const start = context.currentTime + PREVIEW_LEAD_S;
+    const end = start + length / context.sampleRate;
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(level, start + PREVIEW_FADE_S);
+    gain.gain.setValueAtTime(level, end - PREVIEW_FADE_S);
+    gain.gain.linearRampToValueAtTime(0, end);
+    const sources = sounds.map((sound) => {
+      const buffer = new AudioBuffer({ length, sampleRate: context.sampleRate });
+      buffer.copyToChannel(sound.pcm as Float32Array<ArrayBuffer>, 0);
+      const source = new AudioBufferSourceNode(context, { buffer });
+      source.connect(gain);
+      source.start(start);
+      return source;
+    });
+    this.#preview = { gain, sources };
+    onStart?.((start - context.currentTime) * 1000);
+    return new Promise<boolean>((resolve) => {
+      sources[0]!.onended = () => {
+        const finished = this.#preview?.gain === gain;
+        if (finished) this.#preview = null;
+        gain.disconnect();
+        resolve(finished);
+      };
+    });
+  }
+
+  /** Para la escucha de la anatomía (con un fundido de 20 ms, sin chasquido). */
+  stopPreview(): void {
+    this.#previewToken++;
+    const preview = this.#preview;
+    const context = this.#context;
+    this.#preview = null;
+    if (!preview || !context) return;
+    const now = context.currentTime;
+    preview.gain.gain.cancelScheduledValues(now);
+    preview.gain.gain.setValueAtTime(preview.gain.gain.value, now);
+    preview.gain.gain.linearRampToValueAtTime(0, now + PREVIEW_STOP_S);
+    for (const source of preview.sources) source.stop(now + PREVIEW_STOP_S + 0.005);
   }
 
   // --- Sonidos y sesión ------------------------------------------------------------------------
