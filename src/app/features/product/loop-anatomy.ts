@@ -79,7 +79,6 @@ function ringPath(wave: readonly number[], radius: number): string {
               [attr.aria-label]="
                 isPlaying([layer.id]) ? text.stop : text.listenLabel(layer.role, layer.name)
               "
-              [attr.aria-pressed]="isPlaying([layer.id])"
               (click)="listen([layer.id])"
             >
               {{ isPlaying([layer.id]) ? text.stop : text.listen }}
@@ -88,13 +87,7 @@ function ringPath(wave: readonly number[], radius: number): string {
         }
       </ul>
       <p>
-        <button
-          type="button"
-          class="button"
-          data-audio-unlock
-          [attr.aria-pressed]="isPlaying(all)"
-          (click)="listen(all)"
-        >
+        <button type="button" class="button" data-audio-unlock (click)="listen(all)">
           {{ isPlaying(all) ? text.stop : text.listenAll }}
         </button>
       </p>
@@ -260,6 +253,11 @@ export class LoopAnatomy {
   protected async listen(ids: readonly string[]): Promise<void> {
     const token = ++this.token;
     const engine = await loadAudioEngine();
+    // En reposo no suena nada (lo ha pedido quien toca): se dice cómo salir de él (revisión, #5).
+    if (engine.state === 'standby') {
+      this.finish(token, this.text.standby);
+      return;
+    }
     if (this.isPlaying(ids)) {
       engine.stopPreview();
       this.finish(token, this.text.stopped);

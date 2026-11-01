@@ -3,7 +3,7 @@ export const LOOP_ANATOMY_CONTENT = {
   reviewed: false,
   title: 'Anatomía de un bucle',
   intro:
-    'Las cuatro capas giran sobre el mismo reloj, como anillos de un mismo disco: una vuelta son dos compases, algo más de cinco segundos a 90 BPM. Alrededor de cada anillo, la forma de onda de su sonido. Escúchalas una a una o juntas.',
+    'Las cuatro capas suenan sobre el mismo reloj. Cada anillo es una capa, y una vuelta del anillo, su bucle entero: dos compases, algo más de cinco segundos a 90\u00a0BPM. Alrededor, la forma de onda de su sonido. Escúchalas una a una o juntas.',
   /** Del anillo de fuera al de dentro, como las capas de la 1 a la 4. */
   layers: [
     {
@@ -27,4 +27,5 @@ export const LOOP_ANATOMY_CONTENT = {
   playing: (names: string) => `Suena: ${names}.`,
   stopped: 'Parado.',
   failed: 'No se ha podido escuchar. Toca otra vez.',
+  standby: 'El instrumento está en reposo: despiértalo con su botón de reposo para escuchar.',
 } as const;
