@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { audioCalls, instrumentAudio, streamCount } from './support/audio';
 import { InstrumentDriver, MENU } from './support/instrument';
 
 // El escenario 3D de la portada (PLAN fases 5.b y 6): llega en `@defer` con su póster y se funde al
@@ -55,6 +56,21 @@ test.describe('escenario 3D', () => {
       .analyze();
     expect(results.violations.map((v) => `${v.id} (${v.impact})`)).toEqual([]);
     expect(errors).toEqual([]);
+  });
+
+  test('«Ver en el instrumento» (la guía): la cámara viaja al control y le da el foco, sin audio', async ({
+    page,
+  }) => {
+    await instrumentAudio(page);
+    await openStage(page);
+    await page.getByRole('button', { name: 'Ver en el instrumento: tempo' }).click();
+    await expect(stage(page)).toHaveAttribute('data-camara', 'cerca-main');
+    await expect(page.locator('.stage3d [data-control="main"]')).toBeFocused();
+    await page.getByRole('button', { name: 'Ver en el instrumento: mezclar las capas' }).click();
+    await expect(stage(page)).toHaveAttribute('data-camara', 'capas');
+    await expect(page.locator('.stage3d [data-control="layer-0"]')).toBeFocused();
+    expect(await audioCalls(page)).toEqual([]);
+    expect(await streamCount(page)).toBe(0);
   });
 
   test('con ?sin3d=1 no hay escenario ni lienzo: solo el instrumento HTML', async ({ page }) => {
