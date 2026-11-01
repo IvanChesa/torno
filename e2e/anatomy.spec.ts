@@ -17,8 +17,9 @@ test.describe('la anatomía de un bucle', () => {
   }) => {
     await instrumentAudio(page);
     await page.goto('/?sin3d=1');
-    // La sección llega en `@defer` (y se hidrata al verse): `click` vuelve a buscar el botón si se
-    // pinta otra vez, y lo lleva a la vista él solo.
+    // La sección llega en `@defer` al verse: se baja hasta ella (la `section`, que no se repinta).
+    // `click` vuelve a buscar el botón si se pinta otra vez.
+    await page.locator('section[aria-labelledby="anatomia"]').scrollIntoViewIfNeeded();
     const listen = page.getByRole('button', { name: 'Escuchar batería: Alfar' });
     await expect(listen).toBeVisible();
     expect(await audioCalls(page)).toEqual([]);
@@ -43,6 +44,7 @@ test.describe('la anatomía de un bucle', () => {
   test('«Escuchar las cuatro» suena las cuatro capas a la vez', async ({ page }) => {
     await instrumentAudio(page);
     await page.goto('/?sin3d=1');
+    await page.locator('section[aria-labelledby="anatomia"]').scrollIntoViewIfNeeded();
     await page.getByRole('button', { name: 'Escuchar las cuatro' }).click();
     await expect(page.getByText('Suena: Alfar, Raíz, Olivo, Cierzo.')).toBeVisible();
     expect(await outputPeak(page)).toBeGreaterThan(0.05);
