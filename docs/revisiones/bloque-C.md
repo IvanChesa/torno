@@ -67,3 +67,12 @@ Tu web pasa a ivanchesa.com y el .es se deja caducar, así que Torno irá en **`
 - **Estado:** `main` = `origin/main` (`2f7789f`). El CI de `main` está en verde (18 min, la mayor parte en e2e) y el despliegue en la vista previa también. La sesión no llegó a comprobarlo porque se quedó sin uso.
 - **El informe, la revisión y el diario de la fase 6:** las cifras cuadran entre ellos, y los Importantes del subagente tienen su arreglo y su e2e.
 - **Capturas** `instrumento3d-completo-*`: el 3D es el instrumento, con la barra de encuadres y modos debajo. La pantalla del 3D ya se lee en el escritorio. El espejo HTML queda encima (propuesta 2).
+
+## Respuesta a la revisión (parte 2) · 01-11
+| # | Acción | Commit |
+|---|---|---|
+| 1 | **Hecho.** El CI, en jobs paralelos: `build` (build, presupuestos y el artefacto que se despliega), `comprobaciones` (lint, tests y banco) a la vez, y los e2e en tres grupos con su propia máquina y el build de `build` (el audio con `dev`, `estatico` y `webkit`; `escena-dev`; `escena-estatico`, estos con `--no-deps`). Si falla un grupo, `e2e-informe` une sus informes `blob` en uno. El despliegue sigue esperando a que termine el workflow entero (`workflow_run`). En la rama `fix/bloque-c`: **9,5 min** de principio a fin (antes, 18), con el grupo más largo (`escena-dev`) en 8 min. Un e2e de la hidratación lee el *metafile* del build: viaja en un artefacto aparte (`torno-stats`), que no se despliega. | `99f33ee`, `47d5c8d` |
+| 2 | **En la fase 7** (entrega 7.e), con las capturas del móvil de antes y después. | — |
+| 3 | **Hecho.** `.claude/launch.json` en el `.gitignore`. | `0ef420e` |
+
+El CI también corre ahora en las ramas `fix/*` (sin desplegar: `deploy.yml` solo publica `main` y `fase-*`).
