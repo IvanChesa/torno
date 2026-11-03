@@ -2,7 +2,7 @@ import { Component, DOCUMENT, inject, input } from '@angular/core';
 import { MotionPreference } from '../../core/motion';
 import { InstrumentSpotlight } from '../instrument-common/spotlight';
 import { DETAILS_CONTENT } from './details.content';
-import { INSTRUMENT_ANCHOR } from './guide';
+import { INSTRUMENT_ANCHOR } from './guide-target';
 
 /**
  * «Los detalles» (PLAN fase 7): los materiales del aparato, con el render despiezado del propio

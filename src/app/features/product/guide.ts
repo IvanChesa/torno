@@ -1,25 +1,14 @@
 import { Component } from '@angular/core';
-import { GUIDE_CONTENT, type GuideEntry } from './guide.content';
+import { GUIDE_CONTENT } from './guide.content';
 
-/** El `id` de la caja del instrumento en la portada: adonde lleva «Ver en el instrumento». */
-export const INSTRUMENT_ANCHOR = 'instrumento';
-
-/** El atributo con el número de su entrada que lleva cada «Ver en el instrumento». */
-const ENTRY_ATTRIBUTE = 'data-ver';
-
-/** La entrada de la guía de un clic (o un Intro) en su «Ver en el instrumento», o `null`. */
-export function guideEntryFor(target: EventTarget | null): GuideEntry | null {
-  const button = (target as Element | null)?.closest?.(`[${ENTRY_ATTRIBUTE}]`);
-  if (!button) return null;
-  return GUIDE_CONTENT.entries[Number(button.getAttribute(ENTRY_ATTRIBUTE))] ?? null;
-}
+export { INSTRUMENT_ANCHOR } from './guide-target';
 
 /**
  * «Conoce tu instrumento» (PLAN fase 7): los 9 controles, cada uno con sus gestos, sus teclas y
  * «Ver en el instrumento». Ese botón lleva la página al instrumento y le pide que señale el
  * control (`InstrumentSpotlight`): la cámara viaja hasta él y él recibe el foco.
  *
- * El clic no lo escucha la guía, sino la portada (`guideEntryFor`), que ya está hidratada desde el
+ * El clic no lo escucha la guía, sino la portada (`guideTargetFor`), que ya está hidratada desde el
  * arranque: la guía se hidrata al verse, y un clic o un Intro en plena hidratación no siempre
  * llegaba a su botón (revisión del bloque D, #3). Así funciona igual antes, durante y después.
  *
@@ -34,7 +23,7 @@ export function guideEntryFor(target: EventTarget | null): GuideEntry | null {
       <p>{{ text.intro }}</p>
     </div>
     <ul class="entries" role="list">
-      @for (entry of text.entries; track entry.title; let i = $index) {
+      @for (entry of text.entries; track entry.title) {
         <li class="entry">
           <h3>{{ entry.title }}</h3>
           <div class="entry__body">
@@ -57,7 +46,8 @@ export function guideEntryFor(target: EventTarget | null): GuideEntry | null {
             type="button"
             class="button button--secondary entry__show"
             [attr.aria-label]="text.showLabel(entry.title)"
-            [attr.data-ver]="i"
+            [attr.data-ver]="entry.control"
+            [attr.data-encuadre]="entry.shot ?? null"
           >
             {{ text.show }}
           </button>

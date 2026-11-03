@@ -1,7 +1,7 @@
 import { Component, output, signal } from '@angular/core';
 import { SITE_CONFIG } from '../../core/site.config';
 import { CLOSING_CONTENT } from './closing.content';
-import { INSTRUMENT_ANCHOR } from './guide';
+import { INSTRUMENT_ANCHOR } from './guide-target';
 
 /**
  * El cierre de la portada (PLAN fase 7): volver a tocar, el caso de estudio, el contacto, el código

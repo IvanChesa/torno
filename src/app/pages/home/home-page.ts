@@ -25,7 +25,8 @@ import { InstrumentSpotlight } from '../../features/instrument-common/spotlight'
 import { Closing } from '../../features/product/closing';
 import { Details } from '../../features/product/details';
 import { Faq } from '../../features/product/faq';
-import { Guide, guideEntryFor, INSTRUMENT_ANCHOR } from '../../features/product/guide';
+import { Guide } from '../../features/product/guide';
+import { guideTargetFor, INSTRUMENT_ANCHOR } from '../../features/product/guide-target';
 import { LoopAnatomy } from '../../features/product/loop-anatomy';
 import { LOOP_ANATOMY_CONTENT } from '../../features/product/loop-anatomy.content';
 import { ProductIntro } from '../../features/product/intro';
@@ -328,9 +329,9 @@ export class HomePage {
    * control. Nunca suena ni cambia nada.
    */
   private showFromGuide(event: Event): void {
-    const entry = guideEntryFor(event.target);
-    if (!entry) return;
-    this.spotlight.show(entry.control, entry.shot ?? null);
+    const target = guideTargetFor(event.target);
+    if (!target) return;
+    this.spotlight.show(target.control, target.shot);
     this.document.getElementById(INSTRUMENT_ANCHOR)?.scrollIntoView({
       behavior: this.motion.still() ? 'auto' : 'smooth',
       block: 'center',
@@ -351,7 +352,7 @@ export class HomePage {
 
   /**
    * Los clics de la página: un toque en el escenario (por si llegó antes que el JS) y «Ver en el
-   * instrumento» de la guía (`guideEntryFor`: lo atiende la portada, ya hidratada desde el arranque).
+   * instrumento» de la guía (`guideTargetFor`: lo atiende la portada, ya hidratada desde el arranque).
    */
   protected onClick(event: Event): void {
     if ((event.target as Element | null)?.closest?.('.stage')) noteInstrumentTap();
