@@ -9,6 +9,7 @@ name: CI
 # - «e2e»: tres grupos a la vez, cada uno en su máquina, con el build de «build». Los del 3D van en
 #   grupos aparte porque el WebGL de Chromium sin interfaz es por software y ocupa la máquina (ver
 #   playwright.config.ts);
+# - «e2e» también lleva la regresión visual (grupo «visual», fase 8);
 # - «lighthouse»: Lighthouse en el móvil con el build de «build» (PLAN §5, fase 8);
 # - «e2e-informe»: si falla algún grupo, une sus informes en uno.
 # El despliegue (deploy.yml) espera a que el workflow entero termine en verde.
@@ -113,6 +114,14 @@ jobs:
           - grupo: escena-estatico
             proyectos: --project=escena-estatico --no-deps
             navegadores: chromium
+          # La regresión visual (fase 8): las capturas con ?captura=1 contra sus referencias de
+          # Linux (e2e/visual.spec.ts-snapshots/, que genera el flujo «Referencias visuales»).
+          # Si falta una referencia, se escribe (--update-snapshots=missing) y el paso de abajo la
+          # deja en el artefacto «referencias-visuales» y falla: se descarga y se sube al repositorio.
+          # Para cambiar una a propósito, se borra y el CI la vuelve a generar.
+          - grupo: visual
+            proyectos: --project=visual --update-snapshots=missing
+            navegadores: chromium
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -187,6 +196,27 @@ jobs:
           PROYECTOS: ${{ matrix.proyectos }}
           E2E_GRUPO: ${{ matrix.grupo }}
         run: npm run e2e -- $PROYECTOS
+
+      # Las referencias de la regresión visual que no estaban en el repositorio (ver la matriz).
+      - name: Referencias visuales nuevas
+        if: ${{ !cancelled() && matrix.grupo == 'visual' }}
+        id: referencias
+        run: |
+          nuevas=$(git status --porcelain --untracked-files=all -- e2e/visual.spec.ts-snapshots | wc -l)
+          echo "nuevas=$nuevas" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() && steps.referencias.outputs.nuevas != '0' && steps.referencias.outputs.nuevas != '' }}
+        with:
+          name: referencias-visuales
+          path: e2e/visual.spec.ts-snapshots/
+          retention-days: 7
+
+      - name: Sin referencias visuales que falten
+        if: ${{ !cancelled() && steps.referencias.outputs.nuevas != '0' && steps.referencias.outputs.nuevas != '' }}
+        run: |
+          echo "::error::Faltaban ${{ steps.referencias.outputs.nuevas }} referencias visuales: están en el artefacto «referencias-visuales»; hay que subirlas a e2e/visual.spec.ts-snapshots/."
+          exit 1
 
       # El informe de cada grupo, para unirlo en «e2e-informe» si algo falla.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -20,6 +20,9 @@ import path from 'node:path';
 const DEV_PORT = 4317;
 const STATIC_PORT = 4318;
 const CI = !!process.env['CI'];
+// La regresión visual (e2e/visual.spec.ts): sus referencias son de Linux y se generan en el CI; en
+// local, solo con VISUAL=1 (en Windows, las fuentes se pintan distinto y no casarían).
+const VISUAL = CI || !!process.env['VISUAL'];
 const FAKE_MIC = path.resolve('e2e/.generated/fake-mic.wav');
 
 const chromium = {
@@ -56,13 +59,23 @@ export default defineConfig({
     {
       name: 'dev',
       use: { ...chromium, baseURL: `http://localhost:${DEV_PORT}` },
-      testIgnore: /(static|hydration|webkit|headers|stage|budgets|a11y)\.spec\.ts$/,
+      testIgnore: /(static|hydration|webkit|headers|stage|budgets|a11y|visual)\.spec\.ts$/,
     },
     {
       name: 'estatico',
       use: { ...chromium, baseURL: `http://localhost:${STATIC_PORT}` },
-      testIgnore: /(webkit|stage)\.spec\.ts$/,
+      testIgnore: /(webkit|stage|visual)\.spec\.ts$/,
     },
+    ...(VISUAL
+      ? [
+          {
+            name: 'visual',
+            use: { ...chromium, baseURL: `http://localhost:${STATIC_PORT}` },
+            testMatch: /visual\.spec\.ts$/,
+            fullyParallel: false,
+          },
+        ]
+      : []),
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'], baseURL: `http://localhost:${STATIC_PORT}` },

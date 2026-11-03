@@ -78,3 +78,6 @@ AGENTS.md
 # Informes de Lighthouse (npm run lighthouse, lighthouserc.js)
 /lighthouse/
 /.lighthouseci/
+
+# Referencias visuales de Windows (VISUAL=1 en local): las buenas son las de Linux, del CI
+/e2e/visual.spec.ts-snapshots/*-win32.png
