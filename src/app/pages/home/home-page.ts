@@ -1,8 +1,9 @@
-import { afterNextRender, Component, DestroyRef, inject, signal } from '@angular/core';
+import { afterNextRender, Component, DestroyRef, DOCUMENT, inject, signal } from '@angular/core';
 import { noteInstrumentTap, preloadAudioEngine } from '../../audio/engine';
 import { isCaptureMode } from '../../core/capture-mode';
 import { isDiagnosticsMode } from '../../core/diagnostics-mode';
 import { isHtmlOnlyMode } from '../../core/html-only-mode';
+import { MotionPreference } from '../../core/motion';
 import { onPresenceOrQuiet } from '../../core/page-presence';
 import { DiagnosticsPanel } from '../../features/diagnostics/diagnostics-panel';
 import { HtmlInstrument } from '../../features/html-instrument/html-instrument';
@@ -12,7 +13,7 @@ import { InstrumentSpotlight } from '../../features/instrument-common/spotlight'
 import { Closing } from '../../features/product/closing';
 import { Details } from '../../features/product/details';
 import { Faq } from '../../features/product/faq';
-import { Guide, INSTRUMENT_ANCHOR } from '../../features/product/guide';
+import { Guide, guideEntryFor, INSTRUMENT_ANCHOR } from '../../features/product/guide';
 import { LoopAnatomy } from '../../features/product/loop-anatomy';
 import { LOOP_ANATOMY_CONTENT } from '../../features/product/loop-anatomy.content';
 import { ProductIntro } from '../../features/product/intro';
@@ -55,7 +56,7 @@ import { HOME_CONTENT } from './home.content';
     SpecSheet,
     StagePlaceholder,
   ],
-  host: { '(click)': 'tap($event)' },
+  host: { '(click)': 'onClick($event)' },
   template: `
     <section class="hero" aria-labelledby="titulo">
       <div class="hero__text">
@@ -86,7 +87,12 @@ import { HOME_CONTENT } from './home.content';
             ?sin3d=1, lo que hay dentro de .stage no cambia al hidratar, y un toque anterior (que
             Angular repite después) sigue encontrando su sitio en la página. Dentro, un @defer para
             cada uno: solo se descarga el trozo del que se usa.
+
+            Al cumplirse el de fuera, su marcador se va y el de dentro llega un tic después: en ese
+            fotograma no había nada y la página saltaba (CLS de 0,6 al llegar el 3D, fase 8). La
+            reserva, un marcador más, solo se ve entonces (.stage__reserve, con :has()).
           -->
+          <trn-stage-placeholder class="stage__reserve" aria-hidden="true" alt="" />
           @defer (on interaction; when stageWanted()) {
             @if (htmlOnly() || noWebgl()) {
               @defer (on immediate) {
@@ -229,6 +235,21 @@ import { HOME_CONTENT } from './home.content';
       scroll-margin-block-start: var(--space-4);
     }
 
+    /*
+     * La reserva del sitio del instrumento: solo cuando en .stage no hay ni marcador ni instrumento
+     * (el tic entre el marcador del @defer de fuera y el de dentro).
+     */
+    .stage__reserve {
+      display: none;
+    }
+
+    .stage:not(
+        :has(trn-instrument-stage, trn-html-instrument, trn-stage-placeholder:not(.stage__reserve))
+      )
+      > .stage__reserve {
+      display: grid;
+    }
+
     .stage__notice {
       max-inline-size: var(--measure);
       margin-block-end: var(--space-4);
@@ -248,6 +269,8 @@ export class HomePage {
   protected readonly anchorId = INSTRUMENT_ANCHOR;
   protected readonly anchor = `#${INSTRUMENT_ANCHOR}`;
   private readonly spotlight = inject(InstrumentSpotlight);
+  private readonly motion = inject(MotionPreference);
+  private readonly document = inject(DOCUMENT);
   protected readonly diagnostics = signal(false);
   /** `?sin3d=1`: sin el escenario 3D (ni su póster). Solo se sabe en el navegador. */
   protected readonly htmlOnly = signal(false);
@@ -261,9 +284,18 @@ export class HomePage {
     afterNextRender(() => {
       this.diagnostics.set(isDiagnosticsMode(location.search));
       this.htmlOnly.set(isHtmlOnlyMode(location.search));
-      // El plato HTML es ligero, y las capturas no esperan a nadie.
-      if (this.htmlOnly() || isCaptureMode(location.search)) {
+      // Las capturas no esperan a nadie.
+      if (isCaptureMode(location.search)) {
         this.stageWanted.set(true);
+        return;
+      }
+      // El plato HTML es ligero: en reposo, como antes de la fase 8. No antes: un toque anterior al
+      // JS, que Angular repite tras la hidratación, tiene que llegar antes que el instrumento (este
+      // mira al nacer si hubo uno que no pudo activar el sonido).
+      if (this.htmlOnly()) {
+        const wanted = () => this.stageWanted.set(true);
+        if (typeof requestIdleCallback === 'function') requestIdleCallback(wanted);
+        else setTimeout(wanted);
         return;
       }
       destroyRef.onDestroy(onPresenceOrQuiet(window, () => this.stageWanted.set(true)));
@@ -276,7 +308,26 @@ export class HomePage {
     this.spotlight.show('play', 'completo');
   }
 
-  protected tap(event: Event): void {
+  /**
+   * «Ver en el instrumento» (la guía): lleva la página al instrumento y le pide que señale el
+   * control. Nunca suena ni cambia nada.
+   */
+  private showFromGuide(event: Event): void {
+    const entry = guideEntryFor(event.target);
+    if (!entry) return;
+    this.spotlight.show(entry.control, entry.shot ?? null);
+    this.document.getElementById(INSTRUMENT_ANCHOR)?.scrollIntoView({
+      behavior: this.motion.still() ? 'auto' : 'smooth',
+      block: 'center',
+    });
+  }
+
+  /**
+   * Los clics de la página: un toque en el escenario (por si llegó antes que el JS) y «Ver en el
+   * instrumento» de la guía (`guideEntryFor`: lo atiende la portada, ya hidratada desde el arranque).
+   */
+  protected onClick(event: Event): void {
     if ((event.target as Element | null)?.closest?.('.stage')) noteInstrumentTap();
+    this.showFromGuide(event);
   }
 }

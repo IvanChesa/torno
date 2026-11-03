@@ -1,10 +1,13 @@
 import { Component, input } from '@angular/core';
+import { INSTRUMENT_COMMON_CONTENT } from '../instrument-common/instrument-common.content';
 import { STAGE_POSTER } from './stage-poster';
 
 /**
  * El marcador del instrumento 3D: ocupa lo mismo que él (el espejo de la pantalla, la caja con el
- * póster y la barra), para que al llegar no se mueva nada. Lo usa la portada mientras se cargan el
- * instrumento y sus trozos (sin cargar nada del escenario: va en el trozo de la portada).
+ * póster, la barra y la línea del autoguardado), para que al llegar no se mueva nada. Lo usa la
+ * portada mientras se cargan el instrumento y sus trozos (sin cargar nada del escenario: va en el
+ * trozo de la portada). Desde la fase 8 el 3D llega tarde (con un gesto o con la página quieta), y
+ * lo que no reservaba (esa línea: 60 px en el escritorio y 83 en el móvil) movía la página.
  */
 @Component({
   selector: 'trn-stage-placeholder',
@@ -33,6 +36,14 @@ import { STAGE_POSTER } from './stage-poster';
       </picture>
     </div>
     <div class="bar"></div>
+    <!--
+      El sitio de la línea del autoguardado (InstrumentNotices), con su mismo texto y sus mismos
+      estilos para que ocupe lo mismo a cualquier ancho; invisible y fuera del árbol de accesibilidad
+      (aún no hay nada que borrar).
+    -->
+    <p class="autosave" aria-hidden="true">
+      {{ autosave.note }} <span class="link-button">{{ autosave.clear }}</span>
+    </p>
   `,
   styles: `
     :host {
@@ -80,6 +91,19 @@ import { STAGE_POSTER } from './stage-poster';
       }
     }
 
+    /* Como en InstrumentNotices: el mismo texto, el mismo tamaño y el botón de 44 px de alto. */
+    .autosave {
+      justify-self: stretch;
+      margin: 0;
+      font-size: var(--text-s);
+      visibility: hidden;
+    }
+
+    .link-button {
+      display: inline-block;
+      min-block-size: var(--target-min);
+    }
+
     img {
       inline-size: 100%;
       block-size: 100%;
@@ -91,4 +115,5 @@ export class StagePlaceholder {
   /** El texto alternativo del póster. */
   readonly alt = input.required<string>();
   protected readonly poster = STAGE_POSTER;
+  protected readonly autosave = INSTRUMENT_COMMON_CONTENT.autosave;
 }
