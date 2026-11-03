@@ -7,7 +7,6 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { headersFor, parseHeaders } from './pages-headers.mjs';
 import {
-  addFontPreloads,
   applyScriptHashes,
   cacheProblem,
   HEADERS_LIMITS,
@@ -310,7 +309,6 @@ describe('el paso tras el build', () => {
       pages: 3,
       hashes: 2,
       files: 5,
-      fonts: 0,
     });
     expect(await list(root)).toEqual([
       '404.html',
@@ -348,27 +346,6 @@ describe('el paso tras el build', () => {
     const root = await build({ ...ANGULAR, 'sobre-el-proyecto.html': 'otra' });
     await expect(processBuild({ root, template: SOURCE })).rejects.toThrow(
       /Ya existe sobre-el-proyecto\.html/,
-    );
-  });
-
-  it('precarga las fuentes de media/ en cada página, antes del primer <link> y una sola vez', async () => {
-    const root = await build({
-      ...ANGULAR,
-      'index.html':
-        '<head><title>T</title><link rel="stylesheet" href="styles-ABCDEFGH.css"></head>',
-      'styles-ABCDEFGH.css': '',
-      'media/fraunces-ABCDEFGH.woff2': '',
-    });
-    expect(await processBuild({ root, template: SOURCE })).toMatchObject({ fonts: 1 });
-    const html = await readFile(path.join(root, 'index.html'), 'utf8');
-    expect(html).toBe(
-      '<head><title>T</title><link rel="preload" href="media/fraunces-ABCDEFGH.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="styles-ABCDEFGH.css"></head>',
-    );
-    // Otra vez, sin repetirla; y en las páginas sin <link>, antes de </head>.
-    await processBuild({ root, template: SOURCE });
-    expect(await readFile(path.join(root, 'index.html'), 'utf8')).toBe(html);
-    expect(addFontPreloads('<head></head>', ['media/a.woff2'])).toBe(
-      '<head><link rel="preload" href="media/a.woff2" as="font" type="font/woff2" crossorigin></head>',
     );
   });
 
