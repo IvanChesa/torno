@@ -3,8 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 // Regresión visual (PLAN fase 8, tarea 6): capturas deterministas (`?captura=1`: sin animaciones,
 // sin cursor y con el 3D en un estado fijo) comparadas con sus referencias. Las referencias dependen
 // del sistema (las fuentes se pintan distinto en cada uno), así que **solo se generan en el CI**
-// (Linux), con el flujo «Referencias visuales» (.github/workflows/visual-refs.yml), y van al
-// repositorio en e2e/visual.spec.ts-snapshots/. En local, este proyecto solo corre con VISUAL=1.
+// (Linux): si falta una, el grupo «visual» la escribe (--update-snapshots=missing), la deja en el
+// artefacto «referencias-visuales» y falla hasta que se sube a e2e/visual.spec.ts-snapshots/. Para
+// cambiar una a propósito, se borra. En local, este proyecto solo corre con VISUAL=1.
 
 const DESKTOP = { width: 1440, height: 900 };
 const MOBILE = { width: 390, height: 844 };

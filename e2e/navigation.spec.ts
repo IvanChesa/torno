@@ -40,6 +40,27 @@ test.describe('el foco al navegar', () => {
     await expect(page.getByRole('link', { name: 'Tocar' }).first()).toBeFocused();
   });
 
+  // Revisión de la fase 8, #3: el enlace de «Cómo se ha medido» a la ficha técnica de la portada.
+  test('a un ancla de otra página: la página llega al destino y el foco, a él', async ({
+    page,
+  }) => {
+    await page.goto('/sobre-el-proyecto');
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('link', { name: 'La ficha técnica' }).click();
+    await expect(page).toHaveURL(/#ficha-tecnica$/);
+    const target = page.locator('#ficha-tecnica');
+    await expect(target).toBeFocused();
+    // Con lo de encima ya pintado, el destino sigue arriba de la pantalla.
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+    const top = await target.evaluate((element) => element.getBoundingClientRect().top);
+    expect(top).toBeGreaterThanOrEqual(0);
+    expect(top).toBeLessThan(200);
+    // Y el tabulador sigue desde ahí, sin volver arriba.
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(1000);
+  });
+
   test('un enlace a un ancla de la misma página no lleva el foco al h1', async ({ page }) => {
     await page.goto('/?sin3d=1');
     await page.waitForLoadState('networkidle');

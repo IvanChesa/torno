@@ -60,8 +60,9 @@ test.describe('accesibilidad (fase 8)', () => {
     expect(await axe(page)).toEqual([]);
   });
 
-  // WCAG 1.4.10: a 320 px de ancho, nada obliga a desplazarse a lo ancho. También con el 3D (su
-  // marcador y su barra), que en el móvil va de borde a borde.
+  // WCAG 1.4.10: a 320 px de ancho, nada obliga a desplazarse a lo ancho. En `/`, con el marcador
+  // del 3D (aún no llega: no hay gestos); con el 3D ya llegado, en stage.spec.ts (las zonas táctiles a
+  // 320 px).
   for (const route of [...ROUTES, '/']) {
     test(`${route}: a 320 px no hay desplazamiento a lo ancho`, async ({ page }) => {
       await page.setViewportSize({ width: 320, height: 640 });

@@ -115,7 +115,7 @@ jobs:
             proyectos: --project=escena-estatico --no-deps
             navegadores: chromium
           # La regresión visual (fase 8): las capturas con ?captura=1 contra sus referencias de
-          # Linux (e2e/visual.spec.ts-snapshots/, que genera el flujo «Referencias visuales»).
+          # Linux (e2e/visual.spec.ts-snapshots/, que genera este mismo grupo: ver debajo).
           # Si falta una referencia, se escribe (--update-snapshots=missing) y el paso de abajo la
           # deja en el artefacto «referencias-visuales» y falla: se descarga y se sube al repositorio.
           # Para cambiar una a propósito, se borra y el CI la vuelve a generar.
