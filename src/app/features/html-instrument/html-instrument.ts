@@ -116,6 +116,7 @@ export class HtmlInstrument {
       const request = this.spotlight.request();
       if (!request || request.serial === spotlightSerial) return;
       spotlightSerial = request.serial;
+      this.spotlight.attend(request.serial);
       const scroll = this.motion.still() ? 'auto' : 'smooth';
       afterNextRender(() => focusControl(this.host.nativeElement, request.id, scroll), {
         injector: this.injector,

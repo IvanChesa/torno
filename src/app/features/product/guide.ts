@@ -1,8 +1,6 @@
 import { Component } from '@angular/core';
 import { GUIDE_CONTENT } from './guide.content';
 
-export { INSTRUMENT_ANCHOR } from './guide-target';
-
 /**
  * «Conoce tu instrumento» (PLAN fase 7): los 9 controles, cada uno con sus gestos, sus teclas y
  * «Ver en el instrumento». Ese botón lleva la página al instrumento y le pide que señale el

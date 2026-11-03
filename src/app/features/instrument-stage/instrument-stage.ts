@@ -129,6 +129,7 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
             role="img"
             [attr.aria-label]="text.canvas"
             [class.is-shown]="shown()"
+            (webglcontextrestored)="onContextBack()"
           ></canvas>
           @if (inspecting()) {
             <div
@@ -256,6 +257,17 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
       margin-inline: 0;
     }
 
+    /*
+     * En el móvil, en pantalla completa: la caja cuadrada cabe en el ancho (con el ancho de borde a
+     * borde de fuera, medía 424 px en una pantalla de 390) y deja sitio al espejo y a la barra
+     * (revisión de la fase 8, #5).
+     */
+    @media (max-width: 47.99rem) {
+      .frame:fullscreen .stage3d {
+        inline-size: min(100%, 100dvh - 20rem);
+      }
+    }
+
     .stage3d__poster,
     canvas,
     .stage3d__orbit {
@@ -348,6 +360,19 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
         grid-column: 2;
         justify-items: start;
       }
+
+      /*
+       * En pantalla completa, el mismo reparto, con la altura de la pantalla (dvh) y sin los
+       * márgenes de la página (la caja era de 208 × 166 px a 844 × 390: revisión, #5). Aquí el 100 %
+       * es el de la caja que hace de pantalla completa, sin ciclo.
+       */
+      .frame:fullscreen {
+        --stage-width: min(
+          100% - var(--stage-side-width) - var(--space-5),
+          (100dvh - 2 * var(--space-4)) * 1.25
+        );
+        align-content: center;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -359,7 +384,7 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
   `,
 })
 export class InstrumentStage {
-  /** No hay WebGL: la portada pone el plato HTML. */
+  /** El 3D no puede seguir (sin WebGL, o el contexto perdido sin volver): la portada pone el plato. */
   readonly failed = output<StageFailure>();
 
   protected readonly text = INSTRUMENT_STAGE_CONTENT;
@@ -463,6 +488,8 @@ export class InstrumentStage {
   private drag: { x: number; y: number; touch: boolean } | null = null;
   private settleTimer: ReturnType<typeof setTimeout> | undefined;
   private contextTimer: ReturnType<typeof setTimeout> | undefined;
+  /** El navegador ya ha devuelto el contexto perdido (el motor aún rehace lo suyo). */
+  private contextBack = false;
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -484,8 +511,8 @@ export class InstrumentStage {
             break;
           case 'context-lost':
             this.lost.set(true);
-            clearTimeout(this.contextTimer);
-            this.contextTimer = setTimeout(() => this.failed.emit('context'), CONTEXT_WAIT_MS);
+            this.contextBack = false;
+            this.waitForContext();
             break;
           case 'context-restored':
             this.lost.set(false);
@@ -543,6 +570,13 @@ export class InstrumentStage {
         this.fullscreen.set(document.fullscreenElement === this.frameRef()?.nativeElement);
       document.addEventListener('fullscreenchange', onFullscreen);
       destroyRef.onDestroy(() => document.removeEventListener('fullscreenchange', onFullscreen));
+      // El plazo del contexto perdido solo corre con la página a la vista (revisión, #4).
+      const onVisibility = () => {
+        if (document.visibilityState === 'hidden') clearTimeout(this.contextTimer);
+        else if (this.lost() && !this.contextBack) this.waitForContext();
+      };
+      document.addEventListener('visibilitychange', onVisibility);
+      destroyRef.onDestroy(() => document.removeEventListener('visibilitychange', onVisibility));
     });
     // La pose pasa al motor (sistema externo) cada vez que cambia algo que se ve.
     effect(() => {
@@ -574,6 +608,7 @@ export class InstrumentStage {
       const engine = this.engine();
       if (!request || !engine || request.serial === this.spotlightSerial) return;
       this.spotlightSerial = request.serial;
+      this.spotlight.attend(request.serial);
       untracked(() => {
         this.setCamera(
           request.shot ? { kind: 'shot', shot: request.shot } : { kind: 'control', id: request.id },
@@ -744,6 +779,23 @@ export class InstrumentStage {
     const orbit = this.orbitSurface()?.nativeElement;
     if (orbit) orbit.focus();
     else this.toolbar()?.focusCurrent();
+  }
+
+  /**
+   * Con el contexto perdido, el plato HTML si no vuelve en `CONTEXT_WAIT_MS` **a la vista**: el móvil
+   * quita el contexto a una pestaña oculta (sobre todo Safari en iOS) y lo devuelve al volver, así que
+   * con la pestaña oculta el plazo no corre, y al volver empieza de nuevo (revisión de la fase 8, #4).
+   */
+  private waitForContext(): void {
+    clearTimeout(this.contextTimer);
+    if (document.visibilityState === 'hidden') return;
+    this.contextTimer = setTimeout(() => this.failed.emit('context'), CONTEXT_WAIT_MS);
+  }
+
+  /** El navegador devuelve el contexto: el plazo se para ya, aunque el motor tarde en rehacerse. */
+  protected onContextBack(): void {
+    this.contextBack = true;
+    clearTimeout(this.contextTimer);
   }
 
   protected toggleFullscreen(): void {

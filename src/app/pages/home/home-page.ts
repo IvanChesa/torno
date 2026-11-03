@@ -42,8 +42,9 @@ import { HOME_CONTENT } from './home.content';
  * la página (mover el ratón, tocar, desplazar o una tecla) o cuando la página lleva unos segundos
  * quieta, nunca en plena carga (PLAN fase 8: su llegada bloquea el hilo principal y la carga tiene
  * que responder). Mientras, su póster, un render del propio aparato, con el sitio del espejo de la
- * pantalla y de la barra (sin mover nada al llegar). Con `?sin3d=1`, o si el navegador no tiene
- * WebGL, el plato HTML en su lugar, sin esperar. Nunca están los dos.
+ * pantalla y de la barra (sin mover nada al llegar). Con `?sin3d=1`, el plato HTML en su lugar, en
+ * reposo; si el navegador no tiene WebGL o el contexto se pierde y no vuelve, el plato también,
+ * cuando el 3D falla (con su aviso). Nunca están los dos.
  *
  * El escenario que lo rodea lleva `data-audio-unlock` (el desbloqueo nativo actúa en el gesto real
  * aunque la página no esté hidratada), y también «Tocar», que lleva al instrumento y le pasa el foco
@@ -250,6 +251,22 @@ import { HOME_CONTENT } from './home.content';
     }
 
     /*
+     * La caja del instrumento es un contenedor: si su columna no da para la barra del 3D en una fila
+     * (657 px; entre 1024 y unos 1100 px de ancho, o con zum), la barra va en tres filas, como en el
+     * móvil, y el marcador reserva lo mismo (revisión de la fase 8, #1).
+     */
+    .stage {
+      container: instrumento / inline-size;
+    }
+
+    @container instrumento (max-width: 43.99rem) {
+      trn-stage-placeholder,
+      trn-instrument-stage {
+        --stage-toolbar-height: calc(3 * var(--target-min) + 2 * var(--space-1));
+      }
+    }
+
+    /*
      * La reserva del sitio del instrumento: solo cuando en .stage no hay ni marcador ni instrumento
      * (el tic entre el marcador del @defer de fuera y el de dentro).
      */
@@ -288,7 +305,7 @@ export class HomePage {
   protected readonly diagnostics = signal(false);
   /** `?sin3d=1`: sin el escenario 3D (ni su póster). Solo se sabe en el navegador. */
   protected readonly htmlOnly = signal(false);
-  /** El 3D no ha podido arrancar (sin WebGL): el plato HTML en su lugar. */
+  /** El 3D no puede seguir (sin WebGL o con el contexto perdido): el plato HTML en su lugar. */
   protected readonly noWebgl = computed(() => this.fallback() !== null);
   /** Por qué no está el 3D (sin WebGL, o el contexto perdido sin volver), o `null`. */
   protected readonly fallback = signal<StageFailure | null>(null);
@@ -343,11 +360,16 @@ export class HomePage {
    * del 3D, pasa al mismo control del plato (cuando llegue), para no perderse en la página.
    */
   protected fail(reason: StageFailure): void {
-    const focused = this.document.activeElement?.closest?.('.stage [data-control]');
-    const control = focused?.getAttribute('data-control') as ControlId | null | undefined;
+    const focused = this.document.activeElement;
+    const inStage = focused?.closest?.('.stage');
+    // El mismo control y, si el foco estaba en otra cosa del 3D (su barra), el principal.
+    const control = inStage
+      ? ((focused?.closest?.('[data-control]')?.getAttribute('data-control') as ControlId | null) ??
+        'main')
+      : null;
     this.fallback.set(reason);
     if (control) this.spotlight.show(control, null);
-    else this.spotlight.clear();
+    else this.spotlight.clearAttended();
   }
 
   /**
