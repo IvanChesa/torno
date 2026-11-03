@@ -192,6 +192,26 @@ async function filesIn(dir) {
 const exists = async (file) => (await stat(file).catch(() => null)) !== null;
 
 /**
+ * La precarga de las fuentes en el `<head>` de una página (`DISENO.md` §3, fase 8). La hoja de
+ * estilos llega sin bloquear (Angular la carga como `media="print"`) y las fuentes, que solo se
+ * descubren con ella, llegaban después del primer pintado: el texto de la portada cambiaba de
+ * líneas al llegar Fraunces y movía el instrumento (CLS de 0,098 en el CI, con DejaVu de reserva).
+ * Antes del primer `<link>`; si ya está, no la repite.
+ * @param {string} html
+ * @param {string[]} fonts las fuentes del build (`media/….woff2`)
+ */
+export function addFontPreloads(html, fonts) {
+  const missing = fonts.filter((font) => !html.includes(`<link rel="preload" href="${font}"`));
+  if (missing.length === 0) return html;
+  const links = missing
+    .map((font) => `<link rel="preload" href="${font}" as="font" type="font/woff2" crossorigin>`)
+    .join('');
+  const at = html.indexOf('<link');
+  if (at < 0) return html.replace('</head>', `${links}</head>`);
+  return html.slice(0, at) + links + html.slice(at);
+}
+
+/**
  * Pasa cada `ruta/index.html` a `ruta.html` y quita `index.csr.html`. Devuelve las rutas movidas.
  * @param {string} root
  */
@@ -227,9 +247,12 @@ export async function processBuild({ root = ROOT, template } = {}) {
     problems.push('Falta 404.html (la ruta /404 prerenderizada): Pages respondería 200 a todo');
   }
   const pages = files.filter((file) => file.endsWith('.html'));
+  const fonts = files.filter((file) => /^media\/[^/]+\.woff2$/.test(file));
   const hashes = new Set();
   for (const page of pages) {
-    const html = await readFile(path.join(root, page), 'utf8');
+    const original = await readFile(path.join(root, page), 'utf8');
+    const html = addFontPreloads(original, fonts);
+    if (html !== original) await writeFile(path.join(root, page), html);
     for (const code of inlineScripts(html)) hashes.add(scriptHash(code));
     for (const handler of inlineHandlers(html))
       problems.push(`${page}: «${handler}» (la CSP lo bloquearía)`);
@@ -249,14 +272,20 @@ export async function processBuild({ root = ROOT, template } = {}) {
     throw new Error(`El build no vale para Pages:\n  ${problems.join('\n  ')}`);
   }
   await writeFile(path.join(root, '_headers'), headers);
-  return { moved, pages: pages.length, hashes: hashes.size, files: files.length };
+  return {
+    moved,
+    pages: pages.length,
+    hashes: hashes.size,
+    files: files.length,
+    fonts: fonts.length,
+  };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   try {
-    const { moved, pages, hashes, files } = await processBuild();
+    const { moved, pages, hashes, files, fonts } = await processBuild();
     console.log(
-      `✔ Pages: ${moved.length === 0 ? 'rutas ya preparadas' : `${moved.join(', ')} como ruta.html`}; CSP con ${hashes} hash${hashes === 1 ? '' : 'es'} de scripts en línea (${pages} páginas); caché comprobada en ${files} archivos`,
+      `✔ Pages: ${moved.length === 0 ? 'rutas ya preparadas' : `${moved.join(', ')} como ruta.html`}; CSP con ${hashes} hash${hashes === 1 ? '' : 'es'} de scripts en línea (${pages} páginas); ${fonts} fuentes precargadas; caché comprobada en ${files} archivos`,
     );
   } catch (error) {
     console.error(`✖ ${error instanceof Error ? error.message : String(error)}`);
