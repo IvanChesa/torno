@@ -4,13 +4,17 @@ import { InstrumentTools } from '../instrument-common/instrument-tools';
 import { INSTRUMENT_STAGE_CONTENT } from './instrument-stage.content';
 
 /**
- * La barra del escenario 3D (PLAN fase 6):
- * - los encuadres de «Tocar» (completo, capas y controles) e «Inspeccionar»;
- * - la pantalla completa (si el navegador la tiene: en el iPhone no);
- * - «Pausar movimiento» y la chuleta de atajos (`InstrumentTools`, como en el plato HTML).
+ * La barra del escenario 3D (PLAN fases 6 y 8; revisión del bloque D, #4), en tres grupos:
+ * - los encuadres de «Tocar» (completo, capas y controles), como un control segmentado;
+ * - las otras dos maneras de mirar el aparato, «Inspeccionar» y «Despiezar», en otro (las cinco se
+ *   excluyen: la cámara solo hace una cosa a la vez);
+ * - la pantalla completa (si el navegador la tiene: en el iPhone no), «Pausar movimiento» y la
+ *   chuleta de atajos (`InstrumentTools`, como en el plato HTML), como botones de icono con su
+ *   nombre dentro (para los lectores de pantalla) y en el `title`.
  *
- * Son botones con `aria-pressed`. Llevan `data-sin-atajos`: dentro del instrumento, Espacio e
- * Intro los pulsan a ellos y no reproducen.
+ * En el escritorio cabe en una fila; en el móvil, una por grupo. Son botones con `aria-pressed` y el
+ * teclado de siempre (el tabulador recorre cada botón). Llevan `data-sin-atajos`: dentro del
+ * instrumento, Espacio e Intro los pulsan a ellos y no reproducen.
  */
 @Component({
   selector: 'trn-stage-toolbar',
@@ -18,60 +22,61 @@ import { INSTRUMENT_STAGE_CONTENT } from './instrument-stage.content';
   host: { 'data-sin-atajos': '' },
   template: `
     <div class="bar">
-      <div class="row">
-        <div class="group" role="group" [attr.aria-label]="text.play">
-          @for (item of shots; track item) {
-            <button
-              type="button"
-              class="toggle"
-              [attr.aria-pressed]="isShot(item)"
-              (click)="shotChange.emit(item)"
-            >
-              {{ text.shots[item] }}
-            </button>
-          }
-        </div>
-        <div class="views">
+      <div class="segmented" role="group" [attr.aria-label]="text.play">
+        @for (item of shots; track item) {
           <button
             type="button"
-            class="toggle"
-            [attr.aria-pressed]="camera().kind === 'orbit'"
-            (click)="inspect.emit()"
+            class="segment"
+            [attr.aria-pressed]="isShot(item)"
+            (click)="shotChange.emit(item)"
           >
-            {{ text.inspect }}
+            {{ text.shots[item] }}
           </button>
-          <button
-            #explodeButton
-            type="button"
-            class="toggle"
-            [attr.aria-pressed]="camera().kind === 'exploded'"
-            (click)="explode.emit()"
-          >
-            {{ text.explode }}
-          </button>
-        </div>
+        }
       </div>
-      <div class="row">
+      <div class="segmented" role="group" [attr.aria-label]="text.look">
+        <button
+          type="button"
+          class="segment"
+          [attr.aria-pressed]="camera().kind === 'orbit'"
+          (click)="inspect.emit()"
+        >
+          {{ text.inspect }}
+        </button>
+        <button
+          #explodeButton
+          type="button"
+          class="segment"
+          [attr.aria-pressed]="camera().kind === 'exploded'"
+          (click)="explode.emit()"
+        >
+          {{ text.explode }}
+        </button>
+      </div>
+      <div class="tools" role="group" [attr.aria-label]="text.tools">
         @if (fullscreenAvailable()) {
           <button
             type="button"
-            class="toggle"
+            class="toggle toggle--icon"
             [attr.aria-pressed]="fullscreen()"
+            [attr.title]="text.fullscreen"
             (click)="fullscreenChange.emit()"
           >
-            {{ text.fullscreen }}
+            <!-- Las cuatro esquinas de la pantalla. -->
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M3 7.5V3h4.5M12.5 3H17v4.5M17 12.5V17h-4.5M7.5 17H3v-4.5" />
+            </svg>
+            <span class="visually-hidden">{{ text.fullscreen }}</span>
           </button>
         }
-        <div class="tools"><trn-instrument-tools /></div>
+        <trn-instrument-tools [icons]="true" />
       </div>
     </div>
   `,
   styles: `
     /*
-     * Filas fijas (revisión de la fase 7, #4): en el escritorio, dos (los encuadres y las vistas; lo
-     * demás); en el móvil, cuatro (los encuadres; las vistas; la pantalla completa; lo común). Así el
-     * marcador de la portada (StagePlaceholder) reserva lo mismo y nada salta al llegar el 3D. El alto
-     * mínimo lo garantiza también sin la pantalla completa (en el iPhone no hay).
+     * Filas fijas: una en el escritorio y tres en el móvil (una por grupo), lo que reserva el
+     * marcador de la portada (StagePlaceholder, --stage-toolbar-height): nada salta al llegar el 3D.
      */
     :host {
       display: grid;
@@ -80,43 +85,83 @@ import { INSTRUMENT_STAGE_CONTENT } from './instrument-stage.content';
     }
 
     .bar {
-      display: grid;
-      justify-items: center;
-      gap: var(--space-2);
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-3);
     }
 
-    .row,
-    .group,
-    .views,
+    /* Un control segmentado: los botones juntos, en una sola pastilla con su borde. */
+    .segmented {
+      display: inline-flex;
+      border: 1px solid var(--color-ink-faint);
+      border-radius: var(--radius-s);
+    }
+
+    .segment {
+      min-block-size: calc(var(--target-min) - 2px);
+      padding-inline: var(--space-3);
+      border: 0;
+      border-inline-start: 1px solid var(--color-ink-faint);
+      background: transparent;
+      color: var(--color-ink);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .segment:first-child {
+      border-inline-start: 0;
+      border-start-start-radius: calc(var(--radius-s) - 1px);
+      border-end-start-radius: calc(var(--radius-s) - 1px);
+    }
+
+    .segment:last-child {
+      border-start-end-radius: calc(var(--radius-s) - 1px);
+      border-end-end-radius: calc(var(--radius-s) - 1px);
+    }
+
+    .segment[aria-pressed='true'] {
+      background: var(--color-ink);
+      color: var(--color-bg);
+    }
+
+    .segment:hover:not([aria-pressed='true']) {
+      background: var(--color-surface);
+    }
+
+    .segment:focus-visible {
+      position: relative;
+      z-index: 1;
+    }
+
     .tools {
       display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
       gap: var(--space-2);
     }
 
-    .group {
-      padding-inline-end: var(--space-2);
-      border-inline-end: 1px solid var(--color-ink-faint);
-    }
-
-    /* En el móvil, más apretada y una cosa por fila. */
-    @media (max-width: 47.99rem) {
-      .bar,
-      .row,
-      .views,
-      .tools {
+    /* En el móvil, un grupo por fila; en horizontal, también (al lado de la caja, alineados). */
+    @media (max-width: 47.99rem), (orientation: landscape) and (max-height: 32rem) {
+      .bar {
+        flex-direction: column;
         gap: var(--space-1);
       }
+    }
 
-      .row {
-        flex-direction: column;
-        align-items: center;
+    @media (orientation: landscape) and (max-height: 32rem) {
+      .bar {
+        align-items: start;
       }
+    }
 
-      .group {
-        padding-inline-end: 0;
-        border-inline-end: 0;
+    @media (max-width: 47.99rem) {
+      .segment {
+        padding-inline: var(--space-2);
+        font-size: 0.75rem;
+        letter-spacing: 0;
       }
     }
   `,
@@ -142,7 +187,7 @@ export class StageToolbar {
 
   /** El foco, al botón del encuadre que está puesto (cuando el control enfocado deja de verse). */
   focusCurrent(): void {
-    this.host.nativeElement.querySelector<HTMLElement>('.group [aria-pressed="true"]')?.focus();
+    this.host.nativeElement.querySelector<HTMLElement>('.segmented [aria-pressed="true"]')?.focus();
   }
 
   protected isShot(shot: Shot): boolean {

@@ -8,6 +8,9 @@ export const INSTRUMENT_STAGE_CONTENT = {
     'El 3D se ha detenido. Si no vuelve en unos segundos, sigues con el instrumento sin él.',
   play: 'Tocar',
   shots: { completo: 'Completo', capas: 'Capas', controles: 'Controles' },
+  /** Los grupos de la barra (fase 8): sus nombres para los lectores de pantalla. */
+  look: 'Mirar el aparato',
+  tools: 'Opciones',
   inspect: 'Inspeccionar',
   /** La vista despiezada (fase 7): las piezas suben por niveles; los controles no se tocan. */
   explode: 'Despiezar',

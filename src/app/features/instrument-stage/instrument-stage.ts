@@ -310,6 +310,46 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
       font-size: var(--text-s);
     }
 
+    /*
+     * El móvil en horizontal (poco alto, fase 8): la caja a la izquierda, tan alta como la pantalla,
+     * y a su derecha el espejo y la barra. Si no, la caja se quedaba en 228 × 182 px (844 × 390) con
+     * el espejo encima del aparato. El marcador (StagePlaceholder) hace lo mismo.
+     */
+    @media (orientation: landscape) and (max-height: 32rem) {
+      .frame {
+        /* En vw: el 100 % de la columna dependería de sí mismo. */
+        --stage-width: min(
+          100vw - 2 * var(--page-margin) - var(--stage-side-width) - var(--space-5),
+          (100svh - 2 * var(--space-4)) * 1.25
+        );
+        grid-template-columns: var(--stage-width) minmax(0, 1fr);
+        grid-template-rows: auto 1fr;
+        justify-items: start;
+        align-items: start;
+        column-gap: var(--space-5);
+      }
+
+      .stage3d {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        inline-size: 100%;
+        margin-inline: 0;
+        aspect-ratio: 5 / 4;
+      }
+
+      .mirror {
+        position: static;
+        grid-column: 2;
+        inline-size: 100%;
+        pointer-events: auto;
+      }
+
+      trn-stage-toolbar {
+        grid-column: 2;
+        justify-items: start;
+      }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .stage3d__poster,
       canvas {

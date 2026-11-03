@@ -42,7 +42,9 @@
   --instrument-plate: #864230;
 
   /* --- Tipografía --- */
-  --font-text: 'Fraunces Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-text:
+    'Fraunces Variable', 'Iowan Old Style', 'Fraunces reserva Palatino', 'Fraunces reserva Georgia',
+    'Fraunces reserva DejaVu', 'Fraunces reserva Liberation', serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
   /* Escala fluida (360 → 1440 px). Cinco tamaños a la vista como mucho en una pantalla. */
   --text-xs: 0.8125rem;
@@ -101,8 +103,10 @@
   --instrument-mirror-height: 7.25rem;
   /* En el escritorio, el espejo es una lectura en la esquina de la caja del 3D (fase 7). */
   --instrument-reading-width: 15rem;
-  /* La barra del 3D: dos filas de botones en el escritorio y cuatro en el móvil (fase 7). */
-  --stage-toolbar-height: calc(2 * var(--target-min) + var(--space-2));
+  /* La barra del 3D: una fila de botones en el escritorio y tres en el móvil (fase 8). */
+  --stage-toolbar-height: var(--target-min);
+  /* En el móvil en horizontal, la columna del espejo y la barra, al lado de la caja (fase 8). */
+  --stage-side-width: 18rem;
 
   /* --- Movimiento (todo se anula con prefers-reduced-motion y en ?captura=1) --- */
   --duration-fast: 120ms;
@@ -110,8 +114,8 @@
   --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-@media (max-width: 47.99rem) {
+@media (max-width: 47.99rem), (orientation: landscape) and (max-height: 32rem) {
   :root {
-    --stage-toolbar-height: calc(4 * var(--target-min) + 3 * var(--space-1));
+    --stage-toolbar-height: calc(3 * var(--target-min) + 2 * var(--space-1));
   }
 }

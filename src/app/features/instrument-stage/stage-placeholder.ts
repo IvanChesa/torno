@@ -104,6 +104,44 @@ import { STAGE_POSTER } from './stage-poster';
       min-block-size: var(--target-min);
     }
 
+    /* El móvil en horizontal: como el escenario (InstrumentStage), la caja a la izquierda. */
+    @media (orientation: landscape) and (max-height: 32rem) {
+      :host {
+        /* En vw: el 100 % de la columna dependería de sí mismo. */
+        --stage-width: min(
+          100vw - 2 * var(--page-margin) - var(--stage-side-width) - var(--space-5),
+          (100svh - 2 * var(--space-4)) * 1.25
+        );
+        grid-template-columns: var(--stage-width) minmax(0, 1fr);
+        grid-template-rows: auto 1fr auto;
+        justify-items: start;
+        align-items: start;
+        column-gap: var(--space-5);
+      }
+
+      .box {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        inline-size: 100%;
+        margin-inline: 0;
+        aspect-ratio: 5 / 4;
+      }
+
+      .mirror {
+        position: static;
+        grid-column: 2;
+        inline-size: 100%;
+      }
+
+      .bar {
+        grid-column: 2;
+      }
+
+      .autosave {
+        grid-column: 1 / -1;
+      }
+    }
+
     img {
       inline-size: 100%;
       block-size: 100%;
