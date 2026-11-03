@@ -7,8 +7,11 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { headersFor, parseHeaders } from './pages-headers.mjs';
 import {
+  addFontFaces,
+  addPosterPreload,
   applyScriptHashes,
   cacheProblem,
+  fallbackFontFaces,
   HEADERS_LIMITS,
   headersLimitProblems,
   inlineHandlers,
@@ -309,6 +312,7 @@ describe('el paso tras el build', () => {
       pages: 3,
       hashes: 2,
       files: 5,
+      fontFaces: 0,
     });
     expect(await list(root)).toEqual([
       '404.html',
@@ -347,6 +351,42 @@ describe('el paso tras el build', () => {
     await expect(processBuild({ root, template: SOURCE })).rejects.toThrow(
       /Ya existe sobre-el-proyecto\.html/,
     );
+  });
+
+  it('las @font-face de las reservas (solo local()), en el <head> de cada página y una vez', async () => {
+    const css =
+      '@font-face{font-family:A;src:url("./media/a.woff2") format("woff2")}' +
+      '@font-face{font-family:B;src:local("DejaVu Serif");size-adjust:89%}body{margin:0}';
+    expect(fallbackFontFaces(css)).toEqual([
+      '@font-face{font-family:B;src:local("DejaVu Serif");size-adjust:89%}',
+    ]);
+    const root = await build({
+      ...ANGULAR,
+      'index.html': '<head><title>T</title><style>body{margin:0}</style></head>',
+      'styles-ABCDEFGH.css': css,
+    });
+    expect(await processBuild({ root, template: SOURCE })).toMatchObject({ fontFaces: 1 });
+    const html = await readFile(path.join(root, 'index.html'), 'utf8');
+    expect(html).toBe(
+      '<head><title>T</title><style data-fuentes>@font-face{font-family:B;src:local("DejaVu Serif");size-adjust:89%}</style><style>body{margin:0}</style></head>',
+    );
+    // Otra vez, sin repetirlas.
+    await processBuild({ root, template: SOURCE });
+    expect(await readFile(path.join(root, 'index.html'), 'utf8')).toBe(html);
+    expect(addFontFaces('<head></head>', [])).toBe('<head></head>');
+  });
+
+  it('precarga el póster del <picture> con fetchpriority="high", cada imagen con su media', () => {
+    const page =
+      '<head><link rel="icon" href="favicon.svg"></head><body><picture><source media="(max-width: 47.99rem)" srcset="/img/movil.webp" width="800"><img fetchpriority="high" src="/img/escenario.webp"></picture></body>';
+    const html = addPosterPreload(page);
+    expect(html).toContain(
+      '<link rel="preload" as="image" href="/img/movil.webp" media="(max-width: 47.99rem)" fetchpriority="high"><link rel="preload" as="image" href="/img/escenario.webp" media="not all and (max-width: 47.99rem)" fetchpriority="high"><link rel="icon"',
+    );
+    expect(addPosterPreload(html)).toBe(html);
+    // Sin un <picture> con prioridad alta, nada.
+    const other = '<head></head><picture><img src="/img/a.webp"></picture>';
+    expect(addPosterPreload(other)).toBe(other);
   });
 
   it('falla si no hay build', async () => {
