@@ -1,7 +1,9 @@
-import { afterNextRender, Component, inject, signal } from '@angular/core';
+import { afterNextRender, Component, DestroyRef, inject, signal } from '@angular/core';
 import { noteInstrumentTap, preloadAudioEngine } from '../../audio/engine';
+import { isCaptureMode } from '../../core/capture-mode';
 import { isDiagnosticsMode } from '../../core/diagnostics-mode';
 import { isHtmlOnlyMode } from '../../core/html-only-mode';
+import { onPresenceOrQuiet } from '../../core/page-presence';
 import { DiagnosticsPanel } from '../../features/diagnostics/diagnostics-panel';
 import { HtmlInstrument } from '../../features/html-instrument/html-instrument';
 import { InstrumentStage } from '../../features/instrument-stage/instrument-stage';
@@ -22,10 +24,12 @@ import { HOME_CONTENT } from './home.content';
  * es», la guía de los 9 controles, los materiales con la vista despiezada, la anatomía de un bucle,
  * la ficha técnica, las preguntas frecuentes y el cierre.
  *
- * El instrumento es el aparato en 3D (PLAN §4.6 y fase 6), en `@defer`, al acercarse o en reposo:
- * mientras, su póster con el sitio del espejo de la pantalla y de la barra (sin mover nada al
- * llegar). Con `?sin3d=1`, o si el navegador no tiene WebGL, el plato HTML en su lugar. Nunca están
- * los dos.
+ * El instrumento es el aparato en 3D (PLAN §4.6 y fase 6), en `@defer`: llega con el primer gesto en
+ * la página (mover el ratón, tocar, desplazar o una tecla) o cuando la página lleva unos segundos
+ * quieta, nunca en plena carga (PLAN fase 8: su llegada bloquea el hilo principal y la carga tiene
+ * que responder). Mientras, su póster, un render del propio aparato, con el sitio del espejo de la
+ * pantalla y de la barra (sin mover nada al llegar). Con `?sin3d=1`, o si el navegador no tiene
+ * WebGL, el plato HTML en su lugar, sin esperar. Nunca están los dos.
  *
  * El escenario que lo rodea lleva `data-audio-unlock` (el desbloqueo nativo actúa en el gesto real
  * aunque la página no esté hidratada), y también «Tocar», que lleva al instrumento y le pasa el foco
@@ -83,7 +87,7 @@ import { HOME_CONTENT } from './home.content';
             Angular repite después) sigue encontrando su sitio en la página. Dentro, un @defer para
             cada uno: solo se descarga el trozo del que se usa.
           -->
-          @defer (on viewport; on idle; on interaction) {
+          @defer (on interaction; when stageWanted()) {
             @if (htmlOnly() || noWebgl()) {
               @defer (on immediate) {
                 <trn-html-instrument />
@@ -249,11 +253,20 @@ export class HomePage {
   protected readonly htmlOnly = signal(false);
   /** El 3D no ha podido arrancar (sin WebGL): el plato HTML en su lugar. */
   protected readonly noWebgl = signal(false);
+  /** Ya se puede pedir el instrumento: alguien se ha acercado o la página está quieta. */
+  protected readonly stageWanted = signal(false);
 
   constructor() {
+    const destroyRef = inject(DestroyRef);
     afterNextRender(() => {
       this.diagnostics.set(isDiagnosticsMode(location.search));
       this.htmlOnly.set(isHtmlOnlyMode(location.search));
+      // El plato HTML es ligero, y las capturas no esperan a nadie.
+      if (this.htmlOnly() || isCaptureMode(location.search)) {
+        this.stageWanted.set(true);
+        return;
+      }
+      destroyRef.onDestroy(onPresenceOrQuiet(window, () => this.stageWanted.set(true)));
     });
   }
 
