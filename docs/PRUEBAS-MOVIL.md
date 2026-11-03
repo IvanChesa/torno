@@ -1,6 +1,6 @@
 # Pruebas en el móvil (fases 4.b y 8)
 
-Lista para probar Torno en un Android y en un iPhone en la vista previa de Cloudflare Pages (el staging). La usó Iván en la fase 4 (el audio) y vuelve a servir en la fase 8, la última del bloque E, **con el 3D, la web y el lector de pantalla** (pruebas 15 a 24). Es el criterio de aceptación «Iván da el visto bueno en su móvil y en un iPhone» (PLAN, fase 8).
+Lista para probar Torno en un Android y en un iPhone en la vista previa de Cloudflare Pages (el staging). La usó Iván en la fase 4 (el audio) y vuelve a servir en la fase 8, la última del bloque E, **con el 3D, la web y el lector de pantalla** (pruebas 15 a 26). Es el criterio de aceptación «Iván da el visto bueno en su móvil y en un iPhone» (PLAN, fase 8).
 
 ## Resultado
 
@@ -61,6 +61,8 @@ Marca ✅ o ❌ y apunta las cifras y lo raro que veas u oigas.
 | 22 | **La web** (fase 7) | Recorre la portada entera y `/sobre-el-proyecto`: «Despiezar el instrumento», «Escuchar» en la anatomía, las preguntas y compartir (el menú del sistema). ¿Algo se ve mal, se corta o salta al cargar? | sin dato | sin dato |
 | 23 | **Lector de pantalla** (fase 8) | Activa **TalkBack** (Android: Ajustes → Accesibilidad) o **VoiceOver** (iPhone: Ajustes → Accesibilidad, o tres pulsaciones en el botón lateral si lo tienes configurado). Recorre la portada deslizando el dedo: el titular, «Tocar», la guía y el instrumento. En el instrumento, cada control dice su nombre y su valor («Capa 1, 100 %…»), y con dos toques se pulsa. Reproduce: ¿lo anuncia? Gira un dial (en VoiceOver, deslizar arriba o abajo con un dedo; en TalkBack, con los botones de volumen o el menú): ¿cambia su valor en voz? Apunta lo que no se entienda. | sin dato | sin dato |
 | 24 | **Texto grande** (fase 8) | Sube el tamaño del texto del sistema (o haz zum en la página con dos dedos hasta el doble). ¿Se sigue leyendo todo sin que se salga ni se monte? | sin dato | sin dato |
+| 25 | **Cambiar de app con el 3D a la vista** (fase 8) | Con el aparato en 3D a la vista (sin sonar), cambia a otra app 30 s y vuelve. Tiene que seguir el 3D (o volver en un momento). Si sale «El 3D se ha detenido y no ha vuelto» y el instrumento sin 3D, apúntalo: el móvil quitó el contexto y no lo devolvió. | sin dato | sin dato |
+| 26 | **Narrador en el PC** (fase 8; Windows: Ctrl + Win + Intro) | En el ordenador, con Narrador encendido y Chrome o Edge, recorre la portada con el tabulador: el titular, «Tocar» y el instrumento. Activa «Tocar» (Intro o Espacio): el foco tiene que llegar a REPRODUCIR enseguida, y cada control dice su nombre y su valor. Prueba también un «Ver en el instrumento» de la guía. Apunta lo que no se entienda o tarde. | sin dato (PC) | — |
 
 ## Lo que no ha ido bien
 

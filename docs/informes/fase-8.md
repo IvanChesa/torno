@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-8-pulido`
 - **Fecha:** 2026-11-01 a 2026-11-03
-- **Estado:** listo para revisión (falta lo del móvil de Iván, que es lo último del bloque)
+- **Estado:** revisada y corregida; lista para fusionar (falta lo del móvil de Iván, que es lo último del bloque)
 
 ## 0. Plan de la fase
 
@@ -54,7 +54,7 @@
 **Aprobación (03-11).** La sesión de plan aprueba el plan de la 8.a tal cual, con la **propuesta 2b** (Iván: «Continúa»): el 3D con el primer gesto, al acercarse o con la página quieta, y el póster hasta entonces. Si con la 2b no llega a 90, la 2c en la misma fase; la 2d (< 90), no sin preguntar. Iván puede deshacer la 2b: va en un solo disparador y está en `PENDIENTES.md` para que lo confirme en su móvil.
 
 ## 1. Resumen
-La portada pasa Lighthouse en el móvil (en el CI: `/` 99 de mediana, `/sobre-el-proyecto` 100; LCP 1,8 s y CLS 0,001), porque el 3D ya no llega en plena carga sino con el primer gesto o con la página quieta (la 2b), y porque se han quitado los saltos que salían al medirlo: el marcador reserva todo lo del escenario, el tic entre los dos `@defer` y la fuente de reserva sin ajustar hasta que llegaba la hoja de estilos. El CI lleva Lighthouse (`@lhci/cli`), la regresión visual (14 capturas con referencias de Linux) y el peso de la primera visita (≤ 650 kB, en `check-bundles` y en un e2e). Lo pendiente de las revisiones: «Ver en el instrumento» funciona en plena hidratación, el foco va al `h1` al cambiar de página, las zonas táctiles no se pisan a 320 px, la barra del 3D cabe en una fila y el móvil en horizontal tiene su disposición. Con el contexto perdido, el plato HTML. La tabla de todos los presupuestos de §5, medida (§6); lo del móvil, con Iván.
+La portada pasa Lighthouse en el móvil (en el CI: `/` 99 de mediana, `/sobre-el-proyecto` 100; LCP 1,8 s y CLS 0,001), porque el 3D ya no llega en plena carga sino con el primer gesto o con la página quieta (la 2b), y porque se han quitado los saltos que salían al medirlo: el marcador reserva todo lo del escenario, el tic entre los dos `@defer` y la fuente de reserva sin ajustar hasta que llegaba la hoja de estilos. El CI lleva Lighthouse (`@lhci/cli`), la regresión visual (14 capturas con referencias de Linux) y el peso de la primera visita (≤ 650 kB, en `check-bundles` y en un e2e). Lo pendiente de las revisiones: «Ver en el instrumento» funciona en plena hidratación, el foco va al `h1` al cambiar de página, las zonas táctiles no se pisan a 320 px, la barra del 3D cabe en una fila y el móvil en horizontal tiene su disposición. Con el contexto perdido, el plato HTML. La tabla de todos los presupuestos de §5, medida (§6); lo del móvil, con Iván. La revisión (5 Importantes, 6 Menores y 1 Sugerencia, sin Bloqueantes) está corregida entera (§12): la barra en tres filas cuando su caja no da para una, el clic de un lector de pantalla como gesto, el ancla de otra página, el plazo del contexto solo a la vista y la pantalla completa del móvil, entre otros.
 
 ### Progreso por entregas
 - **8.a (hecha).**
@@ -79,7 +79,7 @@ La portada pasa Lighthouse en el móvil (en el CI: `/` 99 de mediana, `/sobre-el
 |---|---|---|
 | Tabla con **todos** los presupuestos de §5 medidos y cumplidos | ✅ (salvo lo del móvil, ⏳) | La tabla de §6, con el comando de cada cifra. Todo lo que se mide en el PC y en el CI cumple, con una salvedad: la primera reproducción en frío da 205–225 ms en el escritorio (§5 pide precargar ALFAR si pasa de 150 ms en el móvil, y la precarga ya está; el reparto, en §6). Quedan para las pruebas de Iván en su móvil los FPS en un móvil de gama media, los 5 min sin cortes, la latencia calibrada y la primera reproducción en frío en el móvil (pruebas 1, 5, 7, 10 y 15 de `PRUEBAS-MOVIL.md`). |
 | axe sin violaciones graves; e2e y regresión visual en verde en el CI | ✅ | axe: 0 violaciones (de ninguna gravedad) en las tres rutas, en el móvil, con la chuleta, en las vistas del 3D y en el plato HTML (`e2e/static`, `a11y`, `stage` e `instrument.spec.ts`). e2e y regresión visual: el CI de la rama (§6). |
-| Iván da el visto bueno en su móvil y en un iPhone | ⏳ | La lista, ampliada con el 3D, la web y el lector de pantalla (pruebas 15 a 24), en `docs/PRUEBAS-MOVIL.md`. Es lo último del bloque: si no llega antes del cierre, el bloque para con todo lo demás hecho y fusionado (`DIARIO.md`). |
+| Iván da el visto bueno en su móvil y en un iPhone | ⏳ | La lista, ampliada con el 3D, la web y el lector de pantalla (pruebas 15 a 26), en `docs/PRUEBAS-MOVIL.md`. Es lo último del bloque: si no llega antes del cierre, el bloque para con todo lo demás hecho y fusionado (`DIARIO.md`). |
 
 ## 3. Tareas del plan
 | Tarea | Estado | Notas |
@@ -102,7 +102,7 @@ La portada pasa Lighthouse en el móvil (en el CI: `/` 99 de mediana, `/sobre-el
 - **La prueba con lector de pantalla** (tarea 3: «prueba manual con NVDA o Narrador»): no puedo oír un lector desde aquí. En su lugar, el árbol de accesibilidad del 3D y del plato revisado con el navegador (nombres, roles, valores y pistas de cada control, grupos con nombre y regiones vivas: todo en español y sin huecos), y la prueba de verdad, con TalkBack y VoiceOver, en la lista del móvil (prueba 23). Una cosa para esa prueba: el valor de una capa dice el nivel («100 %») pero no si es la elegida o está en silencio; lo dicen el piloto y la pantalla. Si a Iván se le hace corto con el lector, se añade.
 - **La revisión de `impeccable` sin su lanzador:** la primera vez descarga un binario y `CLAUDE.md` pide preguntar antes de cualquier descarga. Se ha usado su modo sin lanzador (sus guías de *critique*, *polish* y el *craft floor*, con `DISENO.md`).
 - **La precarga de las fuentes, probada y revertida** (`c500aee` y `251acf3`): no arreglaba el CLS y subía el LCP del CI. El arreglo es otro (§5).
-- **El 3D a los 6 s sin gestos** (el plan decía «unos segundos»): con 3 s, en una de cuatro pasadas el escenario llegaba mientras Lighthouse aún recogía la página.
+- **El 3D a los 6 s sin gestos** (el plan decía «unos segundos»): con 3 s, en una de cuatro pasadas el escenario llegaba mientras Lighthouse aún recogía la página. Tras la revisión, con un tope de 15 s desde la carga y con el clic de un lector de pantalla como gesto.
 - **La parte de la 2c que se ha hecho:** trocear la generación; no el *worker* con `OffscreenCanvas`, que con la 2b no hace falta para el 90 (98–99 en local).
 
 ## 5. Decisiones técnicas nuevas
@@ -112,7 +112,9 @@ La portada pasa Lighthouse en el móvil (en el CI: `/` 99 de mediana, `/sobre-el
 - **La precarga del póster** (`<link rel="preload" as="image">` con la `media` de cada imagen), desde `scripts/pages.mjs`.
 - **«Ver en el instrumento» lo atiende la portada** (`guide-target.ts`): los botones llevan su control y su encuadre en atributos; la guía no entra en el JS inicial.
 - **`separateZones`:** apartar las zonas de 44 px que se pisan sin destapar su pieza, en lugar de encogerlas.
-- **La barra en tres grupos** (dos controles segmentados y botones de icono con su nombre dentro). Alternativa: un menú «Más» con lo demás, que escondía «Pausar movimiento».
+- **La barra en tres grupos** (dos controles segmentados y botones de icono con su nombre dentro y una etiqueta al pasar o con el foco). Alternativa: un menú «Más» con lo demás, que escondía «Pausar movimiento». Con una consulta de contenedor, en tres filas cuando la caja del instrumento no da para una.
+- **`holdAnchor`:** a un ancla de otra página, el foco al destino y la página sujeta en él mientras crece lo de encima.
+- **Las peticiones atendidas** (`InstrumentSpotlight.attend`): al pasar al plato, solo se olvidan las que ya atendió el 3D.
 - **El icono de «Pausar movimiento»:** la pausa dentro de dos flechas de giro (dos barras solas se confundían con la tecla de reproducir).
 - **La regresión visual con las referencias del CI:** si falta una, el grupo «visual» la escribe, la deja en el artefacto «referencias-visuales» y falla hasta que se sube.
 - **Lighthouse con la mediana de tres pasadas** (no la mejor, que es lo que hace `@lhci/cli` si no se dice).
@@ -125,11 +127,11 @@ Medido en la fase 8 (01–03-11) con el build de la rama, en el PC de desarrollo
 
 | Área | Objetivo (§5) | Medido | Cómo | |
 |---|---|---|---|---|
-| JS de la primera visita | aviso > 330 kB · error > 400 kB | `/` 317,0 kB · `/sobre-el-proyecto` 316,0 · `/404` 301,4 | `node scripts/check-bundles.mjs` | ✅ |
-| Chunk 3D (three + escena) | aviso > 800 kB | 657,3 kB | `check-bundles` | ✅ |
+| JS de la primera visita | aviso > 330 kB · error > 400 kB | `/` 318,5 kB · `/sobre-el-proyecto` 316,9 · `/404` 302,3 | `node scripts/check-bundles.mjs` | ✅ |
+| Chunk 3D (three + escena) | aviso > 800 kB | 658,4 kB | `check-bundles` | ✅ |
 | Motor de audio · worklet · workers | ≤ 60 kB cada uno | 25,2 · 41,0 · 17,4 y 41,9 kB | `check-bundles` | ✅ |
 | Fuentes | ≤ 150 kB | 144,1 kB (2 archivos) | `check-bundles` | ✅ |
-| Peso de la primera visita sin el 3D | ≤ 650 kB en bruto | `/` 560,1 kB · `/sobre-el-proyecto` 468,5 · `/404` 440,7 (en el navegador, con lo que llega sin tocar nada); lo que pide el HTML: 562,8 · 494,8 · 466,1 | `e2e/budgets.spec.ts` y `check-bundles` | ✅ |
+| Peso de la primera visita sin el 3D | ≤ 650 kB en bruto | `/` 564,8 kB · `/sobre-el-proyecto` 472,8 · `/404` 445,0 (en el navegador, con lo que llega sin tocar nada); lo que pide el HTML: 565,2 · 496,4 · 467,6 | `e2e/budgets.spec.ts` y `check-bundles` | ✅ |
 | Peso con el 3D | ≤ 1,5 MB | 1374,9 kB | `npm run capturas -- --medir` | ✅ |
 | Arranque del 3D | generación ≤ 150 ms (escritorio); sin tareas > 200 ms | por nivel, en frío: 112,8 · 109,5 · 80,9 ms; la tarea más larga, 58–132 ms. En el móvil emulado (CPU ×4, tras un gesto): la más larga, 104–139 ms | `capturas -- --medir` y `node scripts/measure-web.mjs` | ✅ |
 | VRAM estimada | ≤ 96 MB (alto) · ≤ 48 MB (bajo) | 56,2 · 35,4 · 31,2 MB por nivel | `capturas -- --medir` | ✅ |
@@ -154,18 +156,18 @@ Medido en la fase 8 (01–03-11) con el build de la rama, en el PC de desarrollo
 
 ### Salida de `npm run check`
 ```
-npm run check   (03-11, 563fbbd)
+npm run check   (03-11, con las correcciones de la revisión)
   lint: tipos de cada capa, ESLint y Prettier, sin errores
   test:node: 44 archivos, 569 tests (98,34 % de sentencias y 94,89 % de ramas en el TS puro)
-  test:ng: 13 archivos, 83 tests
-  build: 3 rutas prerenderizadas; Initial total 309,51 kB, sin avisos
+  test:ng: 13 archivos, 89 tests
+  build: 3 rutas prerenderizadas; Initial total 311,02 kB, sin avisos
   Pages: 3 hashes de scripts en la CSP; 4 @font-face (las reservas) en el <head>
   check-bundles:
-    ✔ JS inicial de /                  317,1 kB (aviso > 330)
-    ✔ JS inicial de /sobre-el-proyecto 316,0 kB · /404 301,4 kB
+    ✔ JS inicial de /                  318,5 kB (aviso > 330)
+    ✔ JS inicial de /sobre-el-proyecto 316,9 kB · /404 302,3 kB
     ✔ Desbloqueo de audio 1,9 kB · motor 25,2 kB · workers 17,4 y 41,9 kB · worklet 41,0 kB
-    ✔ Chunk 3D 657,3 kB (aviso > 800) · fuentes 144,1 kB
-    ✔ Primera visita: / 562,9 kB · /sobre-el-proyecto 494,8 kB · /404 466,1 kB (error > 650)
+    ✔ Chunk 3D 658,4 kB (aviso > 800) · fuentes 144,1 kB
+    ✔ Primera visita: / 565,2 kB · /sobre-el-proyecto 496,4 kB · /404 467,6 kB (error > 650)
 ```
 Lighthouse en el CI (`2ef3098`, tres pasadas): `/` 95, 99 y 99 en rendimiento, 100 y 100 (LCP 1,8–2,1 s, CLS 0,001); `/sobre-el-proyecto` 100, 100 y 100 (LCP 0,8 s, CLS 0).
 
@@ -193,3 +195,23 @@ Ninguna.
   4. «Sobre el proyecto» desde la cabecera: el foco va a su título.
   5. En el móvil, en vertical y en horizontal.
 - En local: `npm run build`, `npm run lighthouse`, `node scripts/measure-web.mjs`, `npm run capturas -- --medir`, `node scripts/font-fallbacks.mjs` y `VISUAL=1 npx playwright test --project=visual` (en Windows no casa con las referencias de Linux: solo para ver que funciona).
+
+---
+
+## 12. Respuesta a la revisión
+[Revisión](../revisiones/fase-8.md): CAMBIOS NECESARIOS, sin Bloqueantes: 5 Importantes, 6 Menores y 1 Sugerencia. Corregidos los doce.
+
+| Hallazgo | Acción | Commit |
+|---|---|---|
+| 1 · Importante: entre 1024 y unos 1100 px, la barra del 3D ensanchaba el escenario y la página | **Hecho.** La caja del instrumento es un contenedor (`container: instrumento`): si mide menos de 44 rem, la barra va en tres filas, como en el móvil, y el marcador reserva lo mismo. e2e a 1024 × 768 y 1440 × 900 con el 3D ya llegado: el marcador mide lo mismo que el escenario, la barra no se sale de su caja y la página no se ensancha. El de las zonas a 320 px también mira el ancho de la página con el 3D (el de `a11y.spec.ts` mira el marcador, y lo dice). | `fb10417`, `b66b36a` y `0ede185` |
+| 2 · Importante: con un lector de pantalla, el 3D no llegaba al activar | **Hecho.** `click`, `mousedown` y `focusin` también son gestos de presencia (test en Node). e2e: un `click` sin puntero en «Tocar» pide el 3D en menos de 3 s (antes, 6,7–8,9 s) y el foco llega a REPRODUCIR. En la lista de Iván, una prueba con Narrador en el PC (26). | `d88e2ed` y `0ede185` |
+| 3 · Importante: el enlace a `/#ficha-tecnica` desde `/sobre-el-proyecto` | **Hecho.** Con un ancla de otra página, el foco va al destino (`tabindex="-1"`), no al `h1`, y `holdAnchor` sujeta la página en él mientras crece lo de encima (hasta que lleva 1 s sin crecer, como mucho 6 s, o hasta que la persona se mueve). Test en Angular y e2e: la ficha queda arriba de la pantalla, con el foco, y el tabulador sigue desde ella. | `76d7e53` y `0ede185` |
+| 4 · Importante: el plazo de la pérdida de contexto corría con la pestaña oculta | **Hecho.** Los 5 s solo corren con la página a la vista (`visibilitychange` los para y, al volver, empiezan de nuevo), y los para el `webglcontextrestored` del propio lienzo, sin esperar a que el motor rehaga el entorno. En la lista de Iván, cambiar de app 30 s con el 3D a la vista (25). | `b66b36a` |
+| 5 · Importante: la pantalla completa en el móvil | **Hecho.** En vertical, la caja cuadrada cabe en el ancho (`inline-size` con `100dvh`); en horizontal, el mismo reparto en dos columnas que sin pantalla completa. e2e en las dos orientaciones: el aparato cabe y ocupa casi todo el ancho (vertical) o casi toda la altura (horizontal). | `b66b36a` y `0ede185` |
+| 6 · Menor: `fail()` borraba la petición aún sin atender | **Hecho.** `InstrumentSpotlight` sabe qué peticiones ha atendido un instrumento, y al pasar al plato solo se olvidan esas; con el foco en la barra del 3D, va al control principal del plato. e2e sin WebGL: «Tocar» como primer toque deja el foco en REPRODUCIR. | `b66b36a` y `0ede185` |
+| 7 · Menor: sin un tope de espera | **Hecho:** 15 s desde la carga, pase lo que pase (test en Node). | `d88e2ed` |
+| 8 · Menor: los botones de icono decían su nombre dos veces y en mayúsculas | **Hecho.** Sin `title`: una etiqueta propia se ve al pasar el puntero o con el foco del teclado (`toggle__tip`, fuera del árbol de accesibilidad). El nombre oculto, sin `text-transform`, y los segmentos y los botones de texto, con su nombre en minúsculas (`aria-label`). Comprobado con CDP: «Completo», «Pantalla completa», «Pausar movimiento»… sin descripciones repetidas. | `fb10417` |
+| 9 · Menor: Iowan Old Style sin ajustar delante | **Hecho:** la reserva ajustada de Georgia va delante (en el iPhone y en el Mac); Iowan, al final. `DISENO.md` §3, al día. | `5b0b321` |
+| 10 · Menor: capturas de antes del último arreglo y el CI sin citar | **Hecho:** capturas rehechas con el build final, y el run del CI en verde citado en el §2 y en el §6. | este commit |
+| 11 · Menor: comentarios desfasados y una reexportación sin uso | **Hecho:** `visual.spec.ts` y `ci.yml` (las referencias las genera el grupo «visual»), el marcador (una fila y tres), `failed` y `noWebgl` (también el contexto perdido), la portada (el plato, en reposo) y fuera la reexportación de `guide.ts`. | `b66b36a` y `0ede185` |
+| 12 · Sugerencia: los segmentos de 42 px y el grupo «Tocar» | **Hecho:** el borde del grupo es una sombra por dentro y cada segmento mide los 44 px; el grupo se llama «Encuadres». | `fb10417` |
