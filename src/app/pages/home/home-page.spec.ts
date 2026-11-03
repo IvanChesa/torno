@@ -1,5 +1,7 @@
 import { DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { InstrumentSpotlight } from '../../features/instrument-common/spotlight';
+import { GUIDE_CONTENT } from '../../features/product/guide.content';
 import { HomePage } from './home-page';
 import { HOME_CONTENT } from './home.content';
 
@@ -33,6 +35,27 @@ describe('HomePage', () => {
       const id = section.getAttribute('aria-labelledby') ?? '';
       expect(root.querySelector(`#${id}`)?.tagName).toBe(i === 0 ? 'H1' : 'H2');
     });
+  });
+
+  it('«Ver en el instrumento» lo atiende la portada: cada botón pide su control', async () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const fixture = TestBed.createComponent(HomePage);
+    await fixture.whenStable();
+    const blocks = await fixture.getDeferBlocks();
+    for (const block of blocks.slice(1)) await block.render(DeferBlockState.Complete);
+    const root = fixture.nativeElement as HTMLElement;
+    const spotlight = TestBed.inject(InstrumentSpotlight);
+    const buttons = [...root.querySelectorAll<HTMLButtonElement>('#guia button[data-ver]')];
+    expect(buttons).toHaveLength(GUIDE_CONTENT.entries.length);
+    buttons.forEach((button, i) => {
+      button.click();
+      const entry = GUIDE_CONTENT.entries[i]!;
+      expect(spotlight.request()).toMatchObject({ id: entry.control, shot: entry.shot ?? null });
+    });
+    // Un clic en otro sitio de la guía no pide nada.
+    const serial = spotlight.request()?.serial;
+    root.querySelector<HTMLElement>('#guia h2')?.click();
+    expect(spotlight.request()?.serial).toBe(serial);
   });
 
   it('sus textos están pendientes de revisión', () => {
