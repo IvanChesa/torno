@@ -28,6 +28,9 @@ export const LIMITS = {
   worker: { error: 60 * KB },
   scene: { warn: 800 * KB },
   fonts: { error: 150 * KB },
+  // Sin el 3D (decisión de Iván del 01-11; antes, 600 kB). Lo que se mide en el navegador, con lo
+  // que llega sin tocar nada, lo comprueba además un e2e (e2e/budgets.spec.ts).
+  firstVisit: { error: 650 * KB },
 };
 
 /** Lo que el desbloqueo de audio puede llevar al bundle inicial (PLAN §4.9). */
@@ -50,6 +53,22 @@ export function initialScripts(html) {
     ...html.matchAll(/<script\b[^>]*\bsrc="([^"]+\.js)"/g),
     ...html.matchAll(/<link\b[^>]*\brel="modulepreload"[^>]*\bhref="([^"]+\.js)"/g),
   ].map((match) => match[1]);
+  return [...new Set(found)];
+}
+
+/**
+ * Lo demás que pide una página prerenderizada al cargar, sin esperar a nada: sus hojas de estilo,
+ * su icono y las imágenes que no son `loading="lazy"` (de un `<picture>`, la del `<img>`, que es la
+ * del escritorio y la más grande). Rutas relativas a la raíz del sitio.
+ */
+export function eagerResources(html) {
+  const found = [
+    ...html.matchAll(/<link\b[^>]*\brel="(?:stylesheet|icon)"[^>]*\bhref="([^"]+)"/g),
+    ...[...html.matchAll(/<img\b[^>]*>/g)]
+      .filter(([tag]) => !/\bloading="lazy"/.test(tag))
+      .map(([tag]) => tag.match(/\bsrc="([^"]+)"/))
+      .filter(Boolean),
+  ].map((match) => match[1].replace(/^\//, ''));
   return [...new Set(found)];
 }
 
@@ -158,12 +177,30 @@ export function checkBundles(metafile, pages, extra) {
 
   // 5. Fuentes.
   const fonts = outputs.filter(([file]) => file.endsWith('.woff2'));
-  judge(
-    'Fuentes',
-    fonts.reduce((sum, [, output]) => sum + output.bytes, 0),
-    LIMITS.fonts,
-    `${fonts.length} archivos`,
-  );
+  const fontBytes = fonts.reduce((sum, [, output]) => sum + output.bytes, 0);
+  judge('Fuentes', fontBytes, LIMITS.fonts, `${fonts.length} archivos`);
+
+  // 5b. Primera visita a cada ruta, sin el 3D (que nunca llega en la carga): la página, su JS
+  // inicial, sus estilos, su icono, sus imágenes sin `lazy` y las fuentes (las usan todas).
+  if (extra.files) {
+    const sizes = new Map(extra.files.map(({ file, bytes }) => [file, bytes]));
+    for (const [route, html] of Object.entries(pages)) {
+      const scripts = initialScripts(html);
+      const others = eagerResources(html);
+      for (const file of others) {
+        if (!sizes.has(file)) errors.push(`${route}: ${file} no está en lo que se despliega`);
+      }
+      judge(
+        `Primera visita a ${route}`,
+        Buffer.byteLength(html) +
+          scripts.reduce((sum, s) => sum + bytesOf(s), 0) +
+          others.reduce((sum, file) => sum + (sizes.get(file) ?? 0), 0) +
+          fontBytes,
+        LIMITS.firstVisit,
+        `HTML, ${scripts.length} JS, ${others.length} más y ${fonts.length} fuentes`,
+      );
+    }
+  }
 
   // 6. Cloudflare Pages: ningún archivo de más de 25 MiB y 20 000 archivos como mucho.
   if (extra.files) {

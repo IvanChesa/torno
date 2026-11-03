@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   checkBundles,
+  eagerResources,
   forbiddenInInitial,
   initialScripts,
   LIMITS,
@@ -147,6 +148,47 @@ describe('check-bundles', () => {
     expect(run([...atLimit, { file: 'otro.txt', bytes: 1 }]).errors.join('\n')).toContain(
       'Archivos del despliegue',
     );
+  });
+
+  it('lee lo demás que pide una página al cargar (sin las imágenes «lazy»)', () => {
+    const html = `<link rel="icon" href="favicon.svg"><link rel="stylesheet" href="styles-A.css">
+      <link rel="stylesheet" href="styles-A.css" media="print">
+      <picture><source srcset="/img/movil.webp"><img fetchpriority="high" src="/img/poster.webp"></picture>
+      <img loading="lazy" src="/img/abajo.webp">`;
+    expect(eagerResources(html)).toEqual(['favicon.svg', 'styles-A.css', 'img/poster.webp']);
+  });
+
+  it('falla si la primera visita de una ruta pasa de 650 kB (sin el 3D)', () => {
+    const page = `${PAGE}<link rel="stylesheet" href="styles-A.css"><img src="/img/poster.webp">`;
+    const run = (posterBytes: number) =>
+      checkBundles(
+        metafile(healthy()),
+        { '/': page },
+        {
+          ...WORKLET,
+          files: [
+            { file: 'styles-A.css', bytes: 20_000 },
+            { file: 'img/poster.webp', bytes: posterBytes },
+          ],
+        },
+      );
+    // 250 + 12 kB de JS, 100 de fuentes, 20 de estilos y el HTML: 382 kB y un poco más.
+    const base = 250_000 + 12_000 + 100_000 + 20_000 + Buffer.byteLength(page);
+    const ok = run(LIMITS.firstVisit.error - base);
+    expect(ok.errors).toEqual([]);
+    expect(ok.rows.find((row) => row.label === 'Primera visita a /')?.bytes).toBe(
+      LIMITS.firstVisit.error,
+    );
+    expect(run(LIMITS.firstVisit.error - base + 1).errors.join('\n')).toContain(
+      'Primera visita a /',
+    );
+    expect(LIMITS.firstVisit.error).toBe(650_000);
+  });
+
+  it('falla si una página pide algo que no se despliega', () => {
+    const page = `${PAGE}<img src="/img/no-esta.webp">`;
+    const { errors } = checkBundles(metafile(healthy()), { '/': page }, { ...WORKLET, files: [] });
+    expect(errors.join('\n')).toContain('img/no-esta.webp no está en lo que se despliega');
   });
 
   it('falla si un script de la página no está en el metafile o no hay worklet', () => {
