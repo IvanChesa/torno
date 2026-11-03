@@ -41,6 +41,14 @@ export class InstrumentSpotlight {
   explode(): void {
     this.#explode.update((count) => count + 1);
   }
+
+  /**
+   * Olvida la última petición: el instrumento que llegue después no la atenderá. Cuando el 3D deja
+   * paso al plato HTML (fase 8), una petición vieja de la guía no tiene que mover el foco.
+   */
+  clear(): void {
+    this.#request.set(null);
+  }
 }
 
 /**

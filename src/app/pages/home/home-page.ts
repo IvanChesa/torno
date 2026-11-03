@@ -1,13 +1,25 @@
-import { afterNextRender, Component, DestroyRef, DOCUMENT, inject, signal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  DestroyRef,
+  DOCUMENT,
+  inject,
+  signal,
+} from '@angular/core';
 import { noteInstrumentTap, preloadAudioEngine } from '../../audio/engine';
 import { isCaptureMode } from '../../core/capture-mode';
 import { isDiagnosticsMode } from '../../core/diagnostics-mode';
 import { isHtmlOnlyMode } from '../../core/html-only-mode';
 import { MotionPreference } from '../../core/motion';
 import { onPresenceOrQuiet } from '../../core/page-presence';
+import type { ControlId } from '../../instrument';
 import { DiagnosticsPanel } from '../../features/diagnostics/diagnostics-panel';
 import { HtmlInstrument } from '../../features/html-instrument/html-instrument';
-import { InstrumentStage } from '../../features/instrument-stage/instrument-stage';
+import {
+  InstrumentStage,
+  type StageFailure,
+} from '../../features/instrument-stage/instrument-stage';
 import { StagePlaceholder } from '../../features/instrument-stage/stage-placeholder';
 import { InstrumentSpotlight } from '../../features/instrument-common/spotlight';
 import { Closing } from '../../features/product/closing';
@@ -79,8 +91,8 @@ import { HOME_CONTENT } from './home.content';
         role="region"
       >
         <div class="stage" data-audio-unlock>
-          @if (noWebgl()) {
-            <p class="stage__notice" role="status">{{ text.instrument.noWebgl }}</p>
+          @if (fallback(); as reason) {
+            <p class="stage__notice" role="status">{{ text.instrument.fallback[reason] }}</p>
           }
           <!--
             Un @defer de fuera con los disparadores y el mismo marcador para los dos instrumentos: con
@@ -102,7 +114,7 @@ import { HOME_CONTENT } from './home.content';
               }
             } @else {
               @defer (on immediate) {
-                <trn-instrument-stage (failed)="noWebgl.set(true)" />
+                <trn-instrument-stage (failed)="fail($event)" />
               } @placeholder {
                 <trn-stage-placeholder [alt]="text.instrument.poster" />
               }
@@ -275,7 +287,9 @@ export class HomePage {
   /** `?sin3d=1`: sin el escenario 3D (ni su póster). Solo se sabe en el navegador. */
   protected readonly htmlOnly = signal(false);
   /** El 3D no ha podido arrancar (sin WebGL): el plato HTML en su lugar. */
-  protected readonly noWebgl = signal(false);
+  protected readonly noWebgl = computed(() => this.fallback() !== null);
+  /** Por qué no está el 3D (sin WebGL, o el contexto perdido sin volver), o `null`. */
+  protected readonly fallback = signal<StageFailure | null>(null);
   /** Ya se puede pedir el instrumento: alguien se ha acercado o la página está quieta. */
   protected readonly stageWanted = signal(false);
 
@@ -320,6 +334,18 @@ export class HomePage {
       behavior: this.motion.still() ? 'auto' : 'smooth',
       block: 'center',
     });
+  }
+
+  /**
+   * El 3D no puede seguir: el plato HTML en su lugar, con el aviso. Si el foco estaba en un control
+   * del 3D, pasa al mismo control del plato (cuando llegue), para no perderse en la página.
+   */
+  protected fail(reason: StageFailure): void {
+    const focused = this.document.activeElement?.closest?.('.stage [data-control]');
+    const control = focused?.getAttribute('data-control') as ControlId | null | undefined;
+    this.fallback.set(reason);
+    if (control) this.spotlight.show(control, null);
+    else this.spotlight.clear();
   }
 
   /**

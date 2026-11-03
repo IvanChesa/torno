@@ -158,6 +158,33 @@ test.describe('escenario 3D', () => {
     await expect(driver.control('layer-1')).toHaveAttribute('aria-valuenow', '99');
   });
 
+  test('si el contexto se pierde y no vuelve, el plato HTML en su lugar, con el foco en su control', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await openInstrument(page);
+    const driver = new InstrumentDriver(page);
+    await driver.control('play').focus();
+    // Se pierde sin volver (como cuando la GPU no lo devuelve): nadie llama a restoreContext().
+    await page.evaluate(() => {
+      const canvas = document.querySelector<HTMLCanvasElement>('.stage3d canvas')!;
+      const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
+      gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    });
+    await expect(stage(page)).toHaveAttribute('data-contexto', 'perdido');
+    await expect(page.getByText('El 3D se ha detenido. Si no vuelve')).toBeVisible();
+    // A los 5 s, el plato, con su aviso, y el foco en la misma tecla.
+    await expect(page.getByText('El 3D se ha detenido y no ha vuelto')).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.locator('trn-instrument-stage')).toHaveCount(0);
+    await expect(page.locator('trn-html-instrument')).toHaveCount(1);
+    await expect(driver.control('play')).toBeFocused();
+    await driver.control('layer-1').focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(driver.control('layer-1')).toHaveAttribute('aria-valuenow', '99');
+  });
+
   test('el 3D sigue lo que se toca (pose) sin pintar en reposo', async ({ page }, testInfo) => {
     test.skip(
       testInfo.project.name !== 'escena-dev',

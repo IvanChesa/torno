@@ -55,6 +55,14 @@ const FRONT: Orbit = { azimuth: 0, elevation: 40 };
 const CAPTURE_ORBIT: Orbit = { azimuth: 35, elevation: 28 };
 /** Tras girar, otra mirada a qué controles tapa otra pieza (el motor la hace 10 veces por segundo). */
 const SETTLE_MS = 120;
+/**
+ * Lo que se espera a que vuelva un contexto perdido antes de pasar al plato HTML (PLAN fase 8,
+ * tarea 2). Cuando la GPU se reinicia, el navegador lo devuelve en uno o dos segundos.
+ */
+const CONTEXT_WAIT_MS = 5000;
+
+/** Por qué no puede seguir el 3D: no hay WebGL, o el contexto se perdió y no ha vuelto. */
+export type StageFailure = 'webgl' | 'context';
 
 const clamp = (value: number, { min, max }: { min: number; max: number }) =>
   Math.min(max, Math.max(min, value));
@@ -62,7 +70,8 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
 /**
  * El instrumento en 3D (PLAN §4.6, §4.7 y fase 6): el aparato pintado por `SceneEngine` y, encima
  * de cada pieza, su control (`StageControls`). Desde la fase 6 es el instrumento de la portada; el
- * plato HTML queda para `?sin3d=1` y para cuando no hay WebGL (lo dice `failed`).
+ * plato HTML queda para `?sin3d=1` y para cuando no hay WebGL o se pierde el contexto y no vuelve en
+ * unos segundos (lo dice `failed`, con el motivo).
  *
  * - Encima, el espejo de la pantalla en HTML: la del 3D no se lee a todos los tamaños.
  * - La caja: 5:4 en el escritorio y 1:1, de borde a borde, en el móvil (su encuadre).
@@ -311,7 +320,7 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
 })
 export class InstrumentStage {
   /** No hay WebGL: la portada pone el plato HTML. */
-  readonly failed = output<void>();
+  readonly failed = output<StageFailure>();
 
   protected readonly text = INSTRUMENT_STAGE_CONTENT;
   protected readonly poster = STAGE_POSTER;
@@ -413,6 +422,7 @@ export class InstrumentStage {
   private orbit: Orbit = FRONT;
   private drag: { x: number; y: number; touch: boolean } | null = null;
   private settleTimer: ReturnType<typeof setTimeout> | undefined;
+  private contextTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -434,9 +444,12 @@ export class InstrumentStage {
             break;
           case 'context-lost':
             this.lost.set(true);
+            clearTimeout(this.contextTimer);
+            this.contextTimer = setTimeout(() => this.failed.emit('context'), CONTEXT_WAIT_MS);
             break;
           case 'context-restored':
             this.lost.set(false);
+            clearTimeout(this.contextTimer);
             break;
           case 'quality':
             this.quality.set(event.level);
@@ -483,7 +496,7 @@ export class InstrumentStage {
           if (capture && this.painted()) this.stats.set(JSON.stringify(engine.stats()));
         },
         () => {
-          if (!destroyed) this.failed.emit();
+          if (!destroyed) this.failed.emit('webgl');
         },
       );
       const onFullscreen = () =>
@@ -554,6 +567,7 @@ export class InstrumentStage {
       destroyed = true;
       this.store.showWaveforms(false);
       clearTimeout(this.settleTimer);
+      clearTimeout(this.contextTimer);
       observer?.disconnect();
       this.engine()?.dispose();
     });
