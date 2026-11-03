@@ -78,7 +78,10 @@ import { STAGE_POSTER } from './stage-poster';
       }
     }
 
-    /* La barra: lo que reserva StageToolbar (dos filas en el escritorio y cuatro en el móvil). */
+    /*
+     * La barra: lo que reserva StageToolbar (una fila en el escritorio; tres en el móvil, en
+     * horizontal y si la caja del instrumento no da para una: --stage-toolbar-height).
+     */
     .bar {
       block-size: var(--stage-toolbar-height);
     }

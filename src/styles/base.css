@@ -226,6 +226,42 @@ kbd {
   padding: 0;
 }
 
+/*
+ * La etiqueta de un botón de icono: se ve al pasar el puntero o con el foco del teclado, encima del
+ * botón, y no está en el árbol de accesibilidad (el nombre ya va dentro, oculto). En lugar del
+ * `title`, que no sale con el teclado y que los lectores repetían (revisión de la fase 8, #8).
+ */
+.toggle--icon {
+  position: relative;
+}
+
+.toggle__tip {
+  position: absolute;
+  inset-block-end: calc(100% + var(--space-2));
+  inset-inline-start: 50%;
+  z-index: 2;
+  inline-size: max-content;
+  max-inline-size: 14rem;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-s);
+  background: var(--color-surface-2);
+  color: var(--color-ink);
+  font-size: var(--text-xs);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  translate: -50% 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.toggle--icon:hover .toggle__tip,
+.toggle--icon:focus-visible .toggle__tip {
+  opacity: 1;
+}
+
 .toggle--icon svg {
   inline-size: 1.25rem;
   block-size: 1.25rem;
@@ -266,6 +302,8 @@ kbd {
 /* --- Utilidades --- */
 .visually-hidden {
   position: absolute;
+  /* El nombre, como se escribe: un botón en mayúsculas por CSS no las pasa a su nombre oculto. */
+  text-transform: none;
   inline-size: 1px;
   block-size: 1px;
   overflow: hidden;

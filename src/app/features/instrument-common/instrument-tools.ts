@@ -13,8 +13,11 @@ import { INSTRUMENT_COMMON_CONTENT } from './instrument-common.content';
  * Lleva `data-sin-atajos`: dentro del instrumento, Espacio e Intro pulsan estos botones y no
  * reproducen.
  *
- * Con `icons` (la barra del 3D, fase 8), cada botón es un icono con su nombre para los lectores de
- * pantalla y en el `title`: así la barra cabe en una fila en el escritorio.
+ * Con `icons` (la barra del 3D, fase 8), cada botón es un icono con su nombre dentro, oculto, para
+ * los lectores de pantalla, y una etiqueta que se ve al pasar el puntero o con el foco del teclado
+ * (`toggle__tip`, fuera del árbol de accesibilidad): así la barra cabe en una fila en el escritorio.
+ * Sin `title`, que los lectores repetían como descripción (revisión de la fase 8, #8). Los nombres,
+ * en minúsculas (`aria-label`): lo que se ve va en mayúsculas por CSS, y algún lector las deletrea.
  */
 @Component({
   selector: 'trn-instrument-tools',
@@ -24,9 +27,10 @@ import { INSTRUMENT_COMMON_CONTENT } from './instrument-common.content';
       type="button"
       class="toggle"
       [class.toggle--icon]="icons()"
+      [attr.aria-label]="icons() ? null : text.pauseMotion"
       [attr.aria-pressed]="motion.paused()"
       [attr.aria-describedby]="motion.reduced() ? 'trn-movimiento-sistema' : null"
-      [attr.title]="pauseTitle()"
+      [attr.title]="!icons() && motion.reduced() ? text.reducedBySystem : null"
       (click)="motion.toggle()"
     >
       @if (icons()) {
@@ -40,6 +44,7 @@ import { INSTRUMENT_COMMON_CONTENT } from './instrument-common.content';
           <path d="M8.5 8v4M11.5 8v4" />
         </svg>
         <span class="visually-hidden">{{ text.pauseMotion }}</span>
+        <span class="toggle__tip" aria-hidden="true">{{ pauseTip() }}</span>
       } @else {
         {{ text.pauseMotion }}
       }
@@ -51,8 +56,8 @@ import { INSTRUMENT_COMMON_CONTENT } from './instrument-common.content';
       type="button"
       class="toggle"
       [class.toggle--icon]="icons()"
+      [attr.aria-label]="icons() ? null : text.shortcuts"
       [attr.aria-pressed]="store.state().help"
-      [attr.title]="icons() ? text.shortcuts : null"
       (click)="toggleHelp()"
     >
       @if (icons()) {
@@ -62,6 +67,7 @@ import { INSTRUMENT_COMMON_CONTENT } from './instrument-common.content';
           <path d="M8 8.3a2 2 0 1 1 3 1.7c-.7.4-1 .8-1 1.6M10 13.6v.2" />
         </svg>
         <span class="visually-hidden">{{ text.shortcuts }}</span>
+        <span class="toggle__tip" aria-hidden="true">{{ text.shortcuts }}</span>
       } @else {
         {{ text.shortcuts }}
       }
@@ -80,12 +86,12 @@ export class InstrumentTools {
   protected readonly motion = inject(MotionPreference);
   protected readonly store = inject(SessionStore);
 
-  /** El `title` de «Pausar movimiento»: su nombre (con icono) y, si el sistema ya lo pide, el aviso. */
-  protected readonly pauseTitle = computed(() => {
-    const parts: (string | null)[] = [this.icons() ? this.text.pauseMotion : null];
-    if (this.motion.reduced()) parts.push(this.text.reducedBySystem);
-    return parts.filter(Boolean).join('. ') || null;
-  });
+  /** La etiqueta de «Pausar movimiento» con icono: su nombre y, si el sistema ya lo pide, el aviso. */
+  protected readonly pauseTip = computed(() =>
+    this.motion.reduced()
+      ? `${this.text.pauseMotion}. ${this.text.reducedBySystem}`
+      : this.text.pauseMotion,
+  );
 
   protected toggleHelp(): void {
     this.store.input({ type: 'toggle-help' });
