@@ -197,7 +197,7 @@ export function projectControls(
   occlusion: Occlusion | null = null,
 ): ControlBox[] {
   camera.updateMatrixWorld();
-  return shapes.map((shape) => {
+  const boxes = shapes.map((shape): ControlBox => {
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
@@ -236,10 +236,69 @@ export function projectControls(
       y,
       width: maxX - minX,
       height: maxY - minY,
+      zoneX: x,
+      zoneY: y,
       axis,
       visible: inside && (!occlusion || unobstructed(shape, camera, occlusion)),
     };
   });
+  return separateZones(boxes);
+}
+
+/** Lo que se aparta de más una zona de otra al separarlas (para no quedarse rozando). */
+const ZONE_GAP_PX = 0.5;
+
+/**
+ * Aparta las zonas de toque que se pisan (PLAN §4.7; revisión de la fase 6, #13): a 320 px de
+ * ancho, las de 44 px de la capa 1 y del volumen se pisaban unos 4 px. Una zona de 44 px es más
+ * grande que su pieza, así que se puede mover lo que le sobra sin dejar de cubrirla: cada pareja se
+ * separa por el eje en el que se pisa menos, a medias, y, si una no puede más, la otra pone el
+ * resto. El disco (una elipse del tamaño de su pieza) no se mueve. Lo que no se puede separar sin
+ * destapar una pieza, se queda como está.
+ */
+export function separateZones(boxes: readonly ControlBox[]): ControlBox[] {
+  const moving = boxes.map((box) => ({
+    box,
+    width: Math.max(MIN_ZONE_PX, box.width),
+    height: Math.max(MIN_ZONE_PX, box.height),
+    x: box.x,
+    y: box.y,
+    // Lo que se puede mover sin destapar la pieza, a cada lado.
+    slackX: box.id === 'disc' ? 0 : Math.max(0, (MIN_ZONE_PX - box.width) / 2),
+    slackY: box.id === 'disc' ? 0 : Math.max(0, (MIN_ZONE_PX - box.height) / 2),
+  }));
+  const clampTo = (value: number, center: number, slack: number) =>
+    Math.min(center + slack, Math.max(center - slack, value));
+  for (let pass = 0; pass < 4; pass++) {
+    let moved = false;
+    for (let i = 0; i < moving.length; i++) {
+      for (let j = i + 1; j < moving.length; j++) {
+        const a = moving[i]!;
+        const b = moving[j]!;
+        if (!a.box.visible || !b.box.visible || a.box.id === 'disc' || b.box.id === 'disc') {
+          continue;
+        }
+        const overlapX = (a.width + b.width) / 2 - Math.abs(b.x - a.x);
+        const overlapY = (a.height + b.height) / 2 - Math.abs(b.y - a.y);
+        if (overlapX <= 0 || overlapY <= 0) continue;
+        const axis = overlapX <= overlapY ? 'x' : 'y';
+        const slack = axis === 'x' ? 'slackX' : 'slackY';
+        const center = axis === 'x' ? 'x' : 'y';
+        const need = (axis === 'x' ? overlapX : overlapY) + ZONE_GAP_PX;
+        const sign = b[axis] >= a[axis] ? 1 : -1;
+        const aTo = clampTo(a[axis] - (sign * need) / 2, a.box[center], a[slack]);
+        const left = need - Math.abs(aTo - a[axis]);
+        const bTo = clampTo(b[axis] + sign * left, b.box[center], b[slack]);
+        // Lo que no ha podido poner la segunda, la primera (si le queda).
+        const rest = need - Math.abs(aTo - a[axis]) - Math.abs(bTo - b[axis]);
+        a[axis] = clampTo(aTo - sign * rest, a.box[center], a[slack]);
+        b[axis] = bTo;
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  return moving.map(({ box, x, y }) => ({ ...box, zoneX: x, zoneY: y }));
 }
 
 function unobstructed(

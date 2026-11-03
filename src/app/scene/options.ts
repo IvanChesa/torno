@@ -50,6 +50,12 @@ export interface ControlBox {
   readonly y: number;
   readonly width: number;
   readonly height: number;
+  /**
+   * El centro de su zona de toque (la pieza y nunca menos de 44 px): el de la pieza, salvo que la
+   * zona pise la de otro control y le sobre sitio para apartarse sin dejar de cubrir su pieza.
+   */
+  readonly zoneX: number;
+  readonly zoneY: number;
   /** Dirección de arrastre en la pantalla (x a la derecha, y hacia abajo), de largo 1. */
   readonly axis: { readonly x: number; readonly y: number };
   readonly visible: boolean;

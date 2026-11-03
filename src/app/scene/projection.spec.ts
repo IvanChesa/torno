@@ -9,7 +9,7 @@ import { FOV, orbitPlacement, orbitSphere, place, shotPlacement } from './camera
 import { createMaterials } from './materials/materials';
 import { buildInstrument } from './model/instrument';
 import type { ControlBox, Shot } from './options';
-import { controlShapes, projectControls } from './projection';
+import { controlShapes, projectControls, separateZones } from './projection';
 import { QUALITY } from './quality';
 
 const model = buildInstrument(createMaterials({ grainSize: 16 }), QUALITY.low);
@@ -23,12 +23,26 @@ function boxes(shot: Shot, width: number, height: number): ControlBox[] {
   return projectControls(shapes, camera, width, height);
 }
 
-/** La zona de toque de la capa de controles: la caja de la pieza, y nunca menos de 44 px. */
+/**
+ * La zona de toque de la capa de controles: la caja de la pieza, y nunca menos de 44 px, en su
+ * centro (el de la pieza, salvo que se haya apartado de otra).
+ */
 const TARGET = 44;
 function zone(box: ControlBox) {
   const width = Math.max(TARGET, box.width);
   const height = Math.max(TARGET, box.height);
-  return { x: box.x, y: box.y, width, height };
+  return { x: box.zoneX, y: box.zoneY, width, height };
+}
+
+/** La zona cubre su pieza entera (con medio píxel de redondeo). */
+function covers(box: ControlBox): boolean {
+  const z = zone(box);
+  return (
+    z.x - z.width / 2 <= box.x - box.width / 2 + 0.5 &&
+    z.x + z.width / 2 >= box.x + box.width / 2 - 0.5 &&
+    z.y - z.height / 2 <= box.y - box.height / 2 + 0.5 &&
+    z.y + z.height / 2 >= box.y + box.height / 2 - 0.5
+  );
 }
 
 /** Dos zonas se pisan. El disco es redondo (su elemento también: `border-radius`). */
@@ -96,16 +110,27 @@ describe('los controles en la pantalla', () => {
     });
   }
 
-  for (const width of [360, 390]) {
-    it(`en el móvil (${width}×${width}, el aparato entero): las zonas de 44 px no se pisan`, () => {
-      expect(overlaps(boxes('completo', width, width))).toEqual([]);
+  for (const width of [320, 360, 390]) {
+    it(`en el móvil (${width}×${width}, el aparato entero): las zonas de 44 px no se pisan y cubren su pieza`, () => {
+      const list = boxes('completo', width, width);
+      expect(overlaps(list)).toEqual([]);
+      for (const box of list) expect(covers(box), box.id).toBe(true);
     });
   }
 
-  it('a 320 px (el ancho mínimo de WCAG 1.4.10) solo se pisan la capa 1 y el volumen (pendiente de Iván)', () => {
-    // A 1 px/mm o más no se pisa ninguna (el test de arriba); a 320 px, esa pareja, separada 40,6 mm
-    // en horizontal, se queda en unos 40 px. Lo que hacer con ella lo decide Iván (PENDIENTES.md).
-    expect(overlaps(boxes('completo', 320, 320))).toEqual(['layer-0–volume']);
+  it('a 320 px (el ancho mínimo de WCAG 1.4.10), solo se apartan la capa 1 y el volumen', () => {
+    // Separadas 40,6 mm en horizontal, sus piezas quedan a unos 40 px: sus zonas de 44 px se pisaban
+    // unos 4 px (revisión de la fase 6, #13). Cada una se aparta la mitad, sin destapar su pieza.
+    const list = boxes('completo', 320, 320);
+    const moved = list.filter((box) => box.zoneX !== box.x || box.zoneY !== box.y);
+    expect(moved.map((box) => box.id).sort()).toEqual(['layer-0', 'volume']);
+    for (const box of moved) {
+      expect(Math.hypot(box.zoneX - box.x, box.zoneY - box.y), box.id).toBeLessThan(4);
+    }
+    // A 360 px, ninguna se mueve.
+    for (const box of boxes('completo', 360, 360)) {
+      expect([box.zoneX, box.zoneY], box.id).toEqual([box.x, box.y]);
+    }
   });
 
   it('en el escritorio, ninguna zona se pisa tampoco', () => {
@@ -125,5 +150,45 @@ describe('los controles en la pantalla', () => {
     const standby = (list: ControlBox[]) => list.find((box) => box.id === 'standby')!.visible;
     expect(standby(look(0, 40))).toBe(true);
     expect(standby(look(150, 10))).toBe(false);
+  });
+});
+
+describe('separateZones', () => {
+  const box = (id: ControlId, x: number, width = 30): ControlBox => ({
+    id,
+    x,
+    y: 100,
+    width,
+    height: 30,
+    zoneX: x,
+    zoneY: 100,
+    axis: { x: 0, y: -1 },
+    visible: true,
+  });
+
+  it('aparta dos zonas que se pisan, a medias y por el eje en el que se pisan menos', () => {
+    const [a, b] = separateZones([box('layer-0', 100), box('volume', 140)]);
+    // Se pisaban 4 px: cada una se aparta 2,25 (con el medio píxel de holgura), en horizontal.
+    expect(a!.zoneX).toBeCloseTo(97.75, 6);
+    expect(b!.zoneX).toBeCloseTo(142.25, 6);
+    expect(a!.zoneY).toBe(100);
+    expect(b!.zoneX - a!.zoneX).toBeGreaterThanOrEqual(44);
+  });
+
+  it('si una no puede moverse (su pieza ya mide 44 px), la otra pone lo que falta', () => {
+    const [a, b] = separateZones([box('layer-0', 100, 44), box('volume', 140)]);
+    expect(a!.zoneX).toBe(100);
+    expect(b!.zoneX).toBeCloseTo(144.5, 6);
+  });
+
+  it('no destapa ninguna pieza: lo que no se puede separar, se queda', () => {
+    const [a, b] = separateZones([box('layer-0', 100, 44), box('volume', 120, 44)]);
+    expect([a!.zoneX, b!.zoneX]).toEqual([100, 120]);
+  });
+
+  it('ni mueve el disco, ni los controles que no se ven', () => {
+    const hidden = { ...box('volume', 140), visible: false };
+    expect(separateZones([box('disc', 100), box('layer-0', 140)])[1]!.zoneX).toBe(140);
+    expect(separateZones([box('layer-0', 100), hidden])[0]!.zoneX).toBe(100);
   });
 });
