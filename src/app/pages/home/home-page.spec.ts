@@ -14,6 +14,8 @@ describe('HomePage', () => {
       disconnect = (): void => undefined;
       takeRecords = (): IntersectionObserverEntry[] => [];
     } as unknown as typeof IntersectionObserver;
+    // Ni `scrollIntoView` («Ver en el instrumento» lleva la página al instrumento).
+    Element.prototype.scrollIntoView ??= (): void => undefined;
   });
 
   it('tiene un solo h1 con el nombre y una sección con título para cada bloque', async () => {
