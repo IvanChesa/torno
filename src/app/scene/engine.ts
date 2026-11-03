@@ -599,8 +599,13 @@ export class SceneEngine {
     const materials = createMaterials({ grainSize: settings.grainSize });
     let elapsed = performance.now() - start;
     await yieldToMain();
+    // En tres tramos, con una pausa entre ellos: con la CPU de un móvil lento (×4), el modelo, las
+    // texturas de lienzo y lo demás juntos eran una tarea de más de 200 ms (fase 8).
     start = performance.now();
     const model = buildInstrument(materials, settings);
+    elapsed += performance.now() - start;
+    await yieldToMain();
+    start = performance.now();
     const screen = new ScreenPainter();
     materials.screen.emissiveMap = screen.texture;
     const overlay = screenOverlay(
@@ -620,6 +625,9 @@ export class SceneEngine {
         polygonOffsetUnits: -2,
       });
     }
+    elapsed += performance.now() - start;
+    await yieldToMain();
+    start = performance.now();
     const shadow = contactShadow();
     model.root.updateMatrixWorld(true);
     const shapes = controlShapes(model);
