@@ -10,7 +10,9 @@ function fakeWindow(readyState: DocumentReadyState, longTasks = false) {
     constructor(callback: () => void) {
       notify = callback;
     }
-    observe() {}
+    observe() {
+      // Las tareas largas las da la prueba con `longTask()`.
+    }
     disconnect() {
       notify = undefined;
     }
