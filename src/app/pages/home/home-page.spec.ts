@@ -60,6 +60,21 @@ describe('HomePage', () => {
     expect(spotlight.request()?.serial).toBe(serial);
   });
 
+  it('«Despiezar el instrumento» (los detalles) también lo atiende la portada', async () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const fixture = TestBed.createComponent(HomePage);
+    await fixture.whenStable();
+    const blocks = await fixture.getDeferBlocks();
+    for (const block of blocks.slice(1)) await block.render(DeferBlockState.Complete);
+    const root = fixture.nativeElement as HTMLElement;
+    const spotlight = TestBed.inject(InstrumentSpotlight);
+    const button = root.querySelector<HTMLButtonElement>('button[data-despiezar]');
+    expect(button).not.toBeNull();
+    const before = spotlight.explodeRequests();
+    button?.click();
+    expect(spotlight.explodeRequests()).toBe(before + 1);
+  });
+
   it('sus textos están pendientes de revisión', () => {
     expect(HOME_CONTENT.reviewed).toBe(false);
   });

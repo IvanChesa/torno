@@ -4,6 +4,14 @@ import type { Shot } from '../../scene';
 /** El `id` de la caja del instrumento en la portada: adonde lleva «Ver en el instrumento». */
 export const INSTRUMENT_ANCHOR = 'instrumento';
 
+/** El atributo de «Despiezar el instrumento» (la sección de los detalles); lo atiende la portada. */
+export const EXPLODE_ATTRIBUTE = 'data-despiezar';
+
+/** Un clic (o un Intro) en «Despiezar el instrumento». */
+export function isExplodeRequest(target: EventTarget | null): boolean {
+  return !!(target as Element | null)?.closest?.(`[${EXPLODE_ATTRIBUTE}]`);
+}
+
 /** Lo que pide un «Ver en el instrumento»: su control y, si lo lleva, un encuadre de «Tocar». */
 export interface GuideTarget {
   readonly control: ControlId;
