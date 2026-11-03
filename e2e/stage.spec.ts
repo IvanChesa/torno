@@ -94,7 +94,11 @@ test.describe('escenario 3D', () => {
   ] as const) {
     test(`a ${width} × ${height}, el marcador mide lo mismo que el 3D y la página no se ensancha`, async ({
       page,
-    }) => {
+    }, testInfo) => {
+      test.skip(
+        testInfo.project.name === 'escena-dev',
+        'En desarrollo, debajo del 3D va el panel de la escena, que el marcador no reserva',
+      );
       test.setTimeout(90_000);
       await page.setViewportSize({ width, height });
       await page.goto('/');
