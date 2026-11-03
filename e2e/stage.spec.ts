@@ -158,6 +158,33 @@ test.describe('escenario 3D', () => {
     await expect(driver.control('layer-1')).toHaveAttribute('aria-valuenow', '99');
   });
 
+  test('axe en cada vista del 3D: «Inspeccionar», «Despiezar» y con la chuleta abierta', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await openInstrument(page);
+    const check = async (label: string) => {
+      const results = await new AxeBuilder({ page })
+        .include('#instrumento')
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])
+        .analyze();
+      expect(
+        results.violations.map((v) => `${label}: ${v.id} (${v.impact})`),
+        label,
+      ).toEqual([]);
+    };
+    await page.getByRole('button', { name: 'Inspeccionar', exact: true }).click();
+    await expect(stage(page)).toHaveAttribute('data-camara', 'inspeccionar');
+    await check('inspeccionar');
+    await page.getByRole('button', { name: 'Despiezar', exact: true }).click();
+    await expect(stage(page)).toHaveAttribute('data-camara', 'despiezado');
+    await check('despiezado');
+    await page.getByRole('button', { name: 'Completo', exact: true }).click();
+    await page.getByRole('button', { name: 'Atajos' }).click();
+    await expect(page.getByRole('heading', { name: 'Atajos de teclado' })).toBeVisible();
+    await check('chuleta');
+  });
+
   test('si el contexto se pierde y no vuelve, el plato HTML en su lugar, con el foco en su control', async ({
     page,
   }) => {
