@@ -133,6 +133,10 @@ import { INSTRUMENT_STAGE_CONTENT } from './instrument-stage.content';
       background: var(--color-surface);
     }
 
+    .segment:active:not([aria-pressed='true']) {
+      background: var(--color-surface-2);
+    }
+
     .segment:focus-visible {
       position: relative;
       z-index: 1;

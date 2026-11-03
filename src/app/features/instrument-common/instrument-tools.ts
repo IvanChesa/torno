@@ -30,10 +30,14 @@ import { INSTRUMENT_COMMON_CONTENT } from './instrument-common.content';
       (click)="motion.toggle()"
     >
       @if (icons()) {
-        <!-- El disco con las dos barras de pausa. -->
+        <!--
+          La pausa dentro de dos flechas de giro: lo que se para es el movimiento, no la música (dos
+          barras solas se confundían con la tecla de reproducir; revisión de diseño de la fase 8).
+        -->
         <svg viewBox="0 0 20 20" aria-hidden="true">
-          <circle cx="10" cy="10" r="7.5" />
-          <path d="M8 7v6M12 7v6" />
+          <path d="M4.2 13.2A6.5 6.5 0 0 1 13.2 4.2M15.8 6.8a6.5 6.5 0 0 1-9 9" />
+          <path d="M13 2.4l.4 2.2-2.2.4M7 17.6l-.4-2.2 2.2-.4" />
+          <path d="M8.5 8v4M11.5 8v4" />
         </svg>
         <span class="visually-hidden">{{ text.pauseMotion }}</span>
       } @else {

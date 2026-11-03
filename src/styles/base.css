@@ -50,6 +50,17 @@ textarea {
   color: inherit;
 }
 
+/*
+ * Botones y enlaces, sin la espera del doble toque para el zum y sin el recuadro gris del toque de
+ * WebKit: cada uno tiene su estado al pulsar (fase 8, Web Interface Guidelines).
+ */
+a,
+button,
+summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 ::selection {
   background: var(--color-accent);
   color: var(--color-on-accent);
@@ -196,6 +207,15 @@ kbd {
   border-color: var(--color-ink);
   background: var(--color-ink);
   color: var(--color-bg);
+}
+
+/* Con el puntero encima, un escalón de tono; al pulsar, otro (revisión de diseño de la fase 8). */
+.toggle:hover:not([aria-pressed='true']) {
+  background: var(--color-surface);
+}
+
+.toggle:active:not([aria-pressed='true']) {
+  background: var(--color-surface-2);
 }
 
 /* Un botón de icono (la barra del 3D, fase 8): cuadrado de 44 px, con su nombre oculto dentro. */

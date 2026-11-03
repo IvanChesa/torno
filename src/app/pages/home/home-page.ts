@@ -72,7 +72,8 @@ import { HOME_CONTENT } from './home.content';
   template: `
     <section class="hero" aria-labelledby="titulo">
       <div class="hero__text">
-        <h1 id="titulo">{{ text.title }}</h1>
+        <!-- La marca no se traduce (un traductor automático la cambiaría por «Lathe»). -->
+        <h1 id="titulo" translate="no">{{ text.title }}</h1>
         <p class="hero__lead">{{ text.lead }}</p>
         <p class="hero__actions">
           <a class="button" [href]="anchor" data-audio-unlock (click)="play()">{{ text.play }}</a>

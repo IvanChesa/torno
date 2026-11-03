@@ -41,7 +41,9 @@ export function focusPageHeading(document: Document): void {
     <a class="skip-link" [href]="skipHref()" (click)="skipToContent($event)">{{ text.skipLink }}</a>
 
     <header class="site-header">
-      <a class="wordmark" routerLink="/" [attr.aria-label]="text.homeLabel">{{ site.name }}</a>
+      <a class="wordmark" routerLink="/" translate="no" [attr.aria-label]="text.homeLabel">{{
+        site.name
+      }}</a>
       <nav [attr.aria-label]="text.navLabel">
         <ul>
           <li>
@@ -70,7 +72,7 @@ export function focusPageHeading(document: Document): void {
     </main>
 
     <footer class="site-footer">
-      <p class="site-footer__name" aria-hidden="true">{{ site.name }}</p>
+      <p class="site-footer__name" aria-hidden="true" translate="no">{{ site.name }}</p>
       <div class="site-footer__body">
         <p>
           {{ text.authorPrefix }} <a [href]="site.author.url">{{ site.author.name }}</a
