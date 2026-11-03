@@ -4,9 +4,14 @@ export const INSTRUMENT_STAGE_CONTENT = {
   /** El lienzo: una imagen que cambia con lo que se toca (los controles van encima, uno por pieza). */
   canvas:
     'Torno en 3D. Cada pieza lleva encima su control: se toca con el ratón, el dedo o el teclado.',
-  contextLost: 'El 3D se ha detenido. Vuelve solo en cuanto el navegador lo permita.',
-  play: 'Tocar',
+  contextLost:
+    'El 3D se ha detenido. Si no vuelve en unos segundos, sigues con el instrumento sin él.',
+  /** El grupo de los encuadres de la barra (antes «Tocar», como el enlace del titular: revisión, #12). */
+  framing: 'Encuadres',
   shots: { completo: 'Completo', capas: 'Capas', controles: 'Controles' },
+  /** Los grupos de la barra (fase 8): sus nombres para los lectores de pantalla. */
+  look: 'Mirar el aparato',
+  tools: 'Opciones',
   inspect: 'Inspeccionar',
   /** La vista despiezada (fase 7): las piezas suben por niveles; los controles no se tocan. */
   explode: 'Despiezar',

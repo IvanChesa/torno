@@ -55,6 +55,14 @@ const FRONT: Orbit = { azimuth: 0, elevation: 40 };
 const CAPTURE_ORBIT: Orbit = { azimuth: 35, elevation: 28 };
 /** Tras girar, otra mirada a qué controles tapa otra pieza (el motor la hace 10 veces por segundo). */
 const SETTLE_MS = 120;
+/**
+ * Lo que se espera a que vuelva un contexto perdido antes de pasar al plato HTML (PLAN fase 8,
+ * tarea 2). Cuando la GPU se reinicia, el navegador lo devuelve en uno o dos segundos.
+ */
+const CONTEXT_WAIT_MS = 5000;
+
+/** Por qué no puede seguir el 3D: no hay WebGL, o el contexto se perdió y no ha vuelto. */
+export type StageFailure = 'webgl' | 'context';
 
 const clamp = (value: number, { min, max }: { min: number; max: number }) =>
   Math.min(max, Math.max(min, value));
@@ -62,7 +70,8 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
 /**
  * El instrumento en 3D (PLAN §4.6, §4.7 y fase 6): el aparato pintado por `SceneEngine` y, encima
  * de cada pieza, su control (`StageControls`). Desde la fase 6 es el instrumento de la portada; el
- * plato HTML queda para `?sin3d=1` y para cuando no hay WebGL (lo dice `failed`).
+ * plato HTML queda para `?sin3d=1` y para cuando no hay WebGL o se pierde el contexto y no vuelve en
+ * unos segundos (lo dice `failed`, con el motivo).
  *
  * - Encima, el espejo de la pantalla en HTML: la del 3D no se lee a todos los tamaños.
  * - La caja: 5:4 en el escritorio y 1:1, de borde a borde, en el móvil (su encuadre).
@@ -120,6 +129,7 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
             role="img"
             [attr.aria-label]="text.canvas"
             [class.is-shown]="shown()"
+            (webglcontextrestored)="onContextBack()"
           ></canvas>
           @if (inspecting()) {
             <div
@@ -247,6 +257,17 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
       margin-inline: 0;
     }
 
+    /*
+     * En el móvil, en pantalla completa: la caja cuadrada cabe en el ancho (con el ancho de borde a
+     * borde de fuera, medía 424 px en una pantalla de 390) y deja sitio al espejo y a la barra
+     * (revisión de la fase 8, #5).
+     */
+    @media (max-width: 47.99rem) {
+      .frame:fullscreen .stage3d {
+        inline-size: min(100%, 100dvh - 20rem);
+      }
+    }
+
     .stage3d__poster,
     canvas,
     .stage3d__orbit {
@@ -301,6 +322,59 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
       font-size: var(--text-s);
     }
 
+    /*
+     * El móvil en horizontal (poco alto, fase 8): la caja a la izquierda, tan alta como la pantalla,
+     * y a su derecha el espejo y la barra. Si no, la caja se quedaba en 228 × 182 px (844 × 390) con
+     * el espejo encima del aparato. El marcador (StagePlaceholder) hace lo mismo.
+     */
+    @media (orientation: landscape) and (max-height: 32rem) {
+      .frame {
+        /* En vw: el 100 % de la columna dependería de sí mismo. */
+        --stage-width: min(
+          100vw - 2 * var(--page-margin) - var(--stage-side-width) - var(--space-5),
+          (100svh - 2 * var(--space-4)) * 1.25
+        );
+        grid-template-columns: var(--stage-width) minmax(0, 1fr);
+        grid-template-rows: auto 1fr;
+        justify-items: start;
+        align-items: start;
+        column-gap: var(--space-5);
+      }
+
+      .stage3d {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        inline-size: 100%;
+        margin-inline: 0;
+        aspect-ratio: 5 / 4;
+      }
+
+      .mirror {
+        position: static;
+        grid-column: 2;
+        inline-size: 100%;
+        pointer-events: auto;
+      }
+
+      trn-stage-toolbar {
+        grid-column: 2;
+        justify-items: start;
+      }
+
+      /*
+       * En pantalla completa, el mismo reparto, con la altura de la pantalla (dvh) y sin los
+       * márgenes de la página (la caja era de 208 × 166 px a 844 × 390: revisión, #5). Aquí el 100 %
+       * es el de la caja que hace de pantalla completa, sin ciclo.
+       */
+      .frame:fullscreen {
+        --stage-width: min(
+          100% - var(--stage-side-width) - var(--space-5),
+          (100dvh - 2 * var(--space-4)) * 1.25
+        );
+        align-content: center;
+      }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .stage3d__poster,
       canvas {
@@ -310,8 +384,8 @@ const clamp = (value: number, { min, max }: { min: number; max: number }) =>
   `,
 })
 export class InstrumentStage {
-  /** No hay WebGL: la portada pone el plato HTML. */
-  readonly failed = output<void>();
+  /** El 3D no puede seguir (sin WebGL, o el contexto perdido sin volver): la portada pone el plato. */
+  readonly failed = output<StageFailure>();
 
   protected readonly text = INSTRUMENT_STAGE_CONTENT;
   protected readonly poster = STAGE_POSTER;
@@ -413,6 +487,9 @@ export class InstrumentStage {
   private orbit: Orbit = FRONT;
   private drag: { x: number; y: number; touch: boolean } | null = null;
   private settleTimer: ReturnType<typeof setTimeout> | undefined;
+  private contextTimer: ReturnType<typeof setTimeout> | undefined;
+  /** El navegador ya ha devuelto el contexto perdido (el motor aún rehace lo suyo). */
+  private contextBack = false;
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -434,9 +511,12 @@ export class InstrumentStage {
             break;
           case 'context-lost':
             this.lost.set(true);
+            this.contextBack = false;
+            this.waitForContext();
             break;
           case 'context-restored':
             this.lost.set(false);
+            clearTimeout(this.contextTimer);
             break;
           case 'quality':
             this.quality.set(event.level);
@@ -483,13 +563,20 @@ export class InstrumentStage {
           if (capture && this.painted()) this.stats.set(JSON.stringify(engine.stats()));
         },
         () => {
-          if (!destroyed) this.failed.emit();
+          if (!destroyed) this.failed.emit('webgl');
         },
       );
       const onFullscreen = () =>
         this.fullscreen.set(document.fullscreenElement === this.frameRef()?.nativeElement);
       document.addEventListener('fullscreenchange', onFullscreen);
       destroyRef.onDestroy(() => document.removeEventListener('fullscreenchange', onFullscreen));
+      // El plazo del contexto perdido solo corre con la página a la vista (revisión, #4).
+      const onVisibility = () => {
+        if (document.visibilityState === 'hidden') clearTimeout(this.contextTimer);
+        else if (this.lost() && !this.contextBack) this.waitForContext();
+      };
+      document.addEventListener('visibilitychange', onVisibility);
+      destroyRef.onDestroy(() => document.removeEventListener('visibilitychange', onVisibility));
     });
     // La pose pasa al motor (sistema externo) cada vez que cambia algo que se ve.
     effect(() => {
@@ -521,6 +608,7 @@ export class InstrumentStage {
       const engine = this.engine();
       if (!request || !engine || request.serial === this.spotlightSerial) return;
       this.spotlightSerial = request.serial;
+      this.spotlight.attend(request.serial);
       untracked(() => {
         this.setCamera(
           request.shot ? { kind: 'shot', shot: request.shot } : { kind: 'control', id: request.id },
@@ -554,6 +642,7 @@ export class InstrumentStage {
       destroyed = true;
       this.store.showWaveforms(false);
       clearTimeout(this.settleTimer);
+      clearTimeout(this.contextTimer);
       observer?.disconnect();
       this.engine()?.dispose();
     });
@@ -690,6 +779,23 @@ export class InstrumentStage {
     const orbit = this.orbitSurface()?.nativeElement;
     if (orbit) orbit.focus();
     else this.toolbar()?.focusCurrent();
+  }
+
+  /**
+   * Con el contexto perdido, el plato HTML si no vuelve en `CONTEXT_WAIT_MS` **a la vista**: el móvil
+   * quita el contexto a una pestaña oculta (sobre todo Safari en iOS) y lo devuelve al volver, así que
+   * con la pestaña oculta el plazo no corre, y al volver empieza de nuevo (revisión de la fase 8, #4).
+   */
+  private waitForContext(): void {
+    clearTimeout(this.contextTimer);
+    if (document.visibilityState === 'hidden') return;
+    this.contextTimer = setTimeout(() => this.failed.emit('context'), CONTEXT_WAIT_MS);
+  }
+
+  /** El navegador devuelve el contexto: el plazo se para ya, aunque el motor tarde en rehacerse. */
+  protected onContextBack(): void {
+    this.contextBack = true;
+    clearTimeout(this.contextTimer);
   }
 
   protected toggleFullscreen(): void {

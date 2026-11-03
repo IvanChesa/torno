@@ -50,6 +50,17 @@ textarea {
   color: inherit;
 }
 
+/*
+ * Botones y enlaces, sin la espera del doble toque para el zum y sin el recuadro gris del toque de
+ * WebKit: cada uno tiene su estado al pulsar (fase 8, Web Interface Guidelines).
+ */
+a,
+button,
+summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 ::selection {
   background: var(--color-accent);
   color: var(--color-on-accent);
@@ -198,6 +209,69 @@ kbd {
   color: var(--color-bg);
 }
 
+/* Con el puntero encima, un escalón de tono; al pulsar, otro (revisión de diseño de la fase 8). */
+.toggle:hover:not([aria-pressed='true']) {
+  background: var(--color-surface);
+}
+
+.toggle:active:not([aria-pressed='true']) {
+  background: var(--color-surface-2);
+}
+
+/* Un botón de icono (la barra del 3D, fase 8): cuadrado de 44 px, con su nombre oculto dentro. */
+.toggle.toggle--icon {
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--target-min);
+  padding: 0;
+}
+
+/*
+ * La etiqueta de un botón de icono: se ve al pasar el puntero o con el foco del teclado, encima del
+ * botón, y no está en el árbol de accesibilidad (el nombre ya va dentro, oculto). En lugar del
+ * `title`, que no sale con el teclado y que los lectores repetían (revisión de la fase 8, #8).
+ */
+.toggle--icon {
+  position: relative;
+}
+
+.toggle__tip {
+  position: absolute;
+  inset-block-end: calc(100% + var(--space-2));
+  inset-inline-start: 50%;
+  z-index: 2;
+  inline-size: max-content;
+  max-inline-size: 14rem;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-s);
+  background: var(--color-surface-2);
+  color: var(--color-ink);
+  font-size: var(--text-xs);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  translate: -50% 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.toggle--icon:hover .toggle__tip,
+.toggle--icon:focus-visible .toggle__tip {
+  opacity: 1;
+}
+
+.toggle--icon svg {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 @media (max-width: 47.99rem) {
   .toggle {
     padding-inline: var(--space-2);
@@ -228,6 +302,8 @@ kbd {
 /* --- Utilidades --- */
 .visually-hidden {
   position: absolute;
+  /* El nombre, como se escribe: un botón en mayúsculas por CSS no las pasa a su nombre oculto. */
+  text-transform: none;
   inline-size: 1px;
   block-size: 1px;
   overflow: hidden;

@@ -6,6 +6,10 @@
 // navegador. El TBT, como Lighthouse: lo que pasa de 50 ms cada tarea larga desde el FCP, hasta que
 // la página se queda quieta (aquí, 1,5 s después de que la red se calme).
 //
+// Desde la fase 8, el 3D no llega en la carga (con el primer gesto o con la página quieta): aparte,
+// lo que cuesta su llegada en `/` tras mover el puntero, con la GPU del PC y la misma CPU ×4: las
+// tareas largas desde el gesto, su TBT y lo que tarda el primer fotograma.
+//
 // Uso: node scripts/measure-web.mjs [--veces 3]   (después de `npm run build`)
 /* global PerformanceObserver, window -- dentro de addInitScript() y evaluate(), en la página */
 import { chromium, devices } from '@playwright/test';
@@ -23,13 +27,18 @@ const NETWORK = {
 };
 const CPU_SLOWDOWN = 4;
 
-async function visit(browser, url) {
+async function mobilePage(browser) {
   const context = await browser.newContext({ ...devices['Pixel 7'], locale: 'es-ES' });
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   await cdp.send('Network.enable');
   await cdp.send('Network.emulateNetworkConditions', NETWORK);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU_SLOWDOWN });
+  return { context, page };
+}
+
+async function visit(browser, url) {
+  const { context, page } = await mobilePage(browser);
   await page.addInitScript(() => {
     window.__web = { lcp: 0, lcpElement: '', cls: 0, fcp: 0, tasks: [] };
     new PerformanceObserver((list) => {
@@ -74,6 +83,36 @@ async function visit(browser, url) {
   return result;
 }
 
+/** La llegada del 3D en `/`: desde que se mueve el puntero (con la página ya quieta). */
+async function stageArrival(browser, url) {
+  const { context, page } = await mobilePage(browser);
+  await page.addInitScript(() => {
+    window.__tasks = [];
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) window.__tasks.push([entry.startTime, entry.duration]);
+    }).observe({ type: 'longtask', buffered: true });
+  });
+  await page.goto(url, { waitUntil: 'load' });
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(1000);
+  const gesture = await page.evaluate(() => performance.now());
+  await page.mouse.move(100, 100);
+  await page.locator('.stage3d[data-listo]').waitFor({ timeout: 120_000 });
+  const ready = await page.evaluate(() => performance.now());
+  await page.waitForTimeout(1500);
+  const tasks = await page.evaluate(
+    (from) => window.__tasks.filter(([start]) => start >= from).map(([, duration]) => duration),
+    gesture,
+  );
+  await context.close();
+  return {
+    shown: ready - gesture,
+    count: tasks.length,
+    tbt: tasks.reduce((sum, duration) => sum + Math.max(0, duration - 50), 0),
+    longest: Math.max(0, ...tasks),
+  };
+}
+
 const server = await startPagesServer();
 const browser = await chromium.launch();
 try {
@@ -91,5 +130,25 @@ try {
   }
 } finally {
   await browser.close();
+}
+// Con la GPU del PC, como un móvil de verdad (el WebGL por software no es lo que verá nadie).
+const gpu = await chromium.launch({
+  args: [
+    '--enable-gpu',
+    '--ignore-gpu-blocklist',
+    ...(process.platform === 'win32' ? ['--use-angle=d3d11'] : []),
+  ],
+});
+try {
+  const runs = [];
+  for (let i = 0; i < TIMES; i++) runs.push(await stageArrival(gpu, `${server.url}/`));
+  const range = (values) => `${Math.round(Math.min(...values))}–${Math.round(Math.max(...values))}`;
+  console.log(
+    `/ (llegada del 3D tras un gesto): primer fotograma a ${range(runs.map((r) => r.shown))} ms · ` +
+      `${range(runs.map((r) => r.count))} tareas largas · la más larga ${range(runs.map((r) => r.longest))} ms · ` +
+      `TBT ${range(runs.map((r) => r.tbt))} ms`,
+  );
+} finally {
+  await gpu.close();
   await server.close();
 }

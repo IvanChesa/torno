@@ -1,23 +1,20 @@
-import { afterNextRender, Component, DOCUMENT, inject, signal } from '@angular/core';
-import { MotionPreference } from '../../core/motion';
-import { InstrumentSpotlight } from '../instrument-common/spotlight';
-import { GUIDE_CONTENT, type GuideEntry } from './guide.content';
-
-/** El `id` de la caja del instrumento en la portada: adonde lleva «Ver en el instrumento». */
-export const INSTRUMENT_ANCHOR = 'instrumento';
+import { Component } from '@angular/core';
+import { GUIDE_CONTENT } from './guide.content';
 
 /**
  * «Conoce tu instrumento» (PLAN fase 7): los 9 controles, cada uno con sus gestos, sus teclas y
  * «Ver en el instrumento». Ese botón lleva la página al instrumento y le pide que señale el
  * control (`InstrumentSpotlight`): la cámara viaja hasta él y él recibe el foco.
  *
+ * El clic no lo escucha la guía, sino la portada (`guideTargetFor`), que ya está hidratada desde el
+ * arranque: la guía se hidrata al verse, y un clic o un Intro en plena hidratación no siempre
+ * llegaba a su botón (revisión del bloque D, #3). Así funciona igual antes, durante y después.
+ *
  * **Nunca inicia el audio ni pide el micrófono:** los botones no llevan `data-audio-unlock`, y
  * señalar un control solo mueve la cámara y el foco (lo comprueba un e2e).
  */
 @Component({
   selector: 'trn-guide',
-  // `data-lista`: ya hidratada en el navegador (los e2e esperan a ella antes de usar el teclado).
-  host: { '[attr.data-lista]': 'ready() ? "" : null' },
   template: `
     <div class="heading">
       <h2 id="guia-titulo">{{ text.title }}</h2>
@@ -47,7 +44,8 @@ export const INSTRUMENT_ANCHOR = 'instrumento';
             type="button"
             class="button button--secondary entry__show"
             [attr.aria-label]="text.showLabel(entry.title)"
-            (click)="show(entry)"
+            [attr.data-ver]="entry.control"
+            [attr.data-encuadre]="entry.shot ?? null"
           >
             {{ text.show }}
           </button>
@@ -120,20 +118,4 @@ export const INSTRUMENT_ANCHOR = 'instrumento';
 })
 export class Guide {
   protected readonly text = GUIDE_CONTENT;
-  private readonly spotlight = inject(InstrumentSpotlight);
-  private readonly motion = inject(MotionPreference);
-  private readonly document = inject(DOCUMENT);
-  protected readonly ready = signal(false);
-
-  constructor() {
-    afterNextRender(() => this.ready.set(true));
-  }
-
-  protected show(entry: GuideEntry): void {
-    this.spotlight.show(entry.control, entry.shot ?? null);
-    this.document.getElementById(INSTRUMENT_ANCHOR)?.scrollIntoView({
-      behavior: this.motion.still() ? 'auto' : 'smooth',
-      block: 'center',
-    });
-  }
 }

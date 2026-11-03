@@ -25,6 +25,7 @@
     "e2e": "playwright test",
     "pree2e": "node scripts/build-worklet.mjs && node scripts/make-fake-mic.mjs",
     "capturas": "node scripts/capture.mjs",
+    "lighthouse": "lhci autorun",
     "demo:sounds": "node scripts/demo-sounds.mjs",
     "check": "npm run lint && npm test && npm run build && node scripts/check-bundles.mjs"
   },
@@ -49,6 +50,7 @@
     "@angular/compiler-cli": "^22.2.0",
     "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^10.0.1",
+    "@lhci/cli": "0.15.1",
     "@playwright/test": "^1.64.1",
     "@types/node": "^22.12.0",
     "@types/three": "^0.186.0",

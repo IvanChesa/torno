@@ -183,8 +183,8 @@ export class StageControls {
       const element = zone.nativeElement;
       const box = byId.get(element.dataset['control'] as ControlId);
       if (!box) continue;
-      element.style.setProperty('--x', `${box.x.toFixed(1)}px`);
-      element.style.setProperty('--y', `${box.y.toFixed(1)}px`);
+      element.style.setProperty('--x', `${box.zoneX.toFixed(1)}px`);
+      element.style.setProperty('--y', `${box.zoneY.toFixed(1)}px`);
       element.style.setProperty('--w', `${box.width.toFixed(1)}px`);
       element.style.setProperty('--h', `${box.height.toFixed(1)}px`);
       const hide = !box.visible;

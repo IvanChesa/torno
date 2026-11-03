@@ -25,6 +25,8 @@ export class InstrumentSpotlight {
   readonly #request = signal<SpotlightRequest | null>(null);
   readonly #explode = signal(0);
   #serial = 0;
+  /** La última petición que ha atendido un instrumento. */
+  #attended = 0;
 
   /** La última petición (la atiende el instrumento si aún no lo ha hecho). */
   readonly request = this.#request.asReadonly();
@@ -40,6 +42,20 @@ export class InstrumentSpotlight {
 
   explode(): void {
     this.#explode.update((count) => count + 1);
+  }
+
+  /** Un instrumento ha atendido la petición `serial` (ha movido la cámara y el foco). */
+  attend(serial: number): void {
+    this.#attended = Math.max(this.#attended, serial);
+  }
+
+  /**
+   * Olvida la última petición si un instrumento ya la atendió: el que llegue después no la repetirá.
+   * Cuando el 3D deja paso al plato HTML (fase 8), una petición vieja de la guía no tiene que mover
+   * el foco; una que aún esperaba (un «Tocar» antes de que fallara el 3D), sí (revisión, #6).
+   */
+  clearAttended(): void {
+    if ((this.#request()?.serial ?? 0) <= this.#attended) this.#request.set(null);
   }
 }
 

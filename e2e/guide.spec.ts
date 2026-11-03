@@ -26,11 +26,9 @@ test.describe('la guía', () => {
     await expect(page.getByRole('heading', { name: 'Conoce tu instrumento' })).toBeVisible();
     const buttons = page.getByRole('button', { name: /^Ver en el instrumento: / });
     await expect(buttons).toHaveCount(9);
-    // Como con el teclado: un clic en plena hidratación de la guía podía no llevar el foco al
-    // control (CI de main tras la fusión de la fase 7). Se espera a que esté hidratada; el caso del
-    // clic temprano queda para la fase 8.
+    // Sin esperar a que la guía se hidrate: un clic en plena hidratación no llevaba el foco al
+    // control (CI de main tras la fusión de la fase 7; revisión del bloque D, #3).
     await buttons.first().scrollIntoViewIfNeeded();
-    await expect(page.locator('trn-guide[data-lista]')).toBeAttached();
     for (const [name, control] of ENTRIES) {
       await page.getByRole('button', { name: `Ver en el instrumento: ${name}` }).click();
       await expect(page.locator(`[data-control="${control}"]`)).toBeFocused();
@@ -41,16 +39,38 @@ test.describe('la guía', () => {
     expect(await streamCount(page)).toBe(0);
   });
 
+  // Revisión del bloque D, #3: una persona puede pulsar mientras la guía se hidrata. Con la CPU
+  // frenada (como un móvil lento) la ventana es más ancha; aquí no se espera a nada.
+  for (const how of ['clic', 'Intro'] as const) {
+    test(`un ${how} en plena hidratación de la guía también lleva el foco al control`, async ({
+      page,
+    }) => {
+      await instrumentAudio(page);
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
+      await page.goto('/?sin3d=1', { waitUntil: 'commit' });
+      const disc = page.getByRole('button', { name: 'Ver en el instrumento: el disco' });
+      await disc.scrollIntoViewIfNeeded();
+      if (how === 'clic') {
+        await disc.click();
+      } else {
+        await disc.focus();
+        await page.keyboard.press('Enter');
+      }
+      await expect(page.locator('[data-control="disc"]')).toBeFocused({ timeout: 20_000 });
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+      expect(await audioCalls(page)).toEqual([]);
+    });
+  }
+
   test('con el teclado: Intro en el botón lleva el foco al control, sin audio', async ({
     page,
   }) => {
     await instrumentAudio(page);
     await page.goto('/?sin3d=1');
-    // La guía se hidrata al verse: un Intro en pleno cambio se podía perder (revisión de la fase 7,
-    // #2). Con el ratón, el clic espera solo; con el teclado, se espera a que esté hidratada.
+    // Sin esperar a que la guía se hidrate (revisión de la fase 7, #2, y del bloque D, #3).
     const tempo = page.getByRole('button', { name: 'Ver en el instrumento: tempo' });
     await tempo.scrollIntoViewIfNeeded();
-    await expect(page.locator('trn-guide[data-lista]')).toBeAttached();
     await tempo.focus();
     await page.keyboard.press('Enter');
     const main = page.locator('[data-control="main"]');

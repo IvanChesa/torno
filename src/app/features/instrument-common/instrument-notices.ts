@@ -172,7 +172,15 @@ import { INSTRUMENT_COMMON_CONTENT } from './instrument-common.content';
       margin: 0;
     }
 
+    /*
+     * El texto y el botón, como dos piezas que se envuelven: el botón (44 px de alto) no agranda la
+     * línea del texto (en el móvil, la interlínea quedaba desigual; revisión de diseño de la fase 8).
+     */
     .autosave {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      column-gap: 0.5ch;
       margin: 0;
       color: var(--color-ink-muted);
       font-size: var(--text-s);

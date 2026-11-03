@@ -192,6 +192,68 @@ async function filesIn(dir) {
 const exists = async (file) => (await stat(file).catch(() => null)) !== null;
 
 /**
+ * Las reglas `@font-face` de las reservas de una hoja de estilos ya minimizada: las que solo usan
+ * fuentes del sistema (`local()`, sin `url()`), que no piden nada a la red.
+ */
+export function fallbackFontFaces(css) {
+  return (css.match(/@font-face\{[^}]*\}/g) ?? []).filter(
+    (rule) => rule.includes('local(') && !rule.includes('url('),
+  );
+}
+
+/** Lo que se pone al principio del `<head>`: antes del primer `<link>` o `<style>`. */
+function prependToHead(html, tags) {
+  const at = html.search(/<(link|style)\b/);
+  if (at < 0) return html.replace('</head>', `${tags}</head>`);
+  return html.slice(0, at) + tags + html.slice(at);
+}
+
+/**
+ * Las `@font-face` de las reservas en el `<head>` de cada página (fase 8). Angular carga la hoja
+ * global sin bloquear y su CSS crítico en línea no las lleva: hasta que llegaba la hoja, el texto
+ * se pintaba con la `serif` del sistema sin ajustar y, al llegar, la página saltaba (CLS de 0,096
+ * en `/` y de 0,046 en `/sobre-el-proyecto` en el CI). Así, la reserva ajustada (`fonts.css`)
+ * vale desde el primer pintado. Las de Fraunces y Geist Mono, no: pedirlas antes del primer
+ * pintado lo retrasaba (el FCP de Lighthouse, de 1,7 a 2,6 s). Una sola vez.
+ * @param {string} html
+ * @param {string[]} faces las reglas, de `fallbackFontFaces()`
+ */
+export function addFontFaces(html, faces) {
+  if (faces.length === 0 || html.includes('<style data-fuentes>')) return html;
+  return prependToHead(html, `<style data-fuentes>${faces.join('')}</style>`);
+}
+
+/**
+ * La precarga del póster de la portada (el elemento del LCP, fase 8): el `<picture>` cuyo `<img>`
+ * lleva `fetchpriority="high"`, con una `<source>` (el móvil) y el `<img>` (lo demás), cada uno
+ * con su `media`. En el `<head>`, el póster se pide antes que el JS de la página, que se llevaba el
+ * ancho de banda del 4G (LCP de 2,6 s en el CI). Una sola vez; sin ese `<picture>`, nada.
+ * @param {string} html
+ */
+export function addPosterPreload(html) {
+  if (html.includes('<link rel="preload" as="image"')) return html;
+  const picture = html
+    .match(/<picture\b[^>]*>([\s\S]*?)<\/picture>/g)
+    ?.find((block) => /<img\b[^>]*\bfetchpriority="high"/.test(block));
+  if (!picture) return html;
+  const sources = [...picture.matchAll(/<source\b[^>]*>/g)].map(([tag]) => ({
+    media: tag.match(/\bmedia="([^"]+)"/)?.[1],
+    href: tag.match(/\bsrcset="([^"\s,]+)"/)?.[1],
+  }));
+  const img = picture.match(/<img\b[^>]*\bsrc="([^"]+)"/)?.[1];
+  if (!img || sources.length > 1 || sources.some((source) => !source.media || !source.href)) {
+    return html;
+  }
+  const link = (href, media) =>
+    `<link rel="preload" as="image" href="${href}"${media ? ` media="${media}"` : ''} fetchpriority="high">`;
+  const [source] = sources;
+  const links = source
+    ? link(source.href, source.media) + link(img, `not all and ${source.media}`)
+    : link(img);
+  return prependToHead(html, links);
+}
+
+/**
  * Pasa cada `ruta/index.html` a `ruta.html` y quita `index.csr.html`. Devuelve las rutas movidas.
  * @param {string} root
  */
@@ -227,9 +289,15 @@ export async function processBuild({ root = ROOT, template } = {}) {
     problems.push('Falta 404.html (la ruta /404 prerenderizada): Pages respondería 200 a todo');
   }
   const pages = files.filter((file) => file.endsWith('.html'));
+  const styles = files.filter((file) => /^styles-[A-Z0-9]+\.css$/.test(file));
+  const faces = [];
+  for (const style of styles)
+    faces.push(...fallbackFontFaces(await readFile(path.join(root, style), 'utf8')));
   const hashes = new Set();
   for (const page of pages) {
-    const html = await readFile(path.join(root, page), 'utf8');
+    const original = await readFile(path.join(root, page), 'utf8');
+    const html = addPosterPreload(addFontFaces(original, faces));
+    if (html !== original) await writeFile(path.join(root, page), html);
     for (const code of inlineScripts(html)) hashes.add(scriptHash(code));
     for (const handler of inlineHandlers(html))
       problems.push(`${page}: «${handler}» (la CSP lo bloquearía)`);
@@ -249,14 +317,20 @@ export async function processBuild({ root = ROOT, template } = {}) {
     throw new Error(`El build no vale para Pages:\n  ${problems.join('\n  ')}`);
   }
   await writeFile(path.join(root, '_headers'), headers);
-  return { moved, pages: pages.length, hashes: hashes.size, files: files.length };
+  return {
+    moved,
+    pages: pages.length,
+    hashes: hashes.size,
+    files: files.length,
+    fontFaces: faces.length,
+  };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   try {
-    const { moved, pages, hashes, files } = await processBuild();
+    const { moved, pages, hashes, files, fontFaces: faces } = await processBuild();
     console.log(
-      `✔ Pages: ${moved.length === 0 ? 'rutas ya preparadas' : `${moved.join(', ')} como ruta.html`}; CSP con ${hashes} hash${hashes === 1 ? '' : 'es'} de scripts en línea (${pages} páginas); caché comprobada en ${files} archivos`,
+      `✔ Pages: ${moved.length === 0 ? 'rutas ya preparadas' : `${moved.join(', ')} como ruta.html`}; CSP con ${hashes} hash${hashes === 1 ? '' : 'es'} de scripts en línea (${pages} páginas); ${faces} @font-face en el <head>; caché comprobada en ${files} archivos`,
     );
   } catch (error) {
     console.error(`✖ ${error instanceof Error ? error.message : String(error)}`);

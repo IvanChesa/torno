@@ -304,6 +304,23 @@ async function measureStage(base) {
     );
     await browser.close();
   }
+  // Cada nivel de calidad en frío (fase 8, la tabla de §5 por nivel): generación, VRAM y tarea larga.
+  for (const level of ['high', 'medium', 'low']) {
+    const browser = await launchWithGpu();
+    const page = await browser.newPage({ viewport });
+    await page.addInitScript(LONG_TASKS);
+    await page.goto(`${base}/?captura=1&calidad=${level}`);
+    const stage = page.locator('.stage3d[data-listo]');
+    await stage.waitFor({ timeout: 60_000 });
+    await page.waitForTimeout(1000);
+    const stats = JSON.parse((await stage.getAttribute('data-estadisticas')) ?? '{}');
+    const { longest } = await pageCosts(page);
+    console.log(
+      `Nivel ${level}, en frío: generación ${stats.buildMs} ms; VRAM ${stats.vramMb} MB; ` +
+        `tarea más larga, ${longest} ms`,
+    );
+    await browser.close();
+  }
   const browser = await launchWithGpu();
   try {
     const page = await browser.newPage({ viewport });
@@ -314,6 +331,8 @@ async function measureStage(base) {
     console.log(`Sin el 3D (?sin3d=1): ${(await pageCosts(page)).kB} kB`);
     await page.goto(`${base}/?diagnostico=1`);
     await page.locator('#instrumento').scrollIntoViewIfNeeded();
+    // Desde la fase 8, el 3D llega con un gesto (o con la página quieta).
+    await page.mouse.move(10, 10);
     await page.locator('.stage3d[data-listo]').waitFor({ timeout: 60_000 });
     const panel = page.locator('trn-stage-dev .dev');
     for (const level of ['Alta', 'Media', 'Baja']) {

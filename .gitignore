@@ -74,3 +74,10 @@ AGENTS.md
 
 # Configuración local de la vista previa del escritorio de Claude Code (revisión del bloque C, #3)
 .claude/launch.json
+
+# Informes de Lighthouse (npm run lighthouse, lighthouserc.js)
+/lighthouse/
+/.lighthouseci/
+
+# Referencias visuales de Windows (VISUAL=1 en local): las buenas son las de Linux, del CI
+/e2e/visual.spec.ts-snapshots/*-win32.png

@@ -1,13 +1,13 @@
-import { Component, DOCUMENT, inject, input } from '@angular/core';
-import { MotionPreference } from '../../core/motion';
-import { InstrumentSpotlight } from '../instrument-common/spotlight';
+import { Component, input } from '@angular/core';
 import { DETAILS_CONTENT } from './details.content';
-import { INSTRUMENT_ANCHOR } from './guide';
 
 /**
  * «Los detalles» (PLAN fase 7): los materiales del aparato, con el render despiezado del propio
  * motor y «Despiezar el instrumento», que lleva la página al 3D y le pide la vista despiezada. Sin
  * el 3D no hay piezas que separar: lo dice en lugar del botón.
+ *
+ * El clic de «Despiezar el instrumento» lo atiende la portada (como «Ver en el instrumento» de la
+ * guía): la sección se hidrata al verse, y un clic en plena hidratación se perdía (fase 8).
  */
 @Component({
   selector: 'trn-details',
@@ -47,7 +47,8 @@ import { INSTRUMENT_ANCHOR } from './guide';
       </ul>
       @if (explodable()) {
         <p>
-          <button type="button" class="button button--secondary" (click)="explode()">
+          <!-- data-despiezar: lo atiende la portada (isExplodeRequest, en guide-target.ts). -->
+          <button type="button" class="button button--secondary" data-despiezar>
             {{ text.explode }}
           </button>
         </p>
@@ -120,15 +121,4 @@ export class Details {
   readonly explodable = input(true);
 
   protected readonly text = DETAILS_CONTENT;
-  private readonly spotlight = inject(InstrumentSpotlight);
-  private readonly motion = inject(MotionPreference);
-  private readonly document = inject(DOCUMENT);
-
-  protected explode(): void {
-    this.spotlight.explode();
-    this.document.getElementById(INSTRUMENT_ANCHOR)?.scrollIntoView({
-      behavior: this.motion.still() ? 'auto' : 'smooth',
-      block: 'center',
-    });
-  }
 }

@@ -17,8 +17,12 @@ export const HOME_CONTENT = {
     /** El nombre de la región del instrumento (no se ve: el titular está al lado). */
     label: 'El instrumento',
     poster: 'Torno, el instrumento, visto de frente.',
-    /** Sin WebGL, el plato HTML en su lugar (el aviso cuidado, en la fase 8). */
-    noWebgl:
-      'Este navegador no puede mostrar el 3D: aquí tienes el instrumento sin él, con los mismos controles.',
+    /** Sin WebGL, o si el 3D se detiene y no vuelve, el plato HTML en su lugar (fase 8). */
+    fallback: {
+      webgl:
+        'Este navegador no puede mostrar el 3D: aquí tienes el instrumento sin él, con los mismos controles.',
+      context:
+        'El 3D se ha detenido y no ha vuelto: sigue tocando aquí, sin él. Lo que suena no ha parado.',
+    },
   },
 } as const;

@@ -1,16 +1,36 @@
-import { afterNextRender, Component, inject, signal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  DestroyRef,
+  DOCUMENT,
+  inject,
+  signal,
+} from '@angular/core';
 import { noteInstrumentTap, preloadAudioEngine } from '../../audio/engine';
+import { isCaptureMode } from '../../core/capture-mode';
 import { isDiagnosticsMode } from '../../core/diagnostics-mode';
 import { isHtmlOnlyMode } from '../../core/html-only-mode';
+import { MotionPreference } from '../../core/motion';
+import { onPresenceOrQuiet } from '../../core/page-presence';
+import type { ControlId } from '../../instrument';
 import { DiagnosticsPanel } from '../../features/diagnostics/diagnostics-panel';
 import { HtmlInstrument } from '../../features/html-instrument/html-instrument';
-import { InstrumentStage } from '../../features/instrument-stage/instrument-stage';
+import {
+  InstrumentStage,
+  type StageFailure,
+} from '../../features/instrument-stage/instrument-stage';
 import { StagePlaceholder } from '../../features/instrument-stage/stage-placeholder';
 import { InstrumentSpotlight } from '../../features/instrument-common/spotlight';
 import { Closing } from '../../features/product/closing';
 import { Details } from '../../features/product/details';
 import { Faq } from '../../features/product/faq';
-import { Guide, INSTRUMENT_ANCHOR } from '../../features/product/guide';
+import { Guide } from '../../features/product/guide';
+import {
+  guideTargetFor,
+  INSTRUMENT_ANCHOR,
+  isExplodeRequest,
+} from '../../features/product/guide-target';
 import { LoopAnatomy } from '../../features/product/loop-anatomy';
 import { LOOP_ANATOMY_CONTENT } from '../../features/product/loop-anatomy.content';
 import { ProductIntro } from '../../features/product/intro';
@@ -22,10 +42,13 @@ import { HOME_CONTENT } from './home.content';
  * es», la guía de los 9 controles, los materiales con la vista despiezada, la anatomía de un bucle,
  * la ficha técnica, las preguntas frecuentes y el cierre.
  *
- * El instrumento es el aparato en 3D (PLAN §4.6 y fase 6), en `@defer`, al acercarse o en reposo:
- * mientras, su póster con el sitio del espejo de la pantalla y de la barra (sin mover nada al
- * llegar). Con `?sin3d=1`, o si el navegador no tiene WebGL, el plato HTML en su lugar. Nunca están
- * los dos.
+ * El instrumento es el aparato en 3D (PLAN §4.6 y fase 6), en `@defer`: llega con el primer gesto en
+ * la página (mover el ratón, tocar, desplazar o una tecla) o cuando la página lleva unos segundos
+ * quieta, nunca en plena carga (PLAN fase 8: su llegada bloquea el hilo principal y la carga tiene
+ * que responder). Mientras, su póster, un render del propio aparato, con el sitio del espejo de la
+ * pantalla y de la barra (sin mover nada al llegar). Con `?sin3d=1`, el plato HTML en su lugar, en
+ * reposo; si el navegador no tiene WebGL o el contexto se pierde y no vuelve, el plato también,
+ * cuando el 3D falla (con su aviso). Nunca están los dos.
  *
  * El escenario que lo rodea lleva `data-audio-unlock` (el desbloqueo nativo actúa en el gesto real
  * aunque la página no esté hidratada), y también «Tocar», que lleva al instrumento y le pasa el foco
@@ -51,11 +74,12 @@ import { HOME_CONTENT } from './home.content';
     SpecSheet,
     StagePlaceholder,
   ],
-  host: { '(click)': 'tap($event)' },
+  host: { '(click)': 'onClick($event)' },
   template: `
     <section class="hero" aria-labelledby="titulo">
       <div class="hero__text">
-        <h1 id="titulo">{{ text.title }}</h1>
+        <!-- La marca no se traduce (un traductor automático la cambiaría por «Lathe»). -->
+        <h1 id="titulo" translate="no">{{ text.title }}</h1>
         <p class="hero__lead">{{ text.lead }}</p>
         <p class="hero__actions">
           <a class="button" [href]="anchor" data-audio-unlock (click)="play()">{{ text.play }}</a>
@@ -74,16 +98,21 @@ import { HOME_CONTENT } from './home.content';
         role="region"
       >
         <div class="stage" data-audio-unlock>
-          @if (noWebgl()) {
-            <p class="stage__notice" role="status">{{ text.instrument.noWebgl }}</p>
+          @if (fallback(); as reason) {
+            <p class="stage__notice" role="status">{{ text.instrument.fallback[reason] }}</p>
           }
           <!--
             Un @defer de fuera con los disparadores y el mismo marcador para los dos instrumentos: con
             ?sin3d=1, lo que hay dentro de .stage no cambia al hidratar, y un toque anterior (que
             Angular repite después) sigue encontrando su sitio en la página. Dentro, un @defer para
             cada uno: solo se descarga el trozo del que se usa.
+
+            Al cumplirse el de fuera, su marcador se va y el de dentro llega un tic después: en ese
+            fotograma no había nada y la página saltaba (CLS de 0,6 al llegar el 3D, fase 8). La
+            reserva, un marcador más, solo se ve entonces (.stage__reserve, con :has()).
           -->
-          @defer (on viewport; on idle; on interaction) {
+          <trn-stage-placeholder class="stage__reserve" aria-hidden="true" alt="" />
+          @defer (on interaction; when stageWanted()) {
             @if (htmlOnly() || noWebgl()) {
               @defer (on immediate) {
                 <trn-html-instrument />
@@ -92,7 +121,7 @@ import { HOME_CONTENT } from './home.content';
               }
             } @else {
               @defer (on immediate) {
-                <trn-instrument-stage (failed)="noWebgl.set(true)" />
+                <trn-instrument-stage (failed)="fail($event)" />
               } @placeholder {
                 <trn-stage-placeholder [alt]="text.instrument.poster" />
               }
@@ -225,6 +254,37 @@ import { HOME_CONTENT } from './home.content';
       scroll-margin-block-start: var(--space-4);
     }
 
+    /*
+     * La caja del instrumento es un contenedor: si su columna no da para la barra del 3D en una fila
+     * (657 px; entre 1024 y unos 1100 px de ancho, o con zum), la barra va en tres filas, como en el
+     * móvil, y el marcador reserva lo mismo (revisión de la fase 8, #1).
+     */
+    .stage {
+      container: instrumento / inline-size;
+    }
+
+    @container instrumento (max-width: 43.99rem) {
+      trn-stage-placeholder,
+      trn-instrument-stage {
+        --stage-toolbar-height: calc(3 * var(--target-min) + 2 * var(--space-1));
+      }
+    }
+
+    /*
+     * La reserva del sitio del instrumento: solo cuando en .stage no hay ni marcador ni instrumento
+     * (el tic entre el marcador del @defer de fuera y el de dentro).
+     */
+    .stage__reserve {
+      display: none;
+    }
+
+    .stage:not(
+        :has(trn-instrument-stage, trn-html-instrument, trn-stage-placeholder:not(.stage__reserve))
+      )
+      > .stage__reserve {
+      display: grid;
+    }
+
     .stage__notice {
       max-inline-size: var(--measure);
       margin-block-end: var(--space-4);
@@ -244,16 +304,38 @@ export class HomePage {
   protected readonly anchorId = INSTRUMENT_ANCHOR;
   protected readonly anchor = `#${INSTRUMENT_ANCHOR}`;
   private readonly spotlight = inject(InstrumentSpotlight);
+  private readonly motion = inject(MotionPreference);
+  private readonly document = inject(DOCUMENT);
   protected readonly diagnostics = signal(false);
   /** `?sin3d=1`: sin el escenario 3D (ni su póster). Solo se sabe en el navegador. */
   protected readonly htmlOnly = signal(false);
-  /** El 3D no ha podido arrancar (sin WebGL): el plato HTML en su lugar. */
-  protected readonly noWebgl = signal(false);
+  /** El 3D no puede seguir (sin WebGL o con el contexto perdido): el plato HTML en su lugar. */
+  protected readonly noWebgl = computed(() => this.fallback() !== null);
+  /** Por qué no está el 3D (sin WebGL, o el contexto perdido sin volver), o `null`. */
+  protected readonly fallback = signal<StageFailure | null>(null);
+  /** Ya se puede pedir el instrumento: alguien se ha acercado o la página está quieta. */
+  protected readonly stageWanted = signal(false);
 
   constructor() {
+    const destroyRef = inject(DestroyRef);
     afterNextRender(() => {
       this.diagnostics.set(isDiagnosticsMode(location.search));
       this.htmlOnly.set(isHtmlOnlyMode(location.search));
+      // Las capturas no esperan a nadie.
+      if (isCaptureMode(location.search)) {
+        this.stageWanted.set(true);
+        return;
+      }
+      // El plato HTML es ligero: en reposo, como antes de la fase 8. No antes: un toque anterior al
+      // JS, que Angular repite tras la hidratación, tiene que llegar antes que el instrumento (este
+      // mira al nacer si hubo uno que no pudo activar el sonido).
+      if (this.htmlOnly()) {
+        const wanted = () => this.stageWanted.set(true);
+        if (typeof requestIdleCallback === 'function') requestIdleCallback(wanted);
+        else setTimeout(wanted);
+        return;
+      }
+      destroyRef.onDestroy(onPresenceOrQuiet(window, () => this.stageWanted.set(true)));
     });
   }
 
@@ -263,7 +345,53 @@ export class HomePage {
     this.spotlight.show('play', 'completo');
   }
 
-  protected tap(event: Event): void {
+  /**
+   * Lo que piden las secciones de debajo, que se hidratan al verse (un clic en plena hidratación se
+   * perdía): «Ver en el instrumento» (la guía) y «Despiezar el instrumento» (los detalles). Llevan
+   * la página al instrumento; nunca suenan ni cambian nada.
+   */
+  private fromSections(event: Event): void {
+    if (isExplodeRequest(event.target)) {
+      this.spotlight.explode();
+      this.scrollToInstrument();
+      return;
+    }
+    const target = guideTargetFor(event.target);
+    if (!target) return;
+    this.spotlight.show(target.control, target.shot);
+    this.scrollToInstrument();
+  }
+
+  private scrollToInstrument(): void {
+    this.document.getElementById(INSTRUMENT_ANCHOR)?.scrollIntoView({
+      behavior: this.motion.still() ? 'auto' : 'smooth',
+      block: 'center',
+    });
+  }
+
+  /**
+   * El 3D no puede seguir: el plato HTML en su lugar, con el aviso. Si el foco estaba en un control
+   * del 3D, pasa al mismo control del plato (cuando llegue), para no perderse en la página.
+   */
+  protected fail(reason: StageFailure): void {
+    const focused = this.document.activeElement;
+    const inStage = focused?.closest?.('.stage');
+    // El mismo control y, si el foco estaba en otra cosa del 3D (su barra), el principal.
+    const control = inStage
+      ? ((focused?.closest?.('[data-control]')?.getAttribute('data-control') as ControlId | null) ??
+        'main')
+      : null;
+    this.fallback.set(reason);
+    if (control) this.spotlight.show(control, null);
+    else this.spotlight.clearAttended();
+  }
+
+  /**
+   * Los clics de la página: un toque en el escenario (por si llegó antes que el JS) y «Ver en el
+   * instrumento» y «Despiezar el instrumento» (`fromSections`: los atiende la portada, ya hidratada).
+   */
+  protected onClick(event: Event): void {
     if ((event.target as Element | null)?.closest?.('.stage')) noteInstrumentTap();
+    this.fromSections(event);
   }
 }
