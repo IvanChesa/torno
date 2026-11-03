@@ -27,3 +27,46 @@
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
+/*
+ * Las reservas de Fraunces con sus métricas ajustadas (DISENO.md §3, fase 8): mientras llega
+ * Fraunces, el texto ocupa casi lo mismo, no cambia de líneas al llegar y no mueve la página (en
+ * Linux, DejaVu Serif es un 11 % más ancha: CLS de 0,098 en el CI). Medido con
+ * `node scripts/font-fallbacks.mjs` (los textos de la portada a 17 y 20 px, SOFT 0). Iowan Old Style
+ * (Apple) va sin ajustar: no está en el PC donde se mide.
+ */
+@font-face {
+  font-family: 'Fraunces reserva Palatino';
+  src: local('Palatino Linotype');
+  size-adjust: 104.24%;
+  ascent-override: 94.01%;
+  descent-override: 24.94%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Fraunces reserva Georgia';
+  src: local('Georgia');
+  size-adjust: 104.8%;
+  ascent-override: 93.51%;
+  descent-override: 24.81%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Fraunces reserva DejaVu';
+  src: local('DejaVu Serif');
+  size-adjust: 89.57%;
+  ascent-override: 109.41%;
+  descent-override: 29.03%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Fraunces reserva Liberation';
+  src: local('Liberation Serif');
+  size-adjust: 115.26%;
+  ascent-override: 85.02%;
+  descent-override: 22.56%;
+  line-gap-override: 0%;
+}
