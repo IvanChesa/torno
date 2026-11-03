@@ -24,9 +24,19 @@ function collectErrors(page: Page): string[] {
   return errors;
 }
 
+/**
+ * Se acerca al instrumento como una persona: baja hasta él y mueve el ratón por encima. Desde la
+ * fase 8, el 3D llega con el primer gesto en la página (o con la página quieta unos segundos).
+ */
+async function approach(page: Page): Promise<void> {
+  await page.locator('#instrumento').scrollIntoViewIfNeeded();
+  const box = await page.locator('#instrumento').boundingBox();
+  if (box) await page.mouse.move(box.x + 4, box.y + 4);
+}
+
 async function openStage(page: Page, url = '/'): Promise<void> {
   await page.goto(url);
-  await page.locator('#instrumento').scrollIntoViewIfNeeded();
+  await approach(page);
   await expect(stage(page)).toHaveAttribute('data-listo', '', { timeout: READY_MS });
 }
 
@@ -38,9 +48,12 @@ test.describe('escenario 3D', () => {
     const errors = collectErrors(page);
     await page.goto('/');
     // Antes del 3D, el póster en la misma caja (5:4).
-    const poster = page.locator('.stage3d-placeholder img, .stage3d__poster').first();
+    const poster = page.locator('trn-stage-placeholder img, .stage3d__poster').first();
     await expect(poster).toHaveAttribute('src', '/img/escenario.webp');
-    await page.locator('#instrumento').scrollIntoViewIfNeeded();
+    // Sin un gesto, el 3D no llega en la carga (fase 8): ni el escenario ni su trozo.
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('trn-instrument-stage')).toHaveCount(0);
+    await approach(page);
     await expect(stage(page)).toHaveAttribute('data-listo', '', { timeout: READY_MS });
     const canvas = stage(page).locator('canvas');
     await expect(canvas).toHaveAttribute('role', 'img');
@@ -56,6 +69,17 @@ test.describe('escenario 3D', () => {
       .analyze();
     expect(results.violations.map((v) => `${v.id} (${v.impact})`)).toEqual([]);
     expect(errors).toEqual([]);
+  });
+
+  test('sin ningún gesto, el 3D llega igual cuando la página lleva unos segundos quieta', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('trn-instrument-stage')).toHaveCount(0);
+    // Ni el ratón, ni el dedo, ni el teclado: solo esperar.
+    await expect(stage(page)).toHaveAttribute('data-listo', '', { timeout: READY_MS });
   });
 
   test('«Ver en el instrumento» (la guía): la cámara viaja al control y le da el foco, sin audio', async ({
@@ -122,7 +146,7 @@ test.describe('escenario 3D', () => {
       } as typeof original;
     });
     await page.goto('/');
-    await page.locator('#instrumento').scrollIntoViewIfNeeded();
+    await approach(page);
     await expect(page.getByText('Este navegador no puede mostrar el 3D')).toBeVisible({
       timeout: READY_MS,
     });
@@ -247,7 +271,7 @@ const numberOf = async (locator: Locator, attribute: string) =>
 /** Abre la portada y espera al 3D con sus controles ya encima de las piezas. */
 async function openInstrument(page: Page, url = '/'): Promise<void> {
   await page.goto(url);
-  await page.locator('#instrumento').scrollIntoViewIfNeeded();
+  await approach(page);
   await expect(stage(page)).toHaveAttribute('data-listo', '', { timeout: READY_MS });
   await expect(page.locator('trn-stage-controls')).toHaveClass(/is-placed/);
 }
@@ -681,30 +705,35 @@ test.describe('el instrumento 3D en el móvil', () => {
     hasTouch: true,
   });
 
-  test('zonas táctiles de 44 px como poco, sin pisarse, en el encuadre del móvil', async ({
-    page,
-  }) => {
-    test.setTimeout(90_000);
-    await openInstrument(page);
-    // La caja es cuadrada y de borde a borde.
-    const box = (await stage(page).boundingBox())!;
-    expect(box.width).toBeCloseTo(360, 0);
-    expect(box.width / box.height).toBeCloseTo(1, 2);
-    const zones = await zoneBoxes(page);
-    expect(zones).toHaveLength(12);
-    for (const zone of zones) {
-      expect(zone.visible, zone.id).toBe(true);
-      expect(zone.width, zone.id).toBeGreaterThanOrEqual(43.9);
-      expect(zone.height, zone.id).toBeGreaterThanOrEqual(43.9);
-    }
-    const pairs: string[] = [];
-    for (let i = 0; i < zones.length; i++) {
-      for (let j = i + 1; j < zones.length; j++) {
-        if (overlap(zones[i]!, zones[j]!)) pairs.push(`${zones[i]!.id}–${zones[j]!.id}`);
+  // También a 320 px, el ancho mínimo de WCAG 1.4.10: ahí la capa 1 y el volumen se apartan un poco
+  // para no pisarse (revisión de la fase 6, #13).
+  for (const width of [360, 320]) {
+    test(`zonas táctiles de 44 px como poco, sin pisarse, en el encuadre del móvil (${width} px)`, async ({
+      page,
+    }) => {
+      test.setTimeout(90_000);
+      await page.setViewportSize({ width, height: 740 });
+      await openInstrument(page);
+      // La caja es cuadrada y de borde a borde.
+      const box = (await stage(page).boundingBox())!;
+      expect(box.width).toBeCloseTo(width, 0);
+      expect(box.width / box.height).toBeCloseTo(1, 2);
+      const zones = await zoneBoxes(page);
+      expect(zones).toHaveLength(12);
+      for (const zone of zones) {
+        expect(zone.visible, zone.id).toBe(true);
+        expect(zone.width, zone.id).toBeGreaterThanOrEqual(43.9);
+        expect(zone.height, zone.id).toBeGreaterThanOrEqual(43.9);
       }
-    }
-    expect(pairs).toEqual([]);
-  });
+      const pairs: string[] = [];
+      for (let i = 0; i < zones.length; i++) {
+        for (let j = i + 1; j < zones.length; j++) {
+          if (overlap(zones[i]!, zones[j]!)) pairs.push(`${zones[i]!.id}–${zones[j]!.id}`);
+        }
+      }
+      expect(pairs).toEqual([]);
+    });
+  }
 
   test('en el móvil, ningún encuadre ensancha la página', async ({ page }) => {
     test.setTimeout(90_000);
