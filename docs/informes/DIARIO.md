@@ -17,6 +17,7 @@ Lo escribe Claude Code (CLAUDE.md, «Ciclo de cada fase» y «Paradas»):
 | 5 · Diseño del instrumento y modelo 3D (`fase-5-modelo-3d`, fusión `673ad51`) | 2026-10-31 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 2 Importantes (los medidores pisaban los pilotos del plato y el lienzo cortaba la sombra de contacto), los 5 Menores y 3 de las 4 Sugerencias, corregidos; la #11 (commits más pequeños), para la fase 6 ([revisión](../revisiones/fase-5.md), [informe](fase-5.md)) | aparato redondo aprobado por Iván (Terracota, Neutral) · 51 llamadas de dibujo; 49 158, 36 498 y 25 454 triángulos por nivel · VRAM estimada de 61,2 MB en alto y 36,3 MB en bajo en el escritorio · generación 71–85 ms · tarea más larga del arranque 53–63 ms (antes, 610–630 en frío) · 144 fps en el escritorio (RTX 3060) · chunk 3D 622,6 kB · JS de `/` 303,7 kB · primera visita de 594 kB sin el 3D y 1,22 MB con él · 518 tests en Node + 70 en Angular + 107 e2e · el compás, exacto a la muestra a cualquier tempo |
 | 6 · Interacción y sincronía (`fase-6-interaccion`, fusión `cc4f6be`) | 2026-10-31 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 2 Importantes (en «Capas» la página se ensanchaba; el plato HTML no tenía «Pausar movimiento»), 11 de los 12 Menores y la Sugerencia, corregidos; el #13 (320 px), para Iván ([revisión](../revisiones/fase-6.md), [informe](fase-6.md)) | el 3D es el instrumento: controles nativos encima de cada pieza (ratón, dedo y teclado) · zonas de 44 px sin pisarse en 360 y 390 px · disco = transporte 0,00 % con la GPU (±1 % en Node con estados que llegan tarde) · respuesta tecla → audio 0,4–1,1 ms y ratón 3,9–4,3 ms · 0 animaciones con «Pausar movimiento» o movimiento reducido · pantalla del 3D a 10 px de cuerpo en el escritorio (antes ~5) · primera visita sin el 3D 596,0 kB y con él 1328,9 kB · chunk 3D 650,7 kB · JS de `/` 306,6 kB · 144 fps · tarea más larga 57–64 ms · VRAM 60,6 MB en alto · 551 tests en Node + 72 en Angular + 130 e2e |
 | 7 · Web de producto, guía y contenido (`fase-7-web-producto`, fusión `d1545e9`) | 2026-11-01 | CAMBIOS NECESARIOS: 1 Bloqueante (los e2e de la anatomía no bajaban hasta su sección), 2 Importantes (dos e2e inestables por tiempo; el TBT sin medir), 9 Menores y 4 Sugerencias: corregidos todos salvo 2 Sugerencias, razonadas ([revisión](../revisiones/fase-7.md), [informe](fase-7.md)) | portada con el instrumento, guía de 9 controles con «Ver en el instrumento» (sin audio ni micrófono, e2e), vista despiezada en el 3D, anatomía de un bucle con formas de onda reales, ficha técnica medida, preguntas, cierre y `/sobre-el-proyecto` · móvil (4G lento, CPU ×4): `/` LCP 568–592 ms, CLS 0,003, TBT 369–397 ms; `/sobre-el-proyecto` LCP 280–364 ms, TBT 102–105 ms · JS inicial de `/` 317,9 kB · primera visita 1352 kB con el 3D y 625 kB sin él (§5: 600, propuesta a Iván) · PageSpeed Insights móvil: `/` 70–72 en rendimiento (TBT del 3D), 100 en accesibilidad y buenas prácticas; `/sobre-el-proyecto` 100/100/100 · CI en paralelo: 8,6–9,7 min (antes 18) · 559 tests en Node y 72 en Angular |
+| 8 · Pulido y calidad (`fase-8-pulido`, fusión `01371ca`) | 2026-11-03 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 5 Importantes (la barra se salía de su columna entre 1024 y 1100 px; el 3D no llegaba con el clic de un lector de pantalla; el ancla de otra página; el plazo del contexto con la pestaña oculta; la pantalla completa del móvil), los 6 Menores y la Sugerencia, corregidos ([revisión](../revisiones/fase-8.md), [informe](fase-8.md)) | Lighthouse móvil en el CI (mediana de tres): `/` 99, 100 y 100, LCP 1,8 s y CLS 0,001 (una pasada en frío, 89); `/sobre-el-proyecto` 100/100/100 (antes, PageSpeed: `/` 70–72) · el 3D, con un gesto o con la página quieta 6 s (tope de 15 s); su llegada, con la tarea más larga de 104–139 ms con la CPU ×4 (antes, 189–449) · primera visita sin el 3D 564,8 kB en el navegador (≤ 650) · JS inicial de `/` 318,5 kB · chunk 3D 658,4 kB · VRAM 56,2 · 35,4 · 31,2 MB por nivel · 144 fps · `LoopCore` 223–224× · 0 violaciones de axe (también 320 px, zum al 200 % y espaciado de texto) · regresión visual con 14 capturas de Linux · primera reproducción en frío por red 205–225 ms en el escritorio · 569 tests en Node + 89 en Angular · CI de la rama en verde entero (`e47674d`) |
 
 ## Bloques
 
@@ -389,3 +390,34 @@ La 5.b sigue parada: falta lo otro que pide, las pruebas del móvil en `docs/PRU
 **Tras la fusión.** El primer CI de `main` (`280e863`) falló en un e2e de la guía con el ratón (el clic en el primer control, justo al cargar, mientras la guía se hidrataba: el foco no llegaba a su control). Es el mismo caso que el del teclado de la revisión (#2): el test espera ahora a que la guía esté hidratada (20 de 20 con seis trabajadores a la vez). **Para la fase 8:** que un clic o un Intro en plena hidratación de la guía también lleve el foco al control.
 
 **Siguiente.** El bloque E (la fase 8: pulido y calidad). No lo empiezo: espera a la revisión del bloque D y al prompt de Iván.
+
+### Bloque E · 2026-11-03 · terminado salvo las pruebas de Iván en el móvil (parada de fin de bloque)
+
+**Hecho.**
+- **Revisión del bloque D** (en `main`, `2ce6047`): las decisiones de Iván del 01-11 (`@lhci/cli` y el tope de 650 kB) ya en el plan.
+- **Fase 8** (fusión `01371ca`; informe `docs/informes/fase-8.md`):
+  - **el 3D fuera de la carga** (propuesta 2b, aprobada el 03-11): llega con el primer gesto o con la página quieta 6 s; la generación del aparato, en tres tramos;
+  - **Lighthouse en el CI** con `@lhci/cli` (móvil, `/` y `/sobre-el-proyecto`, mediana de tres pasadas, umbrales de §5);
+  - **sin saltos**: el marcador reserva todo lo del escenario y el tic entre los `@defer`, y las reservas de Fraunces llevan sus métricas ajustadas desde el primer pintado;
+  - **el peso de la primera visita** (≤ 650 kB) en `check-bundles` y en un e2e;
+  - **la guía** funciona en plena hidratación; **el foco** va al `h1` al cambiar de página; **las zonas táctiles** no se pisan a 320 px; **el contexto perdido** deja paso al plato HTML;
+  - **la barra del 3D** en tres grupos (una fila en el escritorio; tres si su caja no da), y **el móvil en horizontal y en pantalla completa** con su disposición;
+  - **accesibilidad**: axe en el móvil, en la chuleta y en las vistas del 3D, 320 px, zum al 200 % y espaciado de texto (e2e), y el árbol de accesibilidad revisado;
+  - **regresión visual** con 14 capturas y referencias de Linux generadas por el CI;
+  - **la tabla de todos los presupuestos de §5**, medida (informe de la fase 8, §6), y la revisión final de diseño.
+
+**Métricas:** las de la fila de la fase 8.
+
+**Desviaciones** (informe de la fase 8, §4): la prueba con lector de pantalla, por el árbol de accesibilidad y en la lista del móvil (TalkBack, VoiceOver y Narrador); `impeccable` sin su lanzador (descargaría un binario); la precarga de las fuentes, probada y revertida; el 3D a los 6 s (no 3), con tope de 15 s; de la 2c, solo trocear la generación.
+
+**Revisión del subagente** (`docs/revisiones/fase-8.md`): CAMBIOS NECESARIOS, sin Bloqueantes; los 5 Importantes, los 6 Menores y la Sugerencia, corregidos (informe, §12). Después, el CI de la rama destapó otro clic perdido en plena hidratación («Despiezar el instrumento»), arreglado como la guía.
+
+**Para Iván** (`docs/PENDIENTES.md` y `docs/PRUEBAS-MOVIL.md`):
+- **Las pruebas en tu móvil y en un iPhone**, con la lista ampliada (pruebas 1 a 26, con Narrador en el PC y cambiar de app con el 3D a la vista). Es el criterio que falta de la fase 8. Sobre todo las cifras: el primer sonido en frío (1), la latencia calibrada y las tomas seguidas (5 y 7), los 5 minutos sin cortes (10) y los FPS del 3D tocando (15).
+- **Confirmar cómo llega el 3D** (prueba 16): con un gesto o a los 6 s; se deshace en un solo sitio.
+- Siguen: el espejo B, los textos y los enlaces de ivanchesa.com (fase 9).
+- **Para la sesión de plan:**
+  - la primera reproducción en frío da 205–225 ms en el escritorio por red (la cifra de 68–93 del bloque C no se reproduce con el mismo método: informe de la fase 8, §6);
+  - Lighthouse en el CI: en el último run, una pasada de `/` con la máquina en frío dio 89 (la mediana, 99, es la que cuenta y pasa). Si el job se vuelve inestable, el plan ya prevé medir contra la vista previa (fase 8, tarea 7).
+
+**Siguiente.** El bloque F (la fase 9, el lanzamiento). No lo empiezo: espera a las pruebas de Iván en el móvil, a la revisión del bloque E y a su prompt.
