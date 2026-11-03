@@ -1,8 +1,8 @@
 # Informe: Fase 8 (pulido y calidad)
 
 - **Rama:** `fase-8-pulido`
-- **Fecha:** 2026-11-01
-- **Estado:** en curso (entrega 8.a)
+- **Fecha:** 2026-11-01 a 2026-11-03
+- **Estado:** listo para revisión (falta lo del móvil de Iván, que es lo último del bloque)
 
 ## 0. Plan de la fase
 
@@ -54,7 +54,7 @@
 **Aprobación (03-11).** La sesión de plan aprueba el plan de la 8.a tal cual, con la **propuesta 2b** (Iván: «Continúa»): el 3D con el primer gesto, al acercarse o con la página quieta, y el póster hasta entonces. Si con la 2b no llega a 90, la 2c en la misma fase; la 2d (< 90), no sin preguntar. Iván puede deshacer la 2b: va en un solo disparador y está en `PENDIENTES.md` para que lo confirme en su móvil.
 
 ## 1. Resumen
-(Se completa al cerrar la fase.)
+La portada pasa Lighthouse en el móvil (en el CI: `/` 99 de mediana, `/sobre-el-proyecto` 100; LCP 1,8 s y CLS 0,001), porque el 3D ya no llega en plena carga sino con el primer gesto o con la página quieta (la 2b), y porque se han quitado los saltos que salían al medirlo: el marcador reserva todo lo del escenario, el tic entre los dos `@defer` y la fuente de reserva sin ajustar hasta que llegaba la hoja de estilos. El CI lleva Lighthouse (`@lhci/cli`), la regresión visual (14 capturas con referencias de Linux) y el peso de la primera visita (≤ 650 kB, en `check-bundles` y en un e2e). Lo pendiente de las revisiones: «Ver en el instrumento» funciona en plena hidratación, el foco va al `h1` al cambiar de página, las zonas táctiles no se pisan a 320 px, la barra del 3D cabe en una fila y el móvil en horizontal tiene su disposición. Con el contexto perdido, el plato HTML. La tabla de todos los presupuestos de §5, medida (§6); lo del móvil, con Iván.
 
 ### Progreso por entregas
 - **8.a (hecha).**
@@ -67,11 +67,11 @@
 - **8.b (hecha).**
   - **«Ver en el instrumento» en plena hidratación** (revisión del bloque D, #3): el clic lo atiende la portada (`guideEntryFor`, en su escucha de `click`), que está hidratada desde el arranque; los botones solo llevan el número de su entrada. Reproducido con la CPU ×6: el Intro muy temprano se perdía porque **el salto al ancla `#guia` de la carga quitaba el foco al botón** (no había `click`): los e2e nuevos pulsan sin el ancla y sin esperar a nada (clic e Intro, con la CPU ×6), y los de siempre ya no esperan a la hidratación. 40 de 40 con seis trabajadores a la vez.
   - **El foco al navegar:** al cambiar de página, al `h1` de la nueva (`tabindex="-1"`, sin desplazar); nunca en la primera carga ni con un ancla de la misma página (test y `e2e/navigation.spec.ts`).
-- **8.c (en curso).**
+- **8.c (hecha).**
   - **Las zonas táctiles a 320 px** (revisión de la fase 6, #13): en lugar de encoger, `separateZones` aparta las zonas que se pisan lo que les sobra sin destapar su pieza (la capa 1 y el volumen, menos de 4 px cada una). Test en Node (320, 360 y 390 px) y e2e a 320 y 360 px.
   - **Sin WebGL o con el contexto perdido:** si el contexto no vuelve en 5 s, el plato HTML con su aviso («El 3D se ha detenido y no ha vuelto…») y el foco en el mismo control. e2e (se pierde con `WEBGL_lose_context` y nadie lo devuelve).
   - **El móvil en horizontal:** la caja pasaba a 228 × 182 px (844 × 390) con el espejo encima del aparato. Ahora, con poca altura, la caja a la izquierda (448 × 358) y el espejo y la barra a su derecha; el marcador, igual.
-- **8.d (en curso).** La barra del 3D en tres grupos: los encuadres como control segmentado, «Inspeccionar» y «Despiezar» en otro y la pantalla completa, «Pausar movimiento» y los atajos como botones de icono con su nombre dentro. Una fila en el escritorio (antes, dos) y tres en el móvil (antes, cuatro).
+- **8.d (hecha).** La barra del 3D en tres grupos: los encuadres como control segmentado, «Inspeccionar» y «Despiezar» en otro y la pantalla completa, «Pausar movimiento» y los atajos como botones de icono con su nombre dentro. Una fila en el escritorio (antes, dos) y tres en el móvil (antes, cuatro).
 
 ## 2. Criterios de aceptación
 
@@ -151,7 +151,21 @@ Medido en la fase 8 (01–03-11) con el build de la rama, en el PC de desarrollo
 | Privacidad | 0 cookies · 0 peticiones a terceros · 0 al grabar, guardar o exportar | 0 · 0 · 0 | `e2e/static.spec.ts` y `files.spec.ts` | ✅ |
 
 ### Salida de `npm run check`
-(Se completa al cerrar la fase.)
+```
+npm run check   (03-11, 563fbbd)
+  lint: tipos de cada capa, ESLint y Prettier, sin errores
+  test:node: 44 archivos, 569 tests (98,34 % de sentencias y 94,89 % de ramas en el TS puro)
+  test:ng: 13 archivos, 83 tests
+  build: 3 rutas prerenderizadas; Initial total 309,51 kB, sin avisos
+  Pages: 3 hashes de scripts en la CSP; 4 @font-face (las reservas) en el <head>
+  check-bundles:
+    ✔ JS inicial de /                  317,1 kB (aviso > 330)
+    ✔ JS inicial de /sobre-el-proyecto 316,0 kB · /404 301,4 kB
+    ✔ Desbloqueo de audio 1,9 kB · motor 25,2 kB · workers 17,4 y 41,9 kB · worklet 41,0 kB
+    ✔ Chunk 3D 657,3 kB (aviso > 800) · fuentes 144,1 kB
+    ✔ Primera visita: / 562,9 kB · /sobre-el-proyecto 494,8 kB · /404 466,1 kB (error > 650)
+```
+Lighthouse en el CI (`2ef3098`, tres pasadas): `/` 95, 99 y 99 en rendimiento, 100 y 100 (LCP 1,8–2,1 s, CLS 0,001); `/sobre-el-proyecto` 100, 100 y 100 (LCP 0,8 s, CLS 0).
 
 ## 7. Capturas
 En `docs/informes/img/fase-8/` (`npm run capturas -- --fase=8` y `--solo=escenario`): las páginas en escritorio y móvil, el plato HTML con sus avisos y el 3D en cada encuadre. Antes y después de la barra: `docs/informes/img/fase-7/instrumento3d-*.jpg` frente a `img/fase-8/instrumento3d-*.jpg`; el móvil en horizontal, antes y después: `img/fase-8/horizontal-{antes,despues}.png`.
