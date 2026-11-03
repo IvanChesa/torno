@@ -420,4 +420,8 @@ La 5.b sigue parada: falta lo otro que pide, las pruebas del móvil en `docs/PRU
   - la primera reproducción en frío da 205–225 ms en el escritorio por red (la cifra de 68–93 del bloque C no se reproduce con el mismo método: informe de la fase 8, §6);
   - Lighthouse en el CI: en el último run, una pasada de `/` con la máquina en frío dio 89 (la mediana, 99, es la que cuenta y pasa). Si el job se vuelve inestable, el plan ya prevé medir contra la vista previa (fase 8, tarea 7).
 
+**Tras la fusión.** El CI de `main` (`fe8193a`, run 41720529657), en verde entero: lint, tests y banco, build y presupuestos, Lighthouse, la regresión visual y los cuatro grupos de e2e. El despliegue (run 41722316419), en verde: `https://staging.torno.pages.dev` sirve la fase 8, y `node scripts/verify-pages.mjs` da 32 de 32 (rutas, cabeceras, caché y sin cookies).
+
+**Parada.** Todo lo del bloque está hecho y fusionado, salvo las pruebas de Iván en su móvil y en un iPhone, que no han llegado. Son el último criterio de la fase 8 (`docs/PRUEBAS-MOVIL.md`, pruebas 1 a 26, en `https://staging.torno.pages.dev`).
+
 **Siguiente.** El bloque F (la fase 9, el lanzamiento). No lo empiezo: espera a las pruebas de Iván en el móvil, a la revisión del bloque E y a su prompt.
