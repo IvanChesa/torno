@@ -9,6 +9,7 @@ name: CI
 # - «e2e»: tres grupos a la vez, cada uno en su máquina, con el build de «build». Los del 3D van en
 #   grupos aparte porque el WebGL de Chromium sin interfaz es por software y ocupa la máquina (ver
 #   playwright.config.ts);
+# - «lighthouse»: Lighthouse en el móvil con el build de «build» (PLAN §5, fase 8);
 # - «e2e-informe»: si falla algún grupo, une sus informes en uno.
 # El despliegue (deploy.yml) espera a que el workflow entero termine en verde.
 on:
@@ -201,6 +202,41 @@ jobs:
           name: test-results-${{ matrix.grupo }}
           path: test-results/
           retention-days: 7
+
+  # Lighthouse en el móvil (PLAN §5 y fase 8): el build de «build», servido como en Pages, tres
+  # pasadas por ruta y la mediana contra los umbrales de §5 (lighthouserc.js). Usa el Chrome de la
+  # imagen de GitHub, sin instalar navegadores. Los informes, como artefacto.
+  lighthouse:
+    name: Lighthouse (móvil)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: El build de «build»
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: torno-browser
+          path: dist/torno/browser
+
+      - run: npm run lighthouse
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: lighthouse
+          path: lighthouse/
+          retention-days: 14
 
   e2e-informe:
     name: Informe unido de los e2e

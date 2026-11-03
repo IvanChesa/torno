@@ -25,6 +25,7 @@
     "e2e": "playwright test",
     "pree2e": "node scripts/build-worklet.mjs && node scripts/make-fake-mic.mjs",
     "capturas": "node scripts/capture.mjs",
+    "lighthouse": "lhci autorun",
     "demo:sounds": "node scripts/demo-sounds.mjs",
     "check": "npm run lint && npm test && npm run build && node scripts/check-bundles.mjs"
   },
