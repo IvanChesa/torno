@@ -64,6 +64,20 @@ describe('onPresenceOrQuiet', () => {
     expect(wanted).toHaveBeenCalledOnce();
   });
 
+  it('con tareas largas sin parar, a los 15 s de la carga como mucho', () => {
+    const { win, longTask } = fakeWindow('complete', true);
+    const wanted = vi.fn();
+    onPresenceOrQuiet(win, wanted);
+    // Una tarea larga cada 3,5 s: la página nunca lleva 6 s quieta.
+    for (let elapsed = 0; elapsed < 14_000; elapsed += 3500) {
+      vi.advanceTimersByTime(3500);
+      longTask();
+    }
+    expect(wanted).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1000);
+    expect(wanted).toHaveBeenCalledOnce();
+  });
+
   it('cancelado, no llama', () => {
     const { win } = fakeWindow('complete');
     const wanted = vi.fn();
