@@ -108,7 +108,7 @@ Reglas de uso:
 - **Títulos** (`h1`–`h3`): Fraunces, `SOFT` 100 (`--soft-display`), peso 560 (`--weight-heading`), interletraje negativo y `text-wrap: balance`. Dos líneas como máximo.
 - **Texto:** Fraunces, `SOFT` 0, peso 400, tamaño óptico automático (`font-optical-sizing: auto`, por defecto). Interlineado 1,55 y medida de 65 caracteres (`--measure`).
 - **Geist Mono** solo para lo que es dato o máquina: la pantalla del aparato y su espejo HTML, lecturas (BPM, dBFS, ms, Hz), la ficha técnica, `code` y `kbd`. Siempre con cifras tabulares (`font-variant-numeric: tabular-nums`). **Nunca** como etiqueta decorativa ni para «parecer técnico».
-- Las pilas de reserva (`Iowan Old Style`, `Palatino Linotype`, Georgia; `ui-monospace`, Cascadia Mono, Consolas) mantienen el carácter mientras carga la fuente (`font-display: swap`). El ajuste de métricas de la reserva (`size-adjust`) y la precarga de Fraunces se hacen en la fase 8, con el CLS medido.
+- Las pilas de reserva (Palatino, Georgia, DejaVu Serif y Liberation Serif, con sus métricas ajustadas a Fraunces; detrás, `Iowan Old Style`; para la mono, `ui-monospace`, Cascadia Mono y Consolas) mantienen el carácter mientras carga la fuente (`font-display: swap`). Desde la fase 8, las reservas llevan `size-adjust` y `ascent`/`descent-override` (medidos con `node scripts/font-fallbacks.mjs`) y sus `@font-face` van en el `<head>` de cada página: el texto no cambia de líneas al llegar Fraunces. La precarga de Fraunces se probó y se quitó (subía el LCP en el 4G simulado).
 
 ### 3.1 Escala
 

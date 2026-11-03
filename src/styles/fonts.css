@@ -32,8 +32,9 @@
  * Las reservas de Fraunces con sus métricas ajustadas (DISENO.md §3, fase 8): mientras llega
  * Fraunces, el texto ocupa casi lo mismo, no cambia de líneas al llegar y no mueve la página (en
  * Linux, DejaVu Serif es un 11 % más ancha: CLS de 0,098 en el CI). Medido con
- * `node scripts/font-fallbacks.mjs` (los textos de la portada a 17 y 20 px, SOFT 0). Iowan Old Style
- * (Apple) va sin ajustar: no está en el PC donde se mide.
+ * `node scripts/font-fallbacks.mjs` (los textos de la portada a 17 y 20 px, SOFT 0). En el iPhone y
+ * en el Mac vale la de Georgia; Iowan Old Style, sin ajustar (no está en el PC donde se mide), va
+ * detrás de todas (tokens.css).
  */
 @font-face {
   font-family: 'Fraunces reserva Palatino';

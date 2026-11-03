@@ -42,9 +42,14 @@
   --instrument-plate: #864230;
 
   /* --- Tipografía --- */
+  /*
+   * Las reservas, con sus métricas ajustadas a Fraunces (fonts.css): Palatino (Windows), Georgia
+   * (Windows, macOS e iOS), DejaVu y Liberation (Linux). Iowan Old Style (Apple) va al final, sin
+   * ajustar: con Georgia delante no se llega a usar (revisión de la fase 8, #9).
+   */
   --font-text:
-    'Fraunces Variable', 'Iowan Old Style', 'Fraunces reserva Palatino', 'Fraunces reserva Georgia',
-    'Fraunces reserva DejaVu', 'Fraunces reserva Liberation', serif;
+    'Fraunces Variable', 'Fraunces reserva Palatino', 'Fraunces reserva Georgia',
+    'Fraunces reserva DejaVu', 'Fraunces reserva Liberation', 'Iowan Old Style', serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
   /* Escala fluida (360 → 1440 px). Cinco tamaños a la vista como mucho en una pantalla. */
   --text-xs: 0.8125rem;
