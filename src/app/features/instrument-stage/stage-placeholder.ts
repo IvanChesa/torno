@@ -93,6 +93,10 @@ import { STAGE_POSTER } from './stage-poster';
 
     /* Como en InstrumentNotices: el mismo texto, el mismo tamaño y el botón de 44 px de alto. */
     .autosave {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      column-gap: 0.5ch;
       justify-self: stretch;
       margin: 0;
       font-size: var(--text-s);
