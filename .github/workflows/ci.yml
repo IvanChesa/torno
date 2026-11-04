@@ -49,14 +49,15 @@ jobs:
       - run: node scripts/check-bundles.mjs
 
       # El build que prueban los e2e de abajo y que publica deploy.yml (solo si el CI entero termina
-      # en verde y solo los push a main o a una rama de fase).
+      # en verde y solo los push a main o a una rama de fase). El de main se guarda 90 días (el
+      # máximo): production.yml publica en producción ese mismo build cuando llega la etiqueta v*.
       - name: Guardar el build
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: torno-browser
           path: dist/torno/browser/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: ${{ github.ref == 'refs/heads/main' && 90 || 7 }}
 
       # El metafile de esbuild, aparte (no se despliega): un e2e de la hidratación busca en él el JS
       # principal.
