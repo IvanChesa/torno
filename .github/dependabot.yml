@@ -14,11 +14,16 @@ updates:
     commit-message:
       prefix: chore
     groups:
+      # Un solo grupo para todo Angular, de producción y de desarrollo (revisión del bloque E, #1):
+      # `@angular/compiler-cli` (desarrollo) exige la misma versión de `@angular/compiler`
+      # (producción), así que subir solo una mitad rompe `npm ci` con `ERESOLVE`. Por eso el grupo no
+      # filtra por `dependency-type` y el de desarrollo excluye lo de Angular de forma explícita.
       angular:
-        patterns: ['@angular/*', '@angular-devkit/*', 'angular-eslint']
+        patterns: ['@angular/*', '@angular-devkit/*', '@schematics/angular', 'angular-eslint']
         update-types: [minor, patch]
       desarrollo:
         dependency-type: development
+        exclude-patterns: ['@angular/*', '@angular-devkit/*', '@schematics/angular', 'angular-eslint']
         update-types: [minor, patch]
     ignore:
       # Fijadas a mano por el plan:
