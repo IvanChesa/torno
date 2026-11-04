@@ -23,7 +23,8 @@ updates:
         update-types: [minor, patch]
       desarrollo:
         dependency-type: development
-        exclude-patterns: ['@angular/*', '@angular-devkit/*', '@schematics/angular', 'angular-eslint']
+        exclude-patterns:
+          ['@angular/*', '@angular-devkit/*', '@schematics/angular', 'angular-eslint']
         update-types: [minor, patch]
     ignore:
       # Fijadas a mano por el plan:
