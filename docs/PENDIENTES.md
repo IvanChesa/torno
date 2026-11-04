@@ -23,7 +23,7 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 ## Decisiones
 - [x] **Subdominio definitivo:** `torno.ivanchesa.com` (31-10: la web de Iván pasa a ivanchesa.com y el .es se deja caducar). El código lo cambia la fase 7 en `src/app/core/site.config.ts`.
 - [x] **Autoguardado local** (D16): activado por defecto, visible y borrable (sin cambios de Iván antes del bloque A).
-- [ ] **Licencia del código propio** cuando el repo pase a público (MIT u otra).
+- [x] **Licencia del código: MIT** (Iván, 04-11). Cubre el código; la marca «Torno», los textos de la web y las imágenes quedan fuera, y el README lo dice. La pone la fase 9.
 - [x] `@lhci/cli` en el CI (fase 8): aprobado (01-11). Y el tope de la primera visita sin el 3D, a 650 kB en bruto (01-11).
 - [x] **Autoguardado con el panel de recuperar sin contestar** (revisión de la fase 2, #21): **segundo hueco** (decisión de Iván, 26-10; PLAN §4.8). Se implementa al empezar el bloque B (`docs/revisiones/bloque-A.md`, #3).
 - [ ] **Micrófono entre tomas** (si las pruebas del móvil lo piden; sus cifras, en la fase 8): mantenerlo abierto durante una «sesión de grabación» o recalibrar cada toma con la cuenta previa (informe de la fase 2, §10, propuesta 1).

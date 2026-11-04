@@ -565,12 +565,12 @@ Criterios de aceptación:
 
 **Iván (manual):**
 - **`torno.ivanchesa.com`**: en Pages → `torno` → *Custom domains*, añadir `torno.ivanchesa.com`. La zona de ivanchesa.com está en la misma cuenta de Cloudflare, así que el CNAME y el certificado salen solos.
-- La licencia del código.
+- ~~La licencia del código~~: **MIT**, decidida por Iván el 04-11.
 
 **Claude Code:**
 1. **Producción:** una etiqueta `v*` (o el lanzamiento manual del flujo) despliega el build verificado con `--branch=main`, la rama de producción de `torno`. Va a `torno.pages.dev` y a `torno.ivanchesa.com`; el `noindex` de `torno.pages.dev` se mantiene (la canónica es `torno.ivanchesa.com`).
 2. Verificación en producción con `curl` y Lighthouse.
-3. **README de portfolio** (capturas, vídeo o GIF corto, stack, arquitectura, mediciones), **LICENSE**, **CHANGELOG** y etiqueta **`v1.0.0`**. El repo pasa a público.
+3. **README de portfolio** (capturas, vídeo o GIF corto, stack, arquitectura, mediciones), **LICENSE** (MIT, a nombre de Iván Chesa Lapena; la marca «Torno», los textos y las imágenes quedan fuera, y el README lo explica), **CHANGELOG** y etiqueta **`v1.0.0`**. El repo ya es público.
 4. **Indexación:** `indexable: true` en `site.config.ts` (hasta aquí todo lleva `noindex`) y comprobar que solo la 404 lo conserva. Comprobar también que los enlaces legales de ivanchesa.com responden.
 5. Lista para Iván: la ficha del proyecto en ivanchesa.com, que enlaza a `torno.ivanchesa.com` en cuanto responde (en su propio repo), y la difusión.
 
