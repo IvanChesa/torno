@@ -18,6 +18,7 @@ Lo escribe Claude Code (CLAUDE.md, «Ciclo de cada fase» y «Paradas»):
 | 6 · Interacción y sincronía (`fase-6-interaccion`, fusión `cc4f6be`) | 2026-10-31 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 2 Importantes (en «Capas» la página se ensanchaba; el plato HTML no tenía «Pausar movimiento»), 11 de los 12 Menores y la Sugerencia, corregidos; el #13 (320 px), para Iván ([revisión](../revisiones/fase-6.md), [informe](fase-6.md)) | el 3D es el instrumento: controles nativos encima de cada pieza (ratón, dedo y teclado) · zonas de 44 px sin pisarse en 360 y 390 px · disco = transporte 0,00 % con la GPU (±1 % en Node con estados que llegan tarde) · respuesta tecla → audio 0,4–1,1 ms y ratón 3,9–4,3 ms · 0 animaciones con «Pausar movimiento» o movimiento reducido · pantalla del 3D a 10 px de cuerpo en el escritorio (antes ~5) · primera visita sin el 3D 596,0 kB y con él 1328,9 kB · chunk 3D 650,7 kB · JS de `/` 306,6 kB · 144 fps · tarea más larga 57–64 ms · VRAM 60,6 MB en alto · 551 tests en Node + 72 en Angular + 130 e2e |
 | 7 · Web de producto, guía y contenido (`fase-7-web-producto`, fusión `d1545e9`) | 2026-11-01 | CAMBIOS NECESARIOS: 1 Bloqueante (los e2e de la anatomía no bajaban hasta su sección), 2 Importantes (dos e2e inestables por tiempo; el TBT sin medir), 9 Menores y 4 Sugerencias: corregidos todos salvo 2 Sugerencias, razonadas ([revisión](../revisiones/fase-7.md), [informe](fase-7.md)) | portada con el instrumento, guía de 9 controles con «Ver en el instrumento» (sin audio ni micrófono, e2e), vista despiezada en el 3D, anatomía de un bucle con formas de onda reales, ficha técnica medida, preguntas, cierre y `/sobre-el-proyecto` · móvil (4G lento, CPU ×4): `/` LCP 568–592 ms, CLS 0,003, TBT 369–397 ms; `/sobre-el-proyecto` LCP 280–364 ms, TBT 102–105 ms · JS inicial de `/` 317,9 kB · primera visita 1352 kB con el 3D y 625 kB sin él (§5: 600, propuesta a Iván) · PageSpeed Insights móvil: `/` 70–72 en rendimiento (TBT del 3D), 100 en accesibilidad y buenas prácticas; `/sobre-el-proyecto` 100/100/100 · CI en paralelo: 8,6–9,7 min (antes 18) · 559 tests en Node y 72 en Angular |
 | 8 · Pulido y calidad (`fase-8-pulido`, fusión `01371ca`) | 2026-11-03 | CAMBIOS NECESARIOS: 0 Bloqueantes; los 5 Importantes (la barra se salía de su columna entre 1024 y 1100 px; el 3D no llegaba con el clic de un lector de pantalla; el ancla de otra página; el plazo del contexto con la pestaña oculta; la pantalla completa del móvil), los 6 Menores y la Sugerencia, corregidos ([revisión](../revisiones/fase-8.md), [informe](fase-8.md)) | Lighthouse móvil en el CI (mediana de tres): `/` 99, 100 y 100, LCP 1,8 s y CLS 0,001 (una pasada en frío, 89); `/sobre-el-proyecto` 100/100/100 (antes, PageSpeed: `/` 70–72) · el 3D, con un gesto o con la página quieta 6 s (tope de 15 s); su llegada, con la tarea más larga de 104–139 ms con la CPU ×4 (antes, 189–449) · primera visita sin el 3D 564,8 kB en el navegador (≤ 650) · JS inicial de `/` 318,5 kB · chunk 3D 658,4 kB · VRAM 56,2 · 35,4 · 31,2 MB por nivel · 144 fps · `LoopCore` 223–224× · 0 violaciones de axe (también 320 px, zum al 200 % y espaciado de texto) · regresión visual con 14 capturas de Linux · primera reproducción en frío por red 205–225 ms en el escritorio · 569 tests en Node + 89 en Angular · CI de la rama en verde entero (`e47674d`) |
+| 9 · Lanzamiento, parte sin el dominio (`fase-9-lanzamiento`, fusión `c6326f9`) | 2026-11-05 | CAMBIOS NECESARIOS: 0 Bloqueantes; el Importante («probado en seco» sin run), los 7 Menores y las 2 Sugerencias, corregidos ([revisión](../revisiones/fase-9.md), [informe](fase-9.md)) | `production.yml` en seco en verde (run 42099608489: encuentra el CI de `main` 42098128498, descarga su build, prepara wrangler y pregunta por el proyecto; publicar y comprobar, saltados) y, en real sin etiqueta, rechazado (42099761316) · Lighthouse móvil contra staging: 98/100/100 (una pasada) · JS inicial de `/` 320,2 kB (Angular 22.2.4) · 580 tests en Node + 90 en Angular · CI de `main` (42098128498) en verde entero y despliegue (42099433718), 64 de 64 · Dependabot: #7, #8 y #9 fusionados en verde |
 
 ## Bloques
 
@@ -425,3 +426,31 @@ La 5.b sigue parada: falta lo otro que pide, las pruebas del móvil en `docs/PRU
 **Parada.** Todo lo del bloque está hecho y fusionado, salvo las pruebas de Iván en su móvil y en un iPhone, que no han llegado. Son el último criterio de la fase 8 (`docs/PRUEBAS-MOVIL.md`, pruebas 1 a 26, en `https://staging.torno.pages.dev`).
 
 **Siguiente.** El bloque F (la fase 9, el lanzamiento). No lo empiezo: espera a las pruebas de Iván en el móvil, a la revisión del bloque E y a su prompt.
+
+### Bloque F (fase 9, sin el dominio) · 2026-11-05 · parado antes de la etiqueta `v1.0.0`
+
+**Hecho:**
+- **Revisión del bloque E:** #1, Dependabot con un solo grupo para todo Angular (los PR #3 y #5, cerrados; el #7, el #8 y el #9, fusionados con su CI en verde); #2, la ficha técnica con el primer toque por red (205–225 ms), con sus referencias visuales nuevas.
+- **Licencia MIT** del código, con `NOTICE`: fuera, la marca, los textos de las páginas y las imágenes.
+- **README de portfolio** con un GIF del aparato grabado con Playwright y `sharp` (`scripts/readme-gif.mjs`), stack, arquitectura, cifras medidas enlazadas a su informe y el crédito a TAPE.
+- **`CHANGELOG.md`** de la 1.0.0 (sin fecha) y `package.json` en 1.0.0.
+- **Producción:** `.github/workflows/production.yml` publica con `--branch=main` el build del CI de `main` del commit de la etiqueta `v*`, sin construir; el build de `main` se guarda 90 días; tests de los tres flujos (`scripts/workflows.spec.ts`). Probado en seco tras la fusión.
+
+**Métricas:** las de la fila de la fase 9.
+
+**Desviaciones:** sin etiqueta, sin `indexable: true` y sin el dominio, como pedía el bloque (ivanchesa.com aún no existe y faltan las pruebas del móvil). `package.json` ya en 1.0.0, porque el flujo exige que coincida con la etiqueta.
+
+**Para Iván** (`docs/PENDIENTES.md`, «Fase 9: lo que falta para lanzar», con las órdenes exactas):
+1. ivanchesa.com en Cloudflare (la otra sesión).
+2. Las pruebas del móvil y del iPhone (`docs/PRUEBAS-MOVIL.md`, 1 a 26).
+3. (Claude) los cinco enlaces de ivanchesa.com con `curl`.
+4. (Claude) `indexable: true`, cuando marques la decisión de la indexación, con sus tres tests al revés.
+5. (Claude) la fecha del CHANGELOG.
+6. (Claude) la etiqueta `v1.0.0` → `production.yml` publica en `torno.pages.dev`.
+7. Tú: `torno.ivanchesa.com` en Pages → *Custom domains*.
+8. (Claude) comprobar producción: `verify-pages`, Lighthouse y que solo la 404 lleva `noindex`.
+9. Tú: la ficha en ivanchesa.com y la difusión.
+
+Y confirmar qué textos quedan fuera de la MIT (`TODO(ivan)`).
+
+**Parada.** Todo lo que no depende del dominio ni de las pruebas del móvil está hecho, fusionado y con el CI y el despliegue en verde. No se ha creado la etiqueta.

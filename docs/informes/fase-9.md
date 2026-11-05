@@ -124,3 +124,13 @@ Revisión del subagente en `docs/revisiones/fase-9.md` (la primera se cortó con
 | 8 · Menor: la exclusión de la licencia, solo en el README y demasiado amplia | **Hecho.** `NOTICE` en la raíz y el README con la lista exacta: fuera, los textos de las páginas; con la MIT, los de la interfaz del instrumento, que son código. `TODO(ivan)` para confirmarlo. `LICENSE` se queda con el texto MIT tal cual (así lo reconoce GitHub). | `500bbc8` |
 | 9 · Sugerencia: `grep` de `baseUrl` sin resultado | **Hecho.** `|| base=''`: avisa en lugar de cortarse. | `500bbc8` |
 | 10 · Sugerencia: el servidor del GIF, fuera del `try` | **Hecho.** El navegador arranca dentro del `try`, como en `capture.mjs`. | `500bbc8` |
+
+---
+
+## Tras la fusión
+- **Fusión:** `c6326f9` en `main` (`--no-ff`), con push. Antes, el CI de la rama (run 42096412679, con Dependabot dentro) en verde entero, con las referencias visuales nuevas de la ficha.
+- **CI de `main`** (run 42098128498): en verde entero (lint, tests y banco, build y presupuestos, Lighthouse, la regresión visual y los cuatro grupos de e2e).
+- **Despliegue** (run 42099433718): en verde; `verify-pages` contra `https://staging.torno.pages.dev`, 64 de 64.
+- **`production.yml` en seco** (`gh workflow run production.yml -f etiqueta=main`, run 42099608489): en verde. Resuelve `main` a `c6326f9`, encuentra el CI en verde de ese commit (42098128498) y su build, lo descarga, comprueba el `_headers`, instala wrangler sin el token y la API de Cloudflare responde 200 por el proyecto `torno`; «Publica en producción» y «Comprueba la producción», **saltados**. No se ha publicado nada.
+- **En real y sin etiqueta** (`-f etiqueta=main -f en_seco=false`, run 42099761316): falla en «Qué se publica» con «main no vale: tiene que ser una etiqueta vX.Y.Z», antes de tocar nada.
+- **Parada** antes de la etiqueta `v1.0.0`, sin `indexable: true` y sin el dominio: los pasos, en `docs/PENDIENTES.md`.
