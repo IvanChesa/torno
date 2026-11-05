@@ -33,16 +33,19 @@ async function record(page, stage, ms, frames) {
 }
 
 const server = await startPagesServer();
-const browser = await chromium.launch({
-  channel: 'chromium',
-  args: [
-    '--enable-gpu',
-    '--ignore-gpu-blocklist',
-    '--autoplay-policy=no-user-gesture-required',
-    ...(process.platform === 'win32' ? ['--use-angle=d3d11'] : []),
-  ],
-});
+/** @type {import('@playwright/test').Browser | undefined} */
+let browser;
 try {
+  // Dentro del `try`: si el navegador no arranca, el servidor también se cierra.
+  browser = await chromium.launch({
+    channel: 'chromium',
+    args: [
+      '--enable-gpu',
+      '--ignore-gpu-blocklist',
+      '--autoplay-policy=no-user-gesture-required',
+      ...(process.platform === 'win32' ? ['--use-angle=d3d11'] : []),
+    ],
+  });
   const context = await browser.newContext({
     viewport: { width: 1280, height: 860 },
     deviceScaleFactor: 1,
@@ -98,6 +101,6 @@ try {
     `✔ ${path.relative(ROOT, OUT)}: ${frames.length} fotogramas, ${seconds.toFixed(1)} s, ${(size / 1024).toFixed(0)} KiB`,
   );
 } finally {
-  await browser.close();
+  await browser?.close();
   await server.close();
 }

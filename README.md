@@ -73,18 +73,18 @@ Solo cifras medidas, cada una con su informe (donde está cómo se midió). Las 
 
 | Qué | Medido | Dónde |
 |---|---|---|
-| CPU del núcleo de audio (4 capas, filtros y limitador) | **223–224×** el tiempo real en Node; 34× en el peor caso a 240 BPM | [fase 8](docs/informes/fase-8.md) §6 |
+| CPU del núcleo de audio (4 capas, filtros y limitador) | **218–232×** el tiempo real en Node (60 s de audio a 48 kHz en 259–275 ms); 35× en el peor caso a 240 BPM | [fase 7](docs/informes/fase-7.md) §6 |
 | Del gesto al cambio en el audio | mediana de **0,4 ms** (tecla) y **3,9 ms** (dial), con el 3D pintando | [fase 6](docs/informes/fase-6.md) |
 | Primer sonido con el motor cargado | **10–15 ms** hasta la primera muestra en la salida (20 medidas, sin la latencia del dispositivo) | [fase 2](docs/informes/fase-2.md) |
 | Primer toque de una visita nueva, por red | **205–225 ms** hasta los altavoces (escritorio, con la latencia de salida) | [fase 8](docs/informes/fase-8.md) §6 |
 | Toma alineada tras calibrar | a **2 muestras** (0,04 ms) de su sitio, con el micrófono sintético | [fase 2](docs/informes/fase-2.md) |
-| Exactitud | cola y tomas exactas a la muestra, deriva 0 en 10 min | tests del núcleo |
+| Exactitud | cola y tomas exactas a la muestra, deriva 0 en 10 min (tests del núcleo) | [fase 1](docs/informes/fase-1.md) · [fase 8](docs/informes/fase-8.md) §6 |
 | Lighthouse móvil (`/`, mediana de tres en el CI) | **99** rendimiento · **100** accesibilidad · **100** buenas prácticas; LCP 1,8 s, CLS 0,001 | [fase 8](docs/informes/fase-8.md) |
 | Primera visita a la portada, en bruto | **565 kB** sin el 3D · **1,37 MB** con él | [fase 8](docs/informes/fase-8.md) §6 |
 | JS inicial de `/` · chunk 3D | 318,5 kB · 658,4 kB | [fase 8](docs/informes/fase-8.md) §6 |
 | 3D en el escritorio (RTX 3060) | 144 fps en los tres niveles; generación del aparato en 81–113 ms; 0 fps en reposo | [fase 8](docs/informes/fase-8.md) §6 |
 | Accesibilidad | axe: **0 violaciones** en las tres rutas, el móvil, a 320 px y con el zum al 200 % | [fase 8](docs/informes/fase-8.md) |
-| Privacidad | 0 cookies · 0 peticiones a terceros · 0 peticiones al grabar, guardar o exportar | e2e |
+| Privacidad | 0 cookies · 0 peticiones a terceros · 0 peticiones al grabar, guardar o exportar (e2e) | [fase 8](docs/informes/fase-8.md) §6 |
 
 ## Cómo se ha hecho
 
@@ -125,10 +125,12 @@ Cloudflare Pages, proyecto `torno`. Siempre se publica **el build que ya ha prob
 
 El **código** está bajo la [licencia MIT](LICENSE), © 2026 Iván Chesa Lapena.
 
-Quedan **fuera** de la licencia MIT, con todos los derechos reservados:
+Quedan **fuera** de la licencia MIT, con todos los derechos reservados (lo resume [`NOTICE`](NOTICE)):
 - la **marca** «Torno» (el nombre y su icono);
-- los **textos** de la web (los archivos `*.content.ts` de `src/app/` y los textos de las páginas);
+- los **textos de la web**: el contenido de las páginas (portada, guía, detalles, anatomía de un bucle, ficha técnica, preguntas frecuentes, cierre, caso de estudio y 404), en `src/app/core/site.content.ts`, `src/app/app.content.ts`, `src/app/app.routes.content.ts`, `src/app/features/product/*.content.ts` y `src/app/pages/**/*.content.ts`;
 - las **imágenes**: las de `public/img/`, `docs/img/` y `docs/informes/img/`, y la imagen Open Graph.
+
+Los textos de la interfaz del instrumento (las etiquetas de los controles, la pantalla, los avisos y el diagnóstico, en el resto de los `*.content.ts`) son parte del código y van con la MIT: sin ellos, el instrumento no funciona.
 
 Las fuentes (Fraunces y Geist Mono) son de sus autores, con la licencia SIL Open Font License 1.1 ([`docs/FUENTES.md`](docs/FUENTES.md)). Los sonidos se generan con el propio código.
 

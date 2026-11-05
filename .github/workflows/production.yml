@@ -132,7 +132,9 @@ jobs:
           artifact=$(gh api "repos/$REPO/actions/runs/$run/artifacts" \
             --jq '[.artifacts[] | select(.name == "torno-browser" and .expired == false)] | length')
           if [ "$artifact" != 1 ]; then
-            echo "::error::El build del CI $run ya no está (caducado o borrado). Hay que volver a pasar el CI de main con ese commit (Actions → CI → Re-run all jobs)"
+            # Relanzar aquel CI no vale: GitHub solo deja hacerlo 30 días, y volvería a publicar
+            # staging con un build viejo. Lo bueno es un commit nuevo en main y etiquetarlo.
+            echo "::error::El build del CI $run ya no está (caducado o borrado). Hace falta un commit nuevo en main (con el CI en verde) y poner la etiqueta en él"
             exit 1
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
@@ -255,7 +257,7 @@ jobs:
           status=0
           node repo/scripts/verify-pages.mjs https://torno.pages.dev --build site --esperar 120 | tee -a "$GITHUB_STEP_SUMMARY" || status=$?
           # La dirección canónica sale de site.config.ts (la única fuente).
-          base=$(grep -oE "baseUrl: 'https://[a-z0-9.-]+'" repo/src/app/core/site.config.ts | grep -oE "https://[a-z0-9.-]+")
+          base=$(grep -oE "baseUrl: 'https://[a-z0-9.-]+'" repo/src/app/core/site.config.ts | grep -oE "https://[a-z0-9.-]+") || base=''
           host=${base#https://}
           if [ -n "$host" ] && getent hosts "$host" > /dev/null; then
             echo "" >> "$GITHUB_STEP_SUMMARY"

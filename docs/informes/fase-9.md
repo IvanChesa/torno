@@ -43,7 +43,7 @@ Los dos criterios de la fase 9 dependen de lo que esta sesión no hace (la etiqu
 
 | Criterio | ✅/❌ | Evidencia |
 |---|---|---|
-| `v1.0.0` en producción con HTTPS, desplegada por etiqueta | ⏳ (fuera de esta sesión) | El flujo está hecho y probado en seco (§6): encuentra el CI de `main`, descarga su build, prepara wrangler y pregunta por el proyecto; solo falta la etiqueta. `package.json` ya está en 1.0.0 y el flujo exige que coincidan. |
+| `v1.0.0` en producción con HTTPS, desplegada por etiqueta | ⏳ (fuera de esta sesión) | El flujo está hecho y, tras la fusión, se prueba en seco («Tras la fusión», al final): encuentra el CI de `main`, descarga su build, prepara wrangler y pregunta por el proyecto; solo falta la etiqueta. `package.json` ya está en 1.0.0 y el flujo exige que coincidan. |
 | Comprobaciones en producción según §5 | ⏳ (fuera de esta sesión) | Tras publicar, `production.yml` pasa `verify-pages.mjs` contra `torno.pages.dev` y, si ya resuelve, contra el dominio de `site.config.ts`. Lighthouse en producción y los enlaces legales, en los pasos de `PENDIENTES.md`. |
 
 ## 3. Tareas del plan
@@ -85,7 +85,7 @@ exit 0
 
 **Lighthouse móvil contra staging**, con la configuración del CI y las URL de la vista previa (la orden que queda en `PENDIENTES.md` para producción, probada), una pasada: `/` **98 · 100 · 100**, LCP 2,2 s, y `lhci assert` sin fallos.
 
-**El flujo de producción en seco:** ver «Tras la fusión», al final (un `workflow_dispatch` solo se puede lanzar con el archivo en `main`).
+**El flujo de producción en seco:** se lanza tras la fusión, porque un `workflow_dispatch` solo se puede lanzar con el archivo en `main`; su resultado va en «Tras la fusión», al final.
 
 ## 7. Capturas
 - **El GIF del README:** `docs/img/torno.gif` (560 × 448, 86 fotogramas, 8,6 s, 2,5 MB): el aparato sonando (la batería de la primera reproducción y un bajo que entra en cola), con el disco girando al compás, y la cámara por «Capas», «Controles» y «Completo».
@@ -106,3 +106,21 @@ Ninguna.
 - La ficha técnica: `https://fase-9-lanzamiento.torno.pages.dev/#ficha-tecnica` (o staging tras la fusión).
 - El flujo de producción, en seco (no publica nada): `gh workflow run production.yml -f etiqueta=main` y `gh run watch`.
 - Los tests de los flujos: `npx vitest run --config vitest.node.config.mts scripts/workflows.spec.ts`.
+
+---
+
+## Respuesta a la revisión
+Revisión del subagente en `docs/revisiones/fase-9.md` (la primera se cortó con la sesión; esta es la segunda): **CAMBIOS NECESARIOS, sin Bloqueantes**: 1 Importante, 7 Menores y 2 Sugerencias.
+
+| Hallazgo | Acción | Commit |
+|---|---|---|
+| 1 · Importante: el informe y `PENDIENTES.md` daban el flujo por «probado en seco» sin run | **Hecho.** El texto dice que la prueba en seco va tras la fusión; el run, en «Tras la fusión». | este |
+| 2 · Menor: «Re-run all jobs» si caduca el build | **Hecho.** El mensaje pide un commit nuevo en `main` con el CI en verde y etiquetarlo (relanzar solo vale 30 días y republicaría staging con un build viejo). | este |
+| 3 · Menor: el paso de `indexable: true` | **Hecho.** Nombra los tres tests que cambian (`site.config.spec.ts`, `app.routes.spec.ts` y `e2e/static.spec.ts`), aclara quién pone el `noindex` (`_headers` en `torno.pages.dev`, Pages en las vistas previas) y espera a que Iván marque la decisión. | este |
+| 4 · Menor: «los cuatro» enlaces eran cinco | **Hecho.** | este |
+| 5 · Menor: la CPU del audio del README no era la de la ficha | **Hecho.** El README da la de la ficha (218–232× y 35×, fase 7). | este |
+| 6 · Menor: «Exactitud» y «Privacidad» sin informe | **Hecho.** Enlazan a las fases 1 y 8. | este |
+| 7 · Menor: las referencias de la ficha sin CI en verde | **Hecho.** Subidas (`63ebc5a`); el CI de la rama, en «Tras la fusión». | `63ebc5a` |
+| 8 · Menor: la exclusión de la licencia, solo en el README y demasiado amplia | **Hecho.** `NOTICE` en la raíz y el README con la lista exacta: fuera, los textos de las páginas; con la MIT, los de la interfaz del instrumento, que son código. `TODO(ivan)` para confirmarlo. `LICENSE` se queda con el texto MIT tal cual (así lo reconoce GitHub). | este |
+| 9 · Sugerencia: `grep` de `baseUrl` sin resultado | **Hecho.** `|| base=''`: avisa en lugar de cortarse. | este |
+| 10 · Sugerencia: el servidor del GIF, fuera del `try` | **Hecho.** El navegador arranca dentro del `try`, como en `capture.mjs`. | este |
