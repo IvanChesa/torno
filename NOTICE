@@ -1,0 +1,25 @@
+Torno
+Copyright (c) 2026 Iván Chesa Lapena
+
+El código de este repositorio está bajo la licencia MIT (archivo LICENSE).
+
+Quedan fuera de la licencia MIT, con todos los derechos reservados:
+
+- La marca «Torno»: el nombre y su icono.
+- Los textos de la web, es decir, el contenido de las páginas:
+    src/app/core/site.content.ts
+    src/app/app.content.ts
+    src/app/app.routes.content.ts
+    src/app/features/product/*.content.ts
+    src/app/pages/**/*.content.ts
+- Las imágenes:
+    public/img/
+    docs/img/
+    docs/informes/img/
+
+Los textos de la interfaz del instrumento (el resto de los archivos *.content.ts:
+etiquetas de los controles, pantalla, avisos y diagnóstico) son parte del código
+y van con la licencia MIT.
+
+Las fuentes Fraunces y Geist Mono son de sus autores, con la licencia SIL Open
+Font License 1.1 (public/licencias/ y docs/FUENTES.md).

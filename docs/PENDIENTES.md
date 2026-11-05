@@ -56,5 +56,31 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
   - `TODO(ivan)`: una de **5 min con las 4 capas largas** (tomas de 30–60 s) y el autoguardado activo, girando diales: sin cortes en el audio (prueba 10; revisión de la fase 2, #6).
   - `TODO(ivan)`: los **FPS del 3D** en el móvil, con el panel «Escena 3D» de `?diagnostico=1` y su botón «Medir 5 s» (prueba 15). PLAN §5 pide 30 o más en un móvil de gama media, en calidad baja y tocando (revisión de la fase 5, #5).
 
-## Fase 9 (manual)
-- [ ] **`torno.ivanchesa.com`:** en Pages → `torno` → *Custom domains*, añadir `torno.ivanchesa.com`. La zona de ivanchesa.com está en la misma cuenta de Cloudflare, así que el CNAME y el certificado salen solos. Antes, `torno` tiene que tener una versión en producción (la etiqueta `v*` de la fase 9).
+## Fase 9: lo que falta para lanzar (en este orden)
+Hecho el 04-11 (informe de la fase 9): la licencia MIT, el README, el CHANGELOG, la ficha técnica y el flujo de producción (`.github/workflows/production.yml`), probado en seco tras la fusión (informe de la fase 9, «Tras la fusión»). `package.json` ya está en 1.0.0. Lo que queda depende de ivanchesa.com y de tus pruebas:
+
+1. [ ] **Iván: ivanchesa.com en Cloudflare** (comprado en Cloudflare Registrar y con su zona en la misma cuenta; lo lleva la sesión de ivanchesa.com). Comprobar que responde: `curl -sI https://ivanchesa.com/`.
+2. [ ] **Iván: las pruebas del móvil y del iPhone** (`docs/PRUEBAS-MOVIL.md`, pruebas 1 a 26, en `https://staging.torno.pages.dev/?diagnostico=1`). Si algo falla, se arregla antes de la etiqueta.
+3. [ ] **Claude: los enlaces legales y de contacto** de `site.config.ts`, con `curl`; las cinco tienen que dar 200 (o una redirección a una página que dé 200):
+   ```bash
+   for u in https://ivanchesa.com https://ivanchesa.com/contacto/ https://ivanchesa.com/aviso-legal/ https://ivanchesa.com/privacidad/ https://ivanchesa.com/cookies/; do curl -sSIL -o /dev/null -w "%{http_code} $u\n" "$u"; done
+   ```
+   Si una URL es otra en la web nueva, se cambia solo en `src/app/core/site.config.ts`.
+4. [ ] **Claude: `indexable: true`** en `src/app/core/site.config.ts`, cuando Iván marque la decisión «Indexación en el lanzamiento» (arriba, todavía sin marcar). Con los tests al revés: `src/app/core/site.config.spec.ts` (el «no es indexable hasta el lanzamiento»), `src/app/app.routes.spec.ts` (la portada y `/sobre-el-proyecto` sin `noindex`; la 404, con él) y `e2e/static.spec.ts` (`noindex` solo en la 404). Commit en `main`, el CI y el despliegue en verde, y comprobar staging (`node scripts/verify-pages.mjs https://staging.torno.pages.dev`). Siguen con `noindex` por la cabecera `X-Robots-Tag`: `torno.pages.dev` por la regla de `public/_headers`, y las vistas previas (`staging` y las de cada rama) porque Pages se la pone sola.
+5. [ ] **Claude: la fecha en `CHANGELOG.md`** (`## [1.0.0] - AAAA-MM-DD`), commit en `main` y CI en verde.
+6. [ ] **Claude: la etiqueta**, en ese commit de `main` con el CI en verde:
+   ```bash
+   git tag -a v1.0.0 -m "Torno 1.0.0"
+   git push origin v1.0.0
+   ```
+   `production.yml` publica el build del CI de ese commit en `torno.pages.dev` (rama `main` de Pages) y lo comprueba. Si falla, se puede repetir a mano: `gh workflow run production.yml -f etiqueta=v1.0.0 -f en_seco=false`.
+7. [ ] **Iván: `torno.ivanchesa.com`** en Pages → `torno` → *Custom domains* → *Set up a custom domain* (ya con la versión en producción del paso 6). La zona está en la misma cuenta: el CNAME y el certificado salen solos; esperar a que diga *Active*.
+8. [ ] **Claude: comprobar producción** en el dominio:
+   - `gh workflow run production.yml -f etiqueta=v1.0.0 -f en_seco=false` (vuelve a publicar el mismo build y ahora comprueba también `torno.ivanchesa.com`), o en local `node scripts/verify-pages.mjs https://torno.ivanchesa.com`;
+   - Lighthouse móvil contra producción con la misma configuración (probado contra staging el 04-11: 98 · 100 · 100 en una pasada):
+     ```bash
+     npx lhci collect --url=https://torno.ivanchesa.com/ --url=https://torno.ivanchesa.com/sobre-el-proyecto --start-server-command="" && npx lhci assert
+     ```
+   - que solo la 404 lleva `noindex`: `curl -s https://torno.ivanchesa.com/ | grep -c noindex` da 0, y `curl -s https://torno.ivanchesa.com/404 | grep -c noindex`, 1 o más.
+9. [ ] **Iván:** la ficha del proyecto en ivanchesa.com con el enlace a `torno.ivanchesa.com` (en su repo) y la difusión.
+- [ ] `TODO(ivan)`: **confirmar qué textos quedan fuera de la MIT** (revisión de la fase 9, #8). Propuesta, ya en el README y en `NOTICE`: fuera, los textos de las páginas (`site.content.ts`, `app.content.ts`, `app.routes.content.ts`, `features/product/*.content.ts` y `pages/**/*.content.ts`); con la MIT, los de la interfaz del instrumento (controles, pantalla, avisos y diagnóstico), que son parte del código. Si prefieres otra línea, se cambia en esos dos archivos.

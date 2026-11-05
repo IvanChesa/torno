@@ -3,8 +3,8 @@ name: Despliegue
 # Cuando el CI de un push a main termina en verde (PLAN D19 y fase 4, tarea 3), publica en Cloudflare
 # Pages el build que ese CI ha probado: su artefacto «torno-browser», con las rutas y el _headers ya
 # preparados (scripts/pages.mjs). Va a la vista previa `staging` (https://staging.torno.pages.dev);
-# la producción (--branch=main) llega en la fase 9, con una etiqueta v*. Después comprueba la vista
-# previa como con curl (scripts/verify-pages.mjs) y lo deja en el resumen del job.
+# la producción (--branch=main) la publica production.yml, con una etiqueta v*. Después comprueba
+# la vista previa como con curl (scripts/verify-pages.mjs) y lo deja en el resumen del job.
 # Un push a una rama de fase (`fase-*`) con el CI en verde va a su propia vista previa,
 # https://<rama>.torno.pages.dev (revisión del bloque B, fase 4, #2): Iván la prueba en el móvil
 # antes de fusionar. `staging` sigue siendo solo main.

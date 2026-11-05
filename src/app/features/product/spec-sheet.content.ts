@@ -37,6 +37,13 @@ const ROWS: readonly SpecRow[] = [
     phase: 2,
   },
   {
+    // Revisión del bloque E, #2: la cifra por red, tal como se mide (informe de la fase 8, §6).
+    name: 'Primer toque de la visita',
+    value: '205–225\u00a0ms',
+    how: 'En una visita nueva y por red: tres segundos con el instrumento a la vista (el primer sonido se prepara solo, en silencio) y un toque en reproducir, hasta que sale por los altavoces. Incluye arrancar el audio del dispositivo (unos 66\u00a0ms) y la latencia de salida. Con Chromium en el PC de desarrollo; los toques siguientes van como en la fila anterior. En el móvil, pendiente de medir.',
+    phase: 8,
+  },
+  {
     name: 'Latencia de salida',
     value: '50\u00a0ms',
     how: 'Lo que añaden el navegador y el sistema hasta los altavoces (10 + 40\u00a0ms), en el PC de desarrollo. En el móvil, pendiente de medir.',
@@ -62,9 +69,9 @@ const ROWS: readonly SpecRow[] = [
   },
   {
     name: 'Peso de la primera visita',
-    value: '625\u00a0kB · 1,36\u00a0MB',
+    value: '565\u00a0kB · 1,37\u00a0MB',
     how: 'Todo lo que se descarga para ver la portada, en bruto: sin el 3D y con él. El 3D se genera con código, sin modelos ni texturas que descargar.',
-    phase: 7,
+    phase: 8,
   },
 ];
 
