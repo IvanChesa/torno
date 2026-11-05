@@ -2,7 +2,7 @@
 
 - **Rama:** `fase-9-lanzamiento`
 - **Fecha:** 2026-11-04
-- **Estado:** listo para revisión
+- **Estado:** revisada y fusionada (falta lo que depende del dominio y de las pruebas del móvil)
 
 ## 0. Plan de la fase
 
@@ -49,7 +49,7 @@ Los dos criterios de la fase 9 dependen de lo que esta sesión no hace (la etiqu
 ## 3. Tareas del plan
 | Tarea | Estado | Notas |
 |---|---|---|
-| Revisión del bloque E, #1 (Dependabot) | hecha | `dependabot.yml` con un grupo para todo Angular; PR #3 y #5 cerrados con su explicación; Dependabot propuso el #7 (11 paquetes de Angular juntos) y el #6 (eslint, typescript-eslint y wrangler). |
+| Revisión del bloque E, #1 (Dependabot) | hecha | `dependabot.yml` con un grupo para todo Angular (y su Prettier, `766f549`); PR #3 y #5 cerrados con su explicación. Dependabot propuso el #7 (11 paquetes de Angular juntos), el #8 (tslib) y el #6, que sustituyó por el #9 (vitest, eslint, typescript-eslint y wrangler). Los tres, fusionados con su CI en verde (`8d2ec8c`, `8a16534` y `67ab501`), y la rama, con ellos, en verde. |
 | Revisión del bloque E, #2 (ficha técnica) | hecha | Fila nueva «Primer toque de la visita»: 205–225 ms, por red y en frío, con cómo se midió. El peso de la primera visita, con la cifra de la fase 8 (565 kB · 1,37 MB). |
 | 9.1 Producción con la etiqueta `v*` | hecha, sin etiqueta | `production.yml`, el build de `main` guardado 90 días y los tests de los flujos (`scripts/workflows.spec.ts`). |
 | 9.2 Verificación en producción | preparada | Dentro de `production.yml`; Lighthouse en producción, con el dominio. |
@@ -114,13 +114,13 @@ Revisión del subagente en `docs/revisiones/fase-9.md` (la primera se cortó con
 
 | Hallazgo | Acción | Commit |
 |---|---|---|
-| 1 · Importante: el informe y `PENDIENTES.md` daban el flujo por «probado en seco» sin run | **Hecho.** El texto dice que la prueba en seco va tras la fusión; el run, en «Tras la fusión». | este |
-| 2 · Menor: «Re-run all jobs» si caduca el build | **Hecho.** El mensaje pide un commit nuevo en `main` con el CI en verde y etiquetarlo (relanzar solo vale 30 días y republicaría staging con un build viejo). | este |
-| 3 · Menor: el paso de `indexable: true` | **Hecho.** Nombra los tres tests que cambian (`site.config.spec.ts`, `app.routes.spec.ts` y `e2e/static.spec.ts`), aclara quién pone el `noindex` (`_headers` en `torno.pages.dev`, Pages en las vistas previas) y espera a que Iván marque la decisión. | este |
-| 4 · Menor: «los cuatro» enlaces eran cinco | **Hecho.** | este |
-| 5 · Menor: la CPU del audio del README no era la de la ficha | **Hecho.** El README da la de la ficha (218–232× y 35×, fase 7). | este |
-| 6 · Menor: «Exactitud» y «Privacidad» sin informe | **Hecho.** Enlazan a las fases 1 y 8. | este |
+| 1 · Importante: el informe y `PENDIENTES.md` daban el flujo por «probado en seco» sin run | **Hecho.** El texto dice que la prueba en seco va tras la fusión; el run, en «Tras la fusión». | `500bbc8` |
+| 2 · Menor: «Re-run all jobs» si caduca el build | **Hecho.** El mensaje pide un commit nuevo en `main` con el CI en verde y etiquetarlo (relanzar solo vale 30 días y republicaría staging con un build viejo). | `500bbc8` |
+| 3 · Menor: el paso de `indexable: true` | **Hecho.** Nombra los tres tests que cambian (`site.config.spec.ts`, `app.routes.spec.ts` y `e2e/static.spec.ts`), aclara quién pone el `noindex` (`_headers` en `torno.pages.dev`, Pages en las vistas previas) y espera a que Iván marque la decisión. | `500bbc8` |
+| 4 · Menor: «los cuatro» enlaces eran cinco | **Hecho.** | `500bbc8` |
+| 5 · Menor: la CPU del audio del README no era la de la ficha | **Hecho.** El README da la de la ficha (218–232× y 35×, fase 7). | `500bbc8` |
+| 6 · Menor: «Exactitud» y «Privacidad» sin informe | **Hecho.** Enlazan a las fases 1 y 8. | `500bbc8` |
 | 7 · Menor: las referencias de la ficha sin CI en verde | **Hecho.** Subidas (`63ebc5a`); el CI de la rama, en «Tras la fusión». | `63ebc5a` |
-| 8 · Menor: la exclusión de la licencia, solo en el README y demasiado amplia | **Hecho.** `NOTICE` en la raíz y el README con la lista exacta: fuera, los textos de las páginas; con la MIT, los de la interfaz del instrumento, que son código. `TODO(ivan)` para confirmarlo. `LICENSE` se queda con el texto MIT tal cual (así lo reconoce GitHub). | este |
-| 9 · Sugerencia: `grep` de `baseUrl` sin resultado | **Hecho.** `|| base=''`: avisa en lugar de cortarse. | este |
-| 10 · Sugerencia: el servidor del GIF, fuera del `try` | **Hecho.** El navegador arranca dentro del `try`, como en `capture.mjs`. | este |
+| 8 · Menor: la exclusión de la licencia, solo en el README y demasiado amplia | **Hecho.** `NOTICE` en la raíz y el README con la lista exacta: fuera, los textos de las páginas; con la MIT, los de la interfaz del instrumento, que son código. `TODO(ivan)` para confirmarlo. `LICENSE` se queda con el texto MIT tal cual (así lo reconoce GitHub). | `500bbc8` |
+| 9 · Sugerencia: `grep` de `baseUrl` sin resultado | **Hecho.** `|| base=''`: avisa en lugar de cortarse. | `500bbc8` |
+| 10 · Sugerencia: el servidor del GIF, fuera del `try` | **Hecho.** El navegador arranca dentro del `try`, como en `capture.mjs`. | `500bbc8` |
