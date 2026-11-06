@@ -454,3 +454,17 @@ La 5.b sigue parada: falta lo otro que pide, las pruebas del móvil en `docs/PRU
 Y confirmar qué textos quedan fuera de la MIT (`TODO(ivan)`).
 
 **Parada.** Todo lo que no depende del dominio ni de las pruebas del móvil está hecho, fusionado y con el CI y el despliegue en verde. No se ha creado la etiqueta.
+
+### Bloque F, lanzamiento sin el dominio · 2026-11-06 · parado: solo falta ivanchesa.com
+
+**Hecho** (rama `fix/bloque-F`, fusión `088dc55` en `main`):
+- La revisión del bloque F y las decisiones de Iván del 05-11 (`b50485e`): indexar, la línea de la licencia de los textos, las pruebas del móvil («bien están») y los textos aprobados.
+- **Paso 2:** `reviewed: true` en los 20 `*.content.ts` (y su test); fuera «En el móvil, pendiente de medir.» de las tres filas de la ficha técnica y de su cabecera, y la frase del móvil del README (`8eaa07b`). Las referencias `seccion-ficha-*`, generadas por el CI (`506c7dc`).
+- **Paso 4:** `indexable: true` con sus tres tests al revés (`site.config.spec.ts`, `app.routes.spec.ts` y `e2e/static.spec.ts`) (`8628d8e`). Solo la 404 lleva `noindex`; staging sigue fuera por la cabecera de Pages.
+
+**Métricas:** `npm run check` en verde (580 tests en Node + 90 en Angular; JS inicial de `/` 320,2 kB). CI de `fix/bloque-F` (42276040857) en verde, tras relanzar «e2e (escena-dev)», que cayó porque el espejo de apt no respondía. CI de `main` (42279325175) en verde entero y despliegue (42280929800): `verify-pages` 64 de 64; staging, con `x-robots-tag: noindex`, `index, follow` en la portada y `noindex` en la 404.
+
+**Parada antes del paso 3:** **solo falta ivanchesa.com** (el 06-11 todavía no resuelve; comprobado por la sesión de plan). Cuando responda, siguen en orden los pasos de `PENDIENTES.md`: 3 (los enlaces con `curl`), 5 (la fecha del CHANGELOG), 6 (la etiqueta `v1.0.0`), 7 (el dominio en Pages, Iván), 8 (las comprobaciones en producción), 9 (el repo apunta a producción y la *release*) y 10 (la ficha en ivanchesa.com). No he puesto la fecha del CHANGELOG, ni la etiqueta, ni el dominio.
+
+**Visto de paso (para la sesión de plan):** el proyecto no tiene `robots.txt` (D18 pedía uno básico): `/robots.txt` cae en la 404. No bloquea la indexación (sin `robots.txt` se puede rastrear todo), pero quizá convenga añadirlo antes de la etiqueta.
+
