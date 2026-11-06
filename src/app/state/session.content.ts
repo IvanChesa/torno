@@ -1,7 +1,6 @@
 /**
  * Textos de los avisos del instrumento: el corto (pantalla, en mayúsculas) y la frase para leer.
- * El motor y el núcleo devuelven códigos; aquí se convierten en texto. Pendientes de revisión de
- * Iván (fase 7).
+ * El motor y el núcleo devuelven códigos; aquí se convierten en texto. Revisados por Iván (05-11).
  */
 export interface MessageText {
   /** Para la pantalla del aparato. */
@@ -13,7 +12,7 @@ export interface MessageText {
 const message = (screen: string, text: string): MessageText => ({ screen, text });
 
 export const SESSION_CONTENT = {
-  reviewed: false,
+  reviewed: true,
 
   messages: {
     locked: message('BLOQUEADO EN LA TOMA', 'Eso no se puede cambiar mientras grabas.'),

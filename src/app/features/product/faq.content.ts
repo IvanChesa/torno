@@ -1,6 +1,6 @@
-/** Las preguntas frecuentes (PLAN fase 7). Pendientes de revisión de Iván. */
+/** Las preguntas frecuentes (PLAN fase 7). Revisados por Iván (05-11). */
 export const FAQ_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   title: 'Preguntas frecuentes',
   items: [
     {

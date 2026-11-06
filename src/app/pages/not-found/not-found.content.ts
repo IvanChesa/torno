@@ -1,6 +1,6 @@
-/** Textos de la página de error. Pendientes de revisión de Iván (fase 7). */
+/** Textos de la página de error. Revisados por Iván (05-11). */
 export const NOT_FOUND_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   title: 'Página no encontrada',
   text: 'Esta página no existe.',
   link: 'Vuelve al instrumento',

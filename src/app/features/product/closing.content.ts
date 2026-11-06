@@ -1,6 +1,6 @@
-/** Textos del cierre de la portada (PLAN fase 7). Pendientes de revisión de Iván. */
+/** Textos del cierre de la portada (PLAN fase 7). Revisados por Iván (05-11). */
 export const CLOSING_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   title: 'Ahora, tócalo',
   play: 'Tocar',
   about: 'Cómo está hecho',

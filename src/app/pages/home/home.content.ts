@@ -1,6 +1,6 @@
-/** Textos de la portada (fase 7). Pendientes de revisión de Iván (docs/ESTILO.md). */
+/** Textos de la portada (fase 7). Revisados por Iván (05-11; docs/ESTILO.md). */
 export const HOME_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   title: 'Torno',
   lead: 'Un instrumento de bucles de cuatro capas, de barro y latón, que se toca en el navegador.',
   play: 'Tocar',

@@ -1,9 +1,9 @@
 /**
  * Textos del panel de diagnóstico (`?diagnostico=1`, PLAN fase 4, tarea 7). Es una herramienta para
- * las pruebas en los móviles, no parte de la web. Pendientes de revisión de Iván (fase 7).
+ * las pruebas en los móviles, no parte de la web. Revisados por Iván (05-11).
  */
 export const DIAGNOSTICS_CONTENT = {
-  reviewed: false,
+  reviewed: true,
 
   title: 'Diagnóstico del audio',
   intro:
