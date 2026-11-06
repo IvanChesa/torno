@@ -33,7 +33,12 @@ test.describe('build estático', () => {
       expect(html).toContain(`<title>${route.title}</title>`);
       expect(html).toMatch(new RegExp(`<h1[^>]*>\\s*${route.h1}\\s*</h1>`));
       expect(html).toContain('<html lang="es"');
-      expect(html).toContain('name="robots" content="noindex"');
+      // Desde el lanzamiento (indexable: true), solo la 404 se queda fuera de los buscadores.
+      expect(html).toContain(
+        route.path === '/404'
+          ? 'name="robots" content="noindex"'
+          : 'name="robots" content="index, follow"',
+      );
     });
 
     test(`${route.path} pasa axe sin violaciones graves ni críticas`, async ({ page }) => {

@@ -9,8 +9,8 @@ describe('SITE_CONFIG', () => {
     expect(SITE_CONFIG.baseUrl.endsWith('/')).toBe(false);
   });
 
-  it('no es indexable hasta el lanzamiento', () => {
-    expect(SITE_CONFIG.indexable).toBe(false);
+  it('es indexable desde el lanzamiento (fase 9)', () => {
+    expect(SITE_CONFIG.indexable).toBe(true);
   });
 
   it('está en español y enlaza con la web del autor y sus páginas legales en HTTPS', () => {
