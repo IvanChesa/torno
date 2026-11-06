@@ -69,7 +69,7 @@ Más detalle: el plan ([`docs/PLAN.md`](docs/PLAN.md) §4), el audio ([`docs/AUD
 
 ## Cifras medidas
 
-Solo cifras medidas, cada una con su informe (donde está cómo se midió). Las del móvil, pendientes de las pruebas en dispositivos reales ([`docs/PRUEBAS-MOVIL.md`](docs/PRUEBAS-MOVIL.md)).
+Solo cifras medidas, cada una con su informe (donde está cómo se midió).
 
 | Qué | Medido | Dónde |
 |---|---|---|

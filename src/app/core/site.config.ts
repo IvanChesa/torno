@@ -35,7 +35,10 @@ export interface SiteConfig {
     readonly height: number;
     readonly alt: string;
   };
-  /** Mientras sea `false`, todas las páginas llevan `noindex` (hasta el lanzamiento, fase 9). */
+  /**
+   * Con `false`, todas las páginas llevan `noindex`; con `true` (desde el lanzamiento, fase 9; Iván,
+   * 05-11), solo la 404. `torno.pages.dev` y las vistas previas siguen fuera por la cabecera.
+   */
   readonly indexable: boolean;
 }
 
@@ -60,5 +63,5 @@ export const SITE_CONFIG: SiteConfig = {
   ],
   repoUrl: 'https://github.com/IvanChesa/torno',
   shareImage: { path: '/img/og.jpg', width: 1200, height: 630, alt: SITE_CONTENT.shareImageAlt },
-  indexable: false,
+  indexable: true,
 };

@@ -11,7 +11,7 @@ El ciclo, las paradas y las decisiones ya tomadas están en `CLAUDE.md`: los pro
 | C | 5 (`fase-5-modelo-3d`) y 6 (`fase-6-interaccion`) | `/effort max` | Nada para empezar (30-10); las pruebas del móvil, antes de la 5.b |
 | D | 7 (`fase-7-web-producto`) | `/effort high` | — |
 | E | 8 (`fase-8-pulido`) | `/effort max` | Nada para empezar (`@lhci/cli` aprobado el 01-11); tus pruebas en el móvil y el iPhone, al final |
-| F | 9 (`fase-9-lanzamiento`) | `/effort high` | `torno.ivanchesa.com` como dominio personalizado en Pages, y la licencia |
+| F | 9 (`fase-9-lanzamiento`) | `/effort high` | Parte sin el dominio, hecha (05-11). Para el lanzamiento, solo falta ivanchesa.com (las pruebas del móvil, los textos y las decisiones, hechos el 05-11) |
 
 ## Empezar el proyecto
 ```
@@ -34,6 +34,16 @@ Los secrets de Cloudflare están listos. El hosting pasa a Cloudflare Pages (PLA
 ## Tras la parada de la fase 5.a
 ```
 Diseño <aprobado | aprobado con estos cambios: …>. Sigue con la 5.b y el resto del bloque C.
+```
+
+## Lanzamiento (bloque F, segunda parte)
+Cuando ivanchesa.com responda (`/effort high`):
+```
+Aplica docs/revisiones/bloque-F.md (decisiones de Iván: sí a las dos, 05-11) y lanza la v1.0.0 con los pasos de docs/PENDIENTES.md («Fase 9: lo que falta para lanzar»), en orden. Para en el paso del dominio y avísame.
+```
+Cuando el dominio diga *Active* en Pages:
+```
+torno.ivanchesa.com ya está activo. Sigue con los pasos que faltan y cierra el bloque F.
 ```
 
 ## Retomar en una sesión nueva

@@ -1,9 +1,9 @@
 /**
  * Textos del instrumento HTML (los del plato; los comunes con el 3D, en
- * `instrument-common.content.ts`). Pendientes de revisión de Iván.
+ * `instrument-common.content.ts`). Revisados por Iván (05-11).
  */
 export const HTML_INSTRUMENT_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   labels: {
     play: 'Reproducir',
     record: 'Grabar',

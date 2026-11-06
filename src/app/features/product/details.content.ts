@@ -1,6 +1,6 @@
-/** Textos de «Los detalles» (PLAN fase 7). Pendientes de revisión de Iván. */
+/** Textos de «Los detalles» (PLAN fase 7). Revisados por Iván (05-11). */
 export const DETAILS_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   title: 'Barro, latón y fósforo',
   intro:
     'Torno es un objeto, no un dibujo: cada pieza tiene su material, con su color, su brillo y su textura, generados con código al cargar la página.',

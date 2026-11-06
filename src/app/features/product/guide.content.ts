@@ -23,10 +23,10 @@ export interface GuideEntry {
 
 /**
  * «Conoce tu instrumento» (PLAN fase 7): la guía de los 9 controles. Los gestos y las teclas son
- * los del modelo del instrumento (`instrument/`). Pendientes de revisión de Iván.
+ * los del modelo del instrumento (`instrument/`). Revisados por Iván (05-11).
  */
 export const GUIDE_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   title: 'Conoce tu instrumento',
   intro:
     'Nueve cosas y ya lo tocas. «Ver en el instrumento» te lleva a cada control: la cámara viaja hasta él y lo señala, sin que suene nada.',

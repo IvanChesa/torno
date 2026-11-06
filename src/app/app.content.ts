@@ -1,6 +1,6 @@
-/** Textos del marco de la web (cabecera y pie). Pendientes de revisión de Iván (fase 7). */
+/** Textos del marco de la web (cabecera y pie). Revisados por Iván (05-11). */
 export const APP_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   skipLink: 'Saltar al contenido',
   homeLabel: 'Torno, inicio',
   navLabel: 'Principal',

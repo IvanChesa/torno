@@ -1,7 +1,7 @@
 /**
  * La ficha técnica (PLAN fase 7): solo cifras **medidas**, cada una con cómo se midió y el informe
- * donde está el detalle (docs/ESTILO.md §5). Lo que falta por medir en el móvil se dice. Pendiente
- * de revisión de Iván.
+ * donde está el detalle (docs/ESTILO.md §5). Todas se han medido en el PC de desarrollo. Revisados
+ * por Iván (05-11).
  */
 export interface SpecRow {
   readonly name: string;
@@ -40,13 +40,13 @@ const ROWS: readonly SpecRow[] = [
     // Revisión del bloque E, #2: la cifra por red, tal como se mide (informe de la fase 8, §6).
     name: 'Primer toque de la visita',
     value: '205–225\u00a0ms',
-    how: 'En una visita nueva y por red: tres segundos con el instrumento a la vista (el primer sonido se prepara solo, en silencio) y un toque en reproducir, hasta que sale por los altavoces. Incluye arrancar el audio del dispositivo (unos 66\u00a0ms) y la latencia de salida. Con Chromium en el PC de desarrollo; los toques siguientes van como en la fila anterior. En el móvil, pendiente de medir.',
+    how: 'En una visita nueva y por red: tres segundos con el instrumento a la vista (el primer sonido se prepara solo, en silencio) y un toque en reproducir, hasta que sale por los altavoces. Incluye arrancar el audio del dispositivo (unos 66\u00a0ms) y la latencia de salida. Con Chromium en el PC de desarrollo; los toques siguientes van como en la fila anterior.',
     phase: 8,
   },
   {
     name: 'Latencia de salida',
     value: '50\u00a0ms',
-    how: 'Lo que añaden el navegador y el sistema hasta los altavoces (10 + 40\u00a0ms), en el PC de desarrollo. En el móvil, pendiente de medir.',
+    how: 'Lo que añaden el navegador y el sistema hasta los altavoces (10 + 40\u00a0ms), en el PC de desarrollo.',
     phase: 7,
   },
   {
@@ -64,7 +64,7 @@ const ROWS: readonly SpecRow[] = [
   {
     name: 'Fotogramas por segundo',
     value: '144\u00a0fps',
-    how: 'El 3D en el escritorio (RTX 3060), en los tres niveles de calidad: la frecuencia de la pantalla. Sin nada que mover, 0\u00a0fps. En el móvil, pendiente de medir.',
+    how: 'El 3D en el escritorio (RTX 3060), en los tres niveles de calidad: la frecuencia de la pantalla. Sin nada que mover, 0\u00a0fps.',
     phase: 7,
   },
   {
@@ -76,7 +76,7 @@ const ROWS: readonly SpecRow[] = [
 ];
 
 export const SPEC_SHEET_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   title: 'Ficha técnica',
   intro:
     'Cifras medidas, no objetivos: cada una con cómo se midió y el informe donde está el detalle.',

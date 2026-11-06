@@ -1,6 +1,6 @@
-/** Textos de «Qué es» (PLAN fase 7). Pendientes de revisión de Iván. */
+/** Textos de «Qué es» (PLAN fase 7). Revisados por Iván (05-11). */
 export const INTRO_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   title: 'Cuatro capas, un solo reloj',
   statement:
     'Cada capa repite un sonido: un ritmo, un bajo, unos acordes, una textura o lo que grabes. Las mezclas con sus diales y arrastras el tiempo con el disco.',

@@ -75,7 +75,7 @@ describe('HomePage', () => {
     expect(spotlight.explodeRequests()).toBe(before + 1);
   });
 
-  it('sus textos están pendientes de revisión', () => {
-    expect(HOME_CONTENT.reviewed).toBe(false);
+  it('sus textos están revisados', () => {
+    expect(HOME_CONTENT.reviewed).toBe(true);
   });
 });

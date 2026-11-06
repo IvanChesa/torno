@@ -5,7 +5,7 @@ Lista para probar Torno en un Android y en un iPhone en la vista previa de Cloud
 ## Resultado
 
 - **Fase 4 (Iván, 30-10):** probado en el móvil, funciona bien; sin cifras ni informe del panel. Con esto empezó la entrega 5.b.
-- **Fase 8:** sin dato todavía. Hacen falta, sobre todo, las cifras que no dieron las pruebas del 30-10: el primer sonido en frío con la precarga (1), la latencia calibrada y las tomas seguidas (5 y 7), los 5 minutos sin cortes (10) y los FPS del 3D tocando (15).
+- **Fase 8 (Iván, 05-11):** las pruebas 1 a 26, en el móvil y en el iPhone, «bien están». Sin cifras ni informe del panel. Con la 16, el 3D se queda como llega ahora (2b), y el espejo B también. Siguen sin medir en el móvil el primer sonido en frío (1), la latencia calibrada y las tomas seguidas (5 y 7), los 5 minutos sin cortes (10) y los FPS del 3D (15). No bloquean el lanzamiento: la ficha técnica solo publica lo medido.
 
 ## Cómo se rellena
 

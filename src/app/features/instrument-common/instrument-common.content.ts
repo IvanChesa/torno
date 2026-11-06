@@ -1,9 +1,9 @@
 /**
  * Textos comunes a los dos instrumentos, el 3D y el HTML: el grupo, la chuleta de atajos, el
- * autoguardado y el selector de archivos. Pendientes de revisión de Iván (fase 7).
+ * autoguardado y el selector de archivos. Revisados por Iván (05-11).
  */
 export const INSTRUMENT_COMMON_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   label: 'Torno, instrumento de bucles',
   help: {
     title: 'Atajos de teclado',

@@ -21,11 +21,11 @@ describe('rutas y SEO', () => {
     harness = await RouterTestingHarness.create();
   });
 
-  it('portada: título, descripción del sitio, canonical y noindex hasta el lanzamiento', async () => {
+  it('portada: título, descripción del sitio, canonical e indexable', async () => {
     await harness.navigateByUrl('/');
     expect(TestBed.inject(Title).getTitle()).toBe('Torno');
     expect(meta('description')).toBe(SITE_CONFIG.description);
-    expect(meta('robots')).toBe('noindex');
+    expect(meta('robots')).toBe('index, follow');
     expect(canonical()).toBe('https://torno.ivanchesa.com/');
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent?.trim()).toBe('Torno');
     // Para compartir (D18): Open Graph con la imagen absoluta y la tarjeta grande.
@@ -41,6 +41,7 @@ describe('rutas y SEO', () => {
     await harness.navigateByUrl('/sobre-el-proyecto');
     expect(TestBed.inject(Title).getTitle()).toBe('Sobre el proyecto · Torno');
     expect(meta('description')).toContain('Cómo está hecho Torno');
+    expect(meta('robots')).toBe('index, follow');
     expect(canonical()).toBe('https://torno.ivanchesa.com/sobre-el-proyecto');
   });
 

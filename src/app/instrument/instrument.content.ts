@@ -1,9 +1,9 @@
 /**
  * Textos del instrumento: nombres accesibles, valores en voz (`aria-valuetext`), el menú y la
- * pantalla. Pendientes de revisión de Iván (fase 7). La pantalla va en mayúsculas, como un aparato.
+ * pantalla. Revisados por Iván (05-11). La pantalla va en mayúsculas, como un aparato.
  */
 export const INSTRUMENT_CONTENT = {
-  reviewed: false,
+  reviewed: true,
 
   controls: {
     play: {

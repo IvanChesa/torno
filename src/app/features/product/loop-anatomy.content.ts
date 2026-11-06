@@ -1,6 +1,6 @@
-/** Textos de «Anatomía de un bucle» (PLAN fase 7). Pendientes de revisión de Iván. */
+/** Textos de «Anatomía de un bucle» (PLAN fase 7). Revisados por Iván (05-11). */
 export const LOOP_ANATOMY_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   title: 'Anatomía de un bucle',
   intro:
     'Las cuatro capas suenan sobre el mismo reloj. Cada anillo es una capa, y una vuelta del anillo, su bucle entero: dos compases, algo más de cinco segundos a 90\u00a0BPM. Alrededor, la forma de onda de su sonido. Escúchalas una a una o juntas.',

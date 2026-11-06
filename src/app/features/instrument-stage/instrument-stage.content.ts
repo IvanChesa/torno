@@ -1,6 +1,6 @@
-/** Textos del escenario 3D (PLAN fases 5.b y 6). Pendientes de revisión de Iván (fase 7). */
+/** Textos del escenario 3D (PLAN fases 5.b y 6). Revisados por Iván (05-11). */
 export const INSTRUMENT_STAGE_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   /** El lienzo: una imagen que cambia con lo que se toca (los controles van encima, uno por pieza). */
   canvas:
     'Torno en 3D. Cada pieza lleva encima su control: se toca con el ratón, el dedo o el teclado.',

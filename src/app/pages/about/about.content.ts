@@ -1,9 +1,9 @@
 /**
  * Textos de /sobre-el-proyecto (PLAN fase 7): el caso de estudio y los créditos. Cada cifra es una
- * medición con su informe (docs/ESTILO.md §5). Pendientes de revisión de Iván.
+ * medición con su informe (docs/ESTILO.md §5). Revisados por Iván (05-11).
  */
 export const ABOUT_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   title: 'Sobre el proyecto',
   lead: 'Torno es una pieza de portafolio: un instrumento de audio en tiempo real hecho desde cero, con el sonido, el 3D y la web escritos a mano.',
   intro: [

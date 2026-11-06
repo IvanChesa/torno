@@ -1,6 +1,6 @@
-/** Textos del sitio que usa la configuración. Pendientes de revisión de Iván (fase 7). */
+/** Textos del sitio que usa la configuración. Revisados por Iván (05-11). */
 export const SITE_CONTENT = {
-  reviewed: false,
+  reviewed: true,
   description: 'Instrumento de bucles de cuatro capas, en 3D, que se toca en el navegador.',
   authorRole: 'desarrollador de software',
   /** El texto alternativo de la imagen Open Graph (lo que se ve al compartir un enlace). */
