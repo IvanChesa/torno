@@ -468,3 +468,22 @@ Y confirmar qué textos quedan fuera de la MIT (`TODO(ivan)`).
 
 **Visto de paso (para la sesión de plan):** el proyecto no tiene `robots.txt` (D18 pedía uno básico): `/robots.txt` cae en la 404. No bloquea la indexación (sin `robots.txt` se puede rastrear todo), pero quizá convenga añadirlo antes de la etiqueta.
 
+
+### Lanzamiento, pasos 3, 5 y 9 (README) · 2026-11-09 · parado: la etiqueta la tiene que poner Iván
+
+ivanchesa.com responde desde el 09-11 y la sesión de ivanchesa.com ha conectado `torno.ivanchesa.com` al proyecto `torno` de Pages (paso 7: *Active*; da 404 hasta que haya producción). Esta sesión (abierta desde la de estrategia de ivanchesa.com) sigue la lista de `PENDIENTES.md`.
+
+**Hecho** (en `main`, sin rama: tres cambios de documentación):
+- **Paso 3:** los cinco enlaces de `site.config.ts` (`ivanchesa.com`, `/contacto/`, `/aviso-legal/`, `/privacidad/`, `/cookies/`) dan 200 sin redirigir. Sin cambios en el código.
+- **Paso 5:** `## [1.0.0] - 2026-11-09` en el CHANGELOG (`01f557d`; CI 42679471015 en verde).
+- **Paso 9, el README:** `torno.ivanchesa.com` como enlace principal y en el caso de estudio; staging queda como vista previa de `main` (`7db7fee`; CI 42680929936 en verde).
+- Las notas de la *release* (la sección 1.0.0 del CHANGELOG) están listas para `gh release create`.
+
+**Parada: el paso 6.** El modo automático de Claude Code **deniega el `git push origin v1.0.0`** («Production Deploy») y no se rodea. No hay etiqueta, ni local ni remota, ni se ha lanzado `production.yml`. Para Iván (o una sesión con ese permiso), desde `torno`:
+```bash
+git tag -a v1.0.0 7db7fee -m "Torno 1.0.0"
+git push origin v1.0.0
+```
+Con eso, `production.yml` publica en `torno.pages.dev` y `torno.ivanchesa.com` el build del CI 42680929936 y comprueba los dos. Después quedan el **paso 8** (`node scripts/verify-pages.mjs https://torno.ivanchesa.com`, Lighthouse contra producción y `noindex` solo en la 404) y el resto del **9** (la *release* y, con el OK de Iván, el *About* del repo).
+
+**Visto de paso:** `/robots.txt` ya no cae en la 404 en staging: lo sirve Cloudflare (sus *content signals*), no el repo. El `NEL`/`Report-To` que quita la regla de la zona no lo comprueba `verify-pages`: nada que ajustar.

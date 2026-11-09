@@ -59,24 +59,24 @@ Decisiones y tareas que dependen de Iván. Claude Code añade aquí cada `TODO(i
 ## Fase 9: lo que falta para lanzar (en este orden)
 Hecho el 04-11 (informe de la fase 9): la licencia MIT, el README, el CHANGELOG, la ficha técnica y el flujo de producción (`.github/workflows/production.yml`), probado en seco tras la fusión (informe de la fase 9, «Tras la fusión»). `package.json` ya está en 1.0.0. Desde el 05-11 (tus pruebas del móvil, los textos y las decisiones, hechos), lo que queda solo depende de ivanchesa.com:
 
-1. [ ] **Iván: ivanchesa.com en Cloudflare** (comprado en Cloudflare Registrar y con su zona en la misma cuenta; lo lleva la sesión de ivanchesa.com). Comprobar que responde: `curl -sI https://ivanchesa.com/`.
+1. [x] **Iván: ivanchesa.com en Cloudflare** (responde desde el 09-11) (comprado en Cloudflare Registrar y con su zona en la misma cuenta; lo lleva la sesión de ivanchesa.com). Comprobar que responde: `curl -sI https://ivanchesa.com/`.
 2. [x] **Iván: las pruebas del móvil y del iPhone** (`docs/PRUEBAS-MOVIL.md`, pruebas 1 a 26): «bien están» (05-11), sin cifras. Los textos de la web, aprobados tal cual el mismo día. **Claude, junto al paso 4** (hecho el 06-11, `8eaa07b` y `506c7dc`, fusionado en `088dc55`):
    - `reviewed: true` en todos los `*.content.ts` (y en sus tests, si alguno lo comprueba);
    - **fuera lo del móvil** (Iván, 05-11): quitar «En el móvil, pendiente de medir.» de las tres filas de la ficha técnica (`src/app/features/product/spec-sheet.content.ts`: el primer toque, la latencia de salida y el 3D) y del comentario de cabecera, y la frase «Las del móvil, pendientes de las pruebas en dispositivos reales…» del README (§ Cifras medidas). Cada fila sigue diciendo dónde se midió (el PC de desarrollo). Cambia la captura `seccion-ficha-*`: se borra su referencia y se sube la que genere el CI, como en la fase 9.
-3. [ ] **Claude: los enlaces legales y de contacto** de `site.config.ts`, con `curl`; las cinco tienen que dar 200 (o una redirección a una página que dé 200):
+3. [x] **Claude: los enlaces legales y de contacto** (09-11: las cinco dan 200 sin redirigir; sin cambios en `site.config.ts`) de `site.config.ts`, con `curl`; las cinco tienen que dar 200 (o una redirección a una página que dé 200):
    ```bash
    for u in https://ivanchesa.com https://ivanchesa.com/contacto/ https://ivanchesa.com/aviso-legal/ https://ivanchesa.com/privacidad/ https://ivanchesa.com/cookies/; do curl -sSIL -o /dev/null -w "%{http_code} $u\n" "$u"; done
    ```
    Si una URL es otra en la web nueva, se cambia solo en `src/app/core/site.config.ts`.
 4. [x] **Claude: `indexable: true`** (hecho el 06-11, `8628d8e`, fusionado en `088dc55`; staging: `x-robots-tag: noindex`, la portada con `index, follow` y la 404 con `noindex`, y `verify-pages` 64 de 64) en `src/app/core/site.config.ts`, (decisión «Indexación en el lanzamiento», aprobada el 05-11). Con los tests al revés: `src/app/core/site.config.spec.ts` (el «no es indexable hasta el lanzamiento»), `src/app/app.routes.spec.ts` (la portada y `/sobre-el-proyecto` sin `noindex`; la 404, con él) y `e2e/static.spec.ts` (`noindex` solo en la 404). Commit en `main`, el CI y el despliegue en verde, y comprobar staging (`node scripts/verify-pages.mjs https://staging.torno.pages.dev`). Siguen con `noindex` por la cabecera `X-Robots-Tag`: `torno.pages.dev` por la regla de `public/_headers`, y las vistas previas (`staging` y las de cada rama) porque Pages se la pone sola.
-5. [ ] **Claude: la fecha en `CHANGELOG.md`** (`## [1.0.0] - AAAA-MM-DD`), commit en `main` y CI en verde.
-6. [ ] **Claude: la etiqueta**, en ese commit de `main` con el CI en verde:
+5. [x] **Claude: la fecha en `CHANGELOG.md`** (09-11, `01f557d`, CI 42679471015 en verde) (`## [1.0.0] - AAAA-MM-DD`), commit en `main` y CI en verde.
+6. [ ] **Iván: la etiqueta** (09-11: el modo automático de Claude Code **bloquea el `git push` de la etiqueta** por ser un despliegue a producción, así que la pone Iván, o la sesión con ese permiso). En `7db7fee` (`main`, CI 42680929936 en verde, con la fecha del CHANGELOG y el README apuntando a producción):
    ```bash
-   git tag -a v1.0.0 -m "Torno 1.0.0"
+   git tag -a v1.0.0 7db7fee -m "Torno 1.0.0"
    git push origin v1.0.0
    ```
    `production.yml` publica el build del CI de ese commit en `torno.pages.dev` (rama `main` de Pages) y lo comprueba. Si falla, se puede repetir a mano: `gh workflow run production.yml -f etiqueta=v1.0.0 -f en_seco=false`.
-7. [ ] **Iván: `torno.ivanchesa.com`** en Pages → `torno` → *Custom domains* → *Set up a custom domain* (ya con la versión en producción del paso 6). La zona está en la misma cuenta: el CNAME y el certificado salen solos; esperar a que diga *Active*.
+7. [x] **Iván: `torno.ivanchesa.com`** (hecho el 09-11 por la sesión de ivanchesa.com: el dominio está *Active* en el proyecto `torno` y da 404 hasta que haya un despliegue de producción; una regla de la zona quita las cabeceras `NEL` y `Report-To`, que `verify-pages` no comprueba) en Pages → `torno` → *Custom domains* → *Set up a custom domain* (ya con la versión en producción del paso 6). La zona está en la misma cuenta: el CNAME y el certificado salen solos; esperar a que diga *Active*.
 8. [ ] **Claude: comprobar producción** en el dominio:
    - `gh workflow run production.yml -f etiqueta=v1.0.0 -f en_seco=false` (vuelve a publicar el mismo build y ahora comprueba también `torno.ivanchesa.com`), o en local `node scripts/verify-pages.mjs https://torno.ivanchesa.com`;
    - Lighthouse móvil contra producción con la misma configuración (probado contra staging el 04-11: 98 · 100 · 100 en una pasada):
@@ -85,8 +85,8 @@ Hecho el 04-11 (informe de la fase 9): la licencia MIT, el README, el CHANGELOG,
      ```
    - que solo la 404 lleva `noindex`: `curl -s https://torno.ivanchesa.com/ | grep -c noindex` da 0, y `curl -s https://torno.ivanchesa.com/404 | grep -c noindex`, 1 o más.
 9. [ ] **Claude: el repo apunta a producción** (revisión del bloque F, #1 y #2):
-   - el README, con `https://torno.ivanchesa.com` como enlace principal (staging queda como vista previa), commit en `main` y CI en verde;
-   - una *release* con la sección 1.0.0 del CHANGELOG: `gh release create v1.0.0 --verify-tag --title "Torno 1.0.0" --notes-file <la sección>`;
+   - [x] el README, con `https://torno.ivanchesa.com` como enlace principal (staging queda como vista previa) (09-11, `7db7fee`, CI en verde);
+   - tras la etiqueta, una *release* con la sección 1.0.0 del CHANGELOG: `gh release create v1.0.0 --verify-tag --title "Torno 1.0.0" --notes-file <la sección>`;
    - con el OK de Iván, el *About* del repo: `gh repo edit IvanChesa/torno --homepage https://torno.ivanchesa.com --description "…"` y unos temas.
    - Iván: la imagen para redes del repo (`public/img/og.jpg`), a mano en *Settings → Social preview*.
 10. [ ] **Iván:** la ficha del proyecto en ivanchesa.com con el enlace a `torno.ivanchesa.com` (en su repo) y la difusión.
