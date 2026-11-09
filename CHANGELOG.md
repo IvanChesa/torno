@@ -2,7 +2,7 @@
 
 Lo que trae cada versión de Torno. Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); versiones según [SemVer](https://semver.org/lang/es/). El detalle de cada fase, con sus cifras, está en [`docs/informes/`](docs/informes/).
 
-## [1.0.0] - sin publicar
+## [1.0.0] - 2026-11-09
 
 La primera versión: todas las funciones del instrumento que lo inspira (TAPE) y mejoras propias.
 
