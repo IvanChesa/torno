@@ -507,3 +507,13 @@ awk '/^## \[1.0.0\]/{f=1;next} /^\[1.0.0\]:/{f=0} f' CHANGELOG.md | sed '1{/^$/d
 **Para Iván:** si da el OK al *About* del repo (`gh repo edit IvanChesa/torno --homepage https://torno.ivanchesa.com --description "Instrumento de bucles de cuatro capas, en 3D, que se toca en el navegador (Angular, Three.js, AudioWorklet)"` y unos temas: `angular`, `threejs`, `web-audio`, `audioworklet`, `looper`), lo hace él o la sesión de estrategia; la imagen social (`public/img/og.jpg`), a mano en *Settings → Social preview*. Y el paso 10: la ficha de Torno en ivanchesa.com con el enlace a producción.
 
 **Torno queda publicado.** Lo que falta es solo de escaparate: la *release*, el *About* y la ficha en ivanchesa.com.
+
+### Lanzamiento: cerrado · 2026-11-09 · hecho fuera de esta sesión, comprobado con `gh`
+
+Lo que quedaba del paso 9 y el 10 se hizo el mismo 09-11 fuera de esta sesión (su modo automático lo denegaba) y está comprobado desde aquí con `gh` y `curl`:
+- **La *release* `v1.0.0`**, «Torno 1.0.0», con las notas del CHANGELOG: https://github.com/IvanChesa/torno/releases/tag/v1.0.0 (Iván, desde su terminal, con el comando del diario).
+- **El *About* del repo** (Iván, `gh repo edit`): *homepage* `https://torno.ivanchesa.com`; temas `angular`, `threejs`, `web-audio`, `audioworklet` y `looper`, además de `typescript`, `vitest` y `playwright`; la descripción, sin cambios.
+- **La imagen para redes** (`public/img/og.jpg`, 1200 × 630), subida por la sesión de estrategia desde Chrome; `usesCustomOpenGraphImage: true`.
+- **Paso 10:** la ficha de Torno en ivanchesa.com enlaza a `https://torno.ivanchesa.com` («Publicado», «Abrir la aplicación» y «Abrir»; fases 15 y 16 de ivanchesa.com).
+
+**Torno 1.0.0 está lanzado y la lista del lanzamiento, completa.** Solo queda la difusión, de Iván.

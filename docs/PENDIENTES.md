@@ -84,10 +84,10 @@ Hecho el 04-11 (informe de la fase 9): la licencia MIT, el README, el CHANGELOG,
      npx lhci collect --url=https://torno.ivanchesa.com/ --url=https://torno.ivanchesa.com/sobre-el-proyecto --start-server-command="" && npx lhci assert
      ```
    - que solo la 404 lleva `noindex`: `curl -s https://torno.ivanchesa.com/ | grep -c noindex` da 0, y `curl -s https://torno.ivanchesa.com/404 | grep -c noindex`, 1 o más.
-9. [ ] **Claude: el repo apunta a producción** (revisión del bloque F, #1 y #2):
+9. [x] **El repo apunta a producción** (revisión del bloque F, #1 y #2; todo hecho el 09-11):
    - [x] el README, con `https://torno.ivanchesa.com` como enlace principal (staging queda como vista previa) (09-11, `7db7fee`, CI en verde);
-   - [ ] **Iván (o la sesión de estrategia):** la *release* con la sección 1.0.0 del CHANGELOG (09-11: el modo automático de la sesión de Torno la deniega, «Create Public Surface»): `gh release create v1.0.0 --verify-tag --title "Torno 1.0.0" --notes-file <la sección>`;
-   - con el OK de Iván, el *About* del repo: `gh repo edit IvanChesa/torno --homepage https://torno.ivanchesa.com --description "…"` y unos temas.
-   - Iván: la imagen para redes del repo (`public/img/og.jpg`), a mano en *Settings → Social preview*.
-10. [ ] **Iván:** la ficha del proyecto en ivanchesa.com con el enlace a `torno.ivanchesa.com` (en su repo) y la difusión.
+   - [x] la *release* «Torno 1.0.0» con la sección 1.0.0 del CHANGELOG, https://github.com/IvanChesa/torno/releases/tag/v1.0.0 (la creó Iván desde su terminal, porque el modo automático de la sesión de Torno la deniega): `gh release create v1.0.0 --verify-tag --title "Torno 1.0.0" --notes-file <la sección>`;
+   - [x] el *About* del repo (Iván, con `gh repo edit`): *homepage* `https://torno.ivanchesa.com` y los temas `angular`, `threejs`, `web-audio`, `audioworklet` y `looper` sumados a los que había (`typescript`, `vitest`, `playwright`); la descripción no cambió.
+   - [x] la imagen para redes del repo (`public/img/og.jpg`, 1200 × 630), subida en *Settings → Social preview* por la sesión de estrategia; `gh` confirma `usesCustomOpenGraphImage: true`.
+10. [x] **La ficha del proyecto en ivanchesa.com** enlaza a `https://torno.ivanchesa.com` («Publicado», «Abrir la aplicación» y «Abrir» en la portada y en «Sobre mí»; fases 15 y 16 de ivanchesa.com, 09-11). Queda la difusión, de Iván.
 - [x] **Qué textos quedan fuera de la MIT: la propuesta tal cual** (decisión de Iván, 05-11; revisión de la fase 9, #8, y del bloque F). Fuera, los textos de las páginas (`site.content.ts`, `app.content.ts`, `app.routes.content.ts`, `features/product/*.content.ts` y `pages/**/*.content.ts`); con la MIT, los de la interfaz del instrumento (controles, pantalla, avisos y diagnóstico), que son parte del código. Ya está así en el README y en `NOTICE`.
