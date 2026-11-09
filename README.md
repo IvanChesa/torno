@@ -4,8 +4,8 @@
 
 Pieza de portfolio de [Iván Chesa Lapena](https://ivanchesa.com), desarrollador de software.
 
-- **Vista previa:** [staging.torno.pages.dev](https://staging.torno.pages.dev) (sin indexar). En producción irá en `torno.ivanchesa.com`.
-- **Caso de estudio:** la página [`/sobre-el-proyecto`](https://staging.torno.pages.dev/sobre-el-proyecto) cuenta la arquitectura del audio, las decisiones y las mediciones.
+- **En producción:** [torno.ivanchesa.com](https://torno.ivanchesa.com). La vista previa de `main`, sin indexar, sigue en [staging.torno.pages.dev](https://staging.torno.pages.dev).
+- **Caso de estudio:** la página [`/sobre-el-proyecto`](https://torno.ivanchesa.com/sobre-el-proyecto) cuenta la arquitectura del audio, las decisiones y las mediciones.
 
 <p align="center">
   <img src="docs/img/torno.gif" width="560" alt="El instrumento 3D sonando: el disco de terracota gira al compás mientras la cámara pasa por los encuadres de las capas, los controles y el aparato completo.">
