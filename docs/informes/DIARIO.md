@@ -487,3 +487,23 @@ git push origin v1.0.0
 Con eso, `production.yml` publica en `torno.pages.dev` y `torno.ivanchesa.com` el build del CI 42680929936 y comprueba los dos. Después quedan el **paso 8** (`node scripts/verify-pages.mjs https://torno.ivanchesa.com`, Lighthouse contra producción y `noindex` solo en la 404) y el resto del **9** (la *release* y, con el OK de Iván, el *About* del repo).
 
 **Visto de paso:** `/robots.txt` ya no cae en la 404 en staging: lo sirve Cloudflare (sus *content signals*), no el repo. El `NEL`/`Report-To` que quita la regla de la zona no lo comprueba `verify-pages`: nada que ajustar.
+
+### Lanzamiento: Torno 1.0.0 en producción · 2026-11-09 · parado: la *release* y el *About*, para Iván
+
+**La etiqueta la puso la sesión de estrategia de ivanchesa.com** (`git tag -a v1.0.0 7db7fee` y push), con el OK de Iván, porque el modo automático de esta sesión la deniega. `production.yml` (run 42684131629) en verde: **https://torno.ivanchesa.com sirve la 1.0.0** (build del CI 42680929936), y `torno.pages.dev`, la misma con `noindex`.
+
+**Paso 8, comprobado desde aquí (09-11):**
+- `node scripts/verify-pages.mjs https://torno.ivanchesa.com`: **31 de 31** (cabeceras de seguridad y CSP, caché inmutable, tipos, redirecciones, sin cookies ni inyecciones, http → https). El run de producción lo hizo además con `--build`.
+- `noindex`: 0 en `/` y en `/sobre-el-proyecto`, 1 en `/404`. `torno.pages.dev` sigue con `x-robots-tag: noindex`.
+- **Lighthouse móvil** (`lhci collect` con la configuración del repo, tres pasadas por ruta, y `lhci assert` en verde), contra producción por red desde el PC de desarrollo:
+  - `/`: **100 · 100 · 100** en las tres pasadas; LCP 1266 / 1543 / 1686 ms (mediana 1,5 s); CLS 0; TBT 1–26 ms.
+  - `/sobre-el-proyecto`: **100 · 100 · 100** en las tres; LCP 1390 / 1392 / 1401 ms (mediana 1,4 s); CLS 0; TBT 45–52 ms.
+  Los umbrales de §5 (90/95 · 95 · 95, LCP ≤ 2,5 s, CLS ≤ 0,05) se cumplen con margen. Las cifras del CI contra el servidor local eran 99 · 100 · 100 en `/`.
+
+**Denegado por el modo automático (no se rodea):** `gh release create v1.0.0` («Create Public Surface»). Para Iván o la sesión de estrategia, desde `torno`:
+```bash
+awk '/^## \[1.0.0\]/{f=1;next} /^\[1.0.0\]:/{f=0} f' CHANGELOG.md | sed '1{/^$/d}' > /tmp/release-1.0.0.md && gh release create v1.0.0 --verify-tag --title "Torno 1.0.0" --notes-file /tmp/release-1.0.0.md
+```
+**Para Iván:** si da el OK al *About* del repo (`gh repo edit IvanChesa/torno --homepage https://torno.ivanchesa.com --description "Instrumento de bucles de cuatro capas, en 3D, que se toca en el navegador (Angular, Three.js, AudioWorklet)"` y unos temas: `angular`, `threejs`, `web-audio`, `audioworklet`, `looper`), lo hace él o la sesión de estrategia; la imagen social (`public/img/og.jpg`), a mano en *Settings → Social preview*. Y el paso 10: la ficha de Torno en ivanchesa.com con el enlace a producción.
+
+**Torno queda publicado.** Lo que falta es solo de escaparate: la *release*, el *About* y la ficha en ivanchesa.com.

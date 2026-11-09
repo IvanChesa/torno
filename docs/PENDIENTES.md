@@ -70,14 +70,14 @@ Hecho el 04-11 (informe de la fase 9): la licencia MIT, el README, el CHANGELOG,
    Si una URL es otra en la web nueva, se cambia solo en `src/app/core/site.config.ts`.
 4. [x] **Claude: `indexable: true`** (hecho el 06-11, `8628d8e`, fusionado en `088dc55`; staging: `x-robots-tag: noindex`, la portada con `index, follow` y la 404 con `noindex`, y `verify-pages` 64 de 64) en `src/app/core/site.config.ts`, (decisión «Indexación en el lanzamiento», aprobada el 05-11). Con los tests al revés: `src/app/core/site.config.spec.ts` (el «no es indexable hasta el lanzamiento»), `src/app/app.routes.spec.ts` (la portada y `/sobre-el-proyecto` sin `noindex`; la 404, con él) y `e2e/static.spec.ts` (`noindex` solo en la 404). Commit en `main`, el CI y el despliegue en verde, y comprobar staging (`node scripts/verify-pages.mjs https://staging.torno.pages.dev`). Siguen con `noindex` por la cabecera `X-Robots-Tag`: `torno.pages.dev` por la regla de `public/_headers`, y las vistas previas (`staging` y las de cada rama) porque Pages se la pone sola.
 5. [x] **Claude: la fecha en `CHANGELOG.md`** (09-11, `01f557d`, CI 42679471015 en verde) (`## [1.0.0] - AAAA-MM-DD`), commit en `main` y CI en verde.
-6. [ ] **Iván: la etiqueta** (09-11: el modo automático de Claude Code **bloquea el `git push` de la etiqueta** por ser un despliegue a producción, así que la pone Iván, o la sesión con ese permiso). En `7db7fee` (`main`, CI 42680929936 en verde, con la fecha del CHANGELOG y el README apuntando a producción):
+6. [x] **La etiqueta `v1.0.0`** en `7db7fee` (`main`, CI 42680929936 en verde): la puso la sesión de estrategia de ivanchesa.com el 09-11 con el OK de Iván, porque el modo automático de la sesión de Torno deniega el `git push` de una etiqueta (despliegue a producción). `production.yml` (run 42684131629) en verde: publicado en `torno.pages.dev` y `torno.ivanchesa.com`.
    ```bash
    git tag -a v1.0.0 7db7fee -m "Torno 1.0.0"
    git push origin v1.0.0
    ```
    `production.yml` publica el build del CI de ese commit en `torno.pages.dev` (rama `main` de Pages) y lo comprueba. Si falla, se puede repetir a mano: `gh workflow run production.yml -f etiqueta=v1.0.0 -f en_seco=false`.
 7. [x] **Iván: `torno.ivanchesa.com`** (hecho el 09-11 por la sesión de ivanchesa.com: el dominio está *Active* en el proyecto `torno` y da 404 hasta que haya un despliegue de producción; una regla de la zona quita las cabeceras `NEL` y `Report-To`, que `verify-pages` no comprueba) en Pages → `torno` → *Custom domains* → *Set up a custom domain* (ya con la versión en producción del paso 6). La zona está en la misma cuenta: el CNAME y el certificado salen solos; esperar a que diga *Active*.
-8. [ ] **Claude: comprobar producción** en el dominio:
+8. [x] **Claude: comprobar producción** en el dominio (09-11): `verify-pages` 31 de 31 en `https://torno.ivanchesa.com` (sin `--build`; el run de producción lo hizo con él); `noindex` 0 en `/` y en `/sobre-el-proyecto`, 1 en `/404`; `torno.pages.dev` sigue con `x-robots-tag: noindex`; Lighthouse móvil, abajo en el diario.
    - `gh workflow run production.yml -f etiqueta=v1.0.0 -f en_seco=false` (vuelve a publicar el mismo build y ahora comprueba también `torno.ivanchesa.com`), o en local `node scripts/verify-pages.mjs https://torno.ivanchesa.com`;
    - Lighthouse móvil contra producción con la misma configuración (probado contra staging el 04-11: 98 · 100 · 100 en una pasada):
      ```bash
@@ -86,7 +86,7 @@ Hecho el 04-11 (informe de la fase 9): la licencia MIT, el README, el CHANGELOG,
    - que solo la 404 lleva `noindex`: `curl -s https://torno.ivanchesa.com/ | grep -c noindex` da 0, y `curl -s https://torno.ivanchesa.com/404 | grep -c noindex`, 1 o más.
 9. [ ] **Claude: el repo apunta a producción** (revisión del bloque F, #1 y #2):
    - [x] el README, con `https://torno.ivanchesa.com` como enlace principal (staging queda como vista previa) (09-11, `7db7fee`, CI en verde);
-   - tras la etiqueta, una *release* con la sección 1.0.0 del CHANGELOG: `gh release create v1.0.0 --verify-tag --title "Torno 1.0.0" --notes-file <la sección>`;
+   - [ ] **Iván (o la sesión de estrategia):** la *release* con la sección 1.0.0 del CHANGELOG (09-11: el modo automático de la sesión de Torno la deniega, «Create Public Surface»): `gh release create v1.0.0 --verify-tag --title "Torno 1.0.0" --notes-file <la sección>`;
    - con el OK de Iván, el *About* del repo: `gh repo edit IvanChesa/torno --homepage https://torno.ivanchesa.com --description "…"` y unos temas.
    - Iván: la imagen para redes del repo (`public/img/og.jpg`), a mano en *Settings → Social preview*.
 10. [ ] **Iván:** la ficha del proyecto en ivanchesa.com con el enlace a `torno.ivanchesa.com` (en su repo) y la difusión.
